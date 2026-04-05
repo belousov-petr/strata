@@ -1,5 +1,5 @@
 ---
-name: save-state
+name: save-point
 description: Use when ending a work session, switching context, or before closing Claude Code — captures project state so the next session resumes without re-discovery or repeated questions
 ---
 

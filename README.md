@@ -13,13 +13,13 @@ It gets worse with multiple projects. Three active codebases, each with their ow
 Two commands. One saves, one restores.
 
 ```
-/save-state
+/save-point
 ```
 
 Captures what happened in the current session -- what was done, what was decided and why, what was rejected, what's left to do, and where to pick up next time. Writes it to Claude Code's persistent memory so it survives between sessions.
 
 ```
-/load-state
+/load-point
 ```
 
 Reads the saved state at the start of a new session, verifies it's still current against the actual repo, and gives you a summary with the next action ready to go.
@@ -39,7 +39,7 @@ The state file isn't a changelog or a code dump. It's structured to answer the q
 
 ## How the save works
 
-When you run `/save-state` (or say "wrap up", "save state", "let's stop here"), it:
+When you run `/save-point` (or say "wrap up", "save state", "let's stop here"), it:
 
 1. Reads the existing memory index and any previous state file
 2. Reviews what was done in the current session -- actions, decisions, experiments, failures, verifications
@@ -54,7 +54,7 @@ That last step is intentional. A state file that looks complete but can't actual
 
 ## How the load works
 
-When you start a new session and run `/load-state` (or say "continue", "pick up where I left off"), it:
+When you start a new session and run `/load-point` (or say "continue", "pick up where I left off"), it:
 
 1. Reads the state file and memory index
 2. Orients from the "WHERE WE LEFT OFF" section
@@ -71,25 +71,25 @@ Copy the skills to your commands directory:
 
 ```bash
 git clone https://github.com/belousov-petr/savepoint.git
-cp savepoint/save-state.md ~/.claude/commands/save-state.md
-cp savepoint/load-state.md ~/.claude/commands/load-state.md
+cp savepoint/save-point.md ~/.claude/commands/save-point.md
+cp savepoint/load-point.md ~/.claude/commands/load-point.md
 ```
 
 Or download directly:
 
 ```bash
-curl -o ~/.claude/commands/save-state.md \
-  https://raw.githubusercontent.com/belousov-petr/savepoint/main/save-state.md
-curl -o ~/.claude/commands/load-state.md \
-  https://raw.githubusercontent.com/belousov-petr/savepoint/main/load-state.md
+curl -o ~/.claude/commands/save-point.md \
+  https://raw.githubusercontent.com/belousov-petr/savepoint/main/save-point.md
+curl -o ~/.claude/commands/load-point.md \
+  https://raw.githubusercontent.com/belousov-petr/savepoint/main/load-point.md
 ```
 
-Restart Claude Code. The skills appear as `/save-state` and `/load-state`.
+Restart Claude Code. The skills appear as `/save-point` and `/load-point`.
 
 ### Verify installation
 
 ```
-> /save-state
+/save-point
 ```
 
 You should see Claude begin reading your project's memory and assembling the state capture.
@@ -101,7 +101,7 @@ You should see Claude begin reading your project's memory and assembling the sta
 At the end of a session:
 
 ```
-/save-state
+/save-point
 ```
 
 Or just say it:
@@ -117,7 +117,7 @@ Let's stop here, save state
 At the start of a session:
 
 ```
-/load-state
+/load-point
 ```
 
 Or:

@@ -1,5 +1,5 @@
 ---
-name: load-state
+name: load-point
 description: Use when starting a new session on a project that has been worked on before — loads saved state so you can resume without asking the user to re-explain context
 ---
 
