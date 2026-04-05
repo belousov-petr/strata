@@ -2,6 +2,8 @@
 
 A pair of [Claude Code Skills](https://docs.anthropic.com/en/docs/claude-code/skills) that save and restore your project state across sessions. When you're juggling multiple active projects and it's getting hard to remember the details -- what you did, what you decided, what's left -- these handle the bookkeeping so you don't lose context between sessions.
 
+![Savepoint](Savepoint.png)
+
 ## The problem
 
 You're deep in a session. You've made decisions, tried approaches that didn't work, discovered gotchas, left something half-done. Then you close the session. Next time you open the project, Claude asks: "What would you like to work on?" And you're back to explaining everything from scratch.
