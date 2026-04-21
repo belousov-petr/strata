@@ -6,6 +6,8 @@ Save and restore Claude Code project state across sessions. Two skills: `/save-p
 
 ![Savepoint](Savepoint.png)
 
+> I designed the tier system and the routing. Claude drafted the skills, the templates, and most of this README. Judgment mine, typing Claude's.
+
 ## Why this exists
 
 I run multiple active projects. An intelligence pipeline, a content library, a couple of smaller scripts. Claude Code has memory - `CLAUDE.md` + per-project files under `~/.claude/projects/` auto-load every session - but it's only as good as what gets written to it. Without a habit of saving state at the end of each session, those files either stay empty or drift stale. Next time I opened a project I'd either scroll through yesterday's transcript or re-explain what I did last Thursday, what I tried that didn't work, what was almost done, what I was waiting on.
@@ -50,6 +52,20 @@ It **is not**:
 - A general-purpose memory framework. Scope is Claude Code projects, not multi-agent systems or cross-tool state sync.
 - A wiki or documentation generator. It routes knowledge you produce during a session. It doesn't write your docs for you.
 - A replacement for git. State files are hints. The repo is truth.
+
+## Design choices worth explaining
+
+A few calls where the alternatives weren't obviously worse. If you're adapting this, these are the forks.
+
+**Three tiers.** Hot loads by default, warm is grep-on-demand in git, cold is archive. I didn't work back from two or five - three just fell out of naming what I wanted loaded every session, versus what I wanted reachable but not noisy. Fewer tiers would shove different kinds of knowledge back into the same file, which is the monolith problem. More tiers multiplies "where does this belong" calls, and at some point the agent stops routing consistently.
+
+**Skills, not hooks.** Hooks run on their own. Skills run when I ask them to. I wanted end-of-session discipline to be a deliberate act, not a background cron. Typing `/save-point` is the friction, and the friction is the feature - it makes me name what I'm saving instead of letting everything pile up. Which is how I got to a 1,085-line file in the first place.
+
+**Opt-in tier mode.** Auto-migration would be nicer to install and worse to live with. The tier pattern only earns its keep when a project has real history; on a weekend script it's overhead. Checking for `PROJECT-MAP.md` means if you install the skills and never create that file, nothing about your existing flow changes.
+
+**ADRs, not a wiki.** Wikis are for pages you edit. ADRs are for decisions you made on a specific day and then moved on from. For provenance I wanted the second thing - dated, in git, append-only. MADR already had the format; I just wrote the rules that push new entries into it.
+
+**Trim at sessions, not at line count.** Line counts drift with how chatty I was that week. "Three sessions back" is something I can actually reason about at 11pm, which is usually when I notice things are getting heavy.
 
 ## Memory tier system
 
@@ -172,6 +188,14 @@ Before you drop this into a serious workflow.
 
 - **Migration is reversible for a session.** If you run `/save-point` with the migration option and don't like what it produces, `git restore` the docs and memory changes, delete `docs/PROJECT-MAP.md`, and the next run goes back to flat mode. Worth committing the pre-migration state first.
 
+## What building this taught me
+
+**One big state file is a false economy.** The pain wasn't having four files instead of one. It was the agent pulling stale bits out of a file that was trying to be four things at once. Splitting it wasn't really about tidiness. It was about what loads by default.
+
+**The three-tier thing isn't mine.** Git, Architecture Decision Records ([Michael Nygard's original](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR](https://adr.github.io/madr/)), and incident-response playbooks all landed on roughly the same separation independently. Current state, decision log, cold archive. I didn't notice until I was most of the way in. Applying the pattern to Claude Code is the contribution here. The pattern itself has been sitting there for years.
+
+**The state file drifts if nothing enforces hygiene.** A month in, `project_state.md` had action items still marked open long after they were done, questions I'd already answered, and contradictions I hadn't noticed while writing them. Nothing was technically wrong. It just didn't cohere. The file became hard to trust, which made it almost useless - I had to verify every claim before acting on it anyway, so I might as well have started from scratch. That's what forced the split and the routing rules.
+
 ## Contributing
 
 If you've run this and found gaps, I'd like to hear about it. Open an issue or PR with:
@@ -186,9 +210,7 @@ If you've run this and found gaps, I'd like to hear about it. Open an issue or P
 
 ## Acknowledgments
 
-Claude Code wrote this. I designed the tier system, the routing rules, and the rollover discipline - all from the pain of watching one `project_state.md` bloat to 1,085 lines across fourteen sessions. Claude did the drafting: skills, templates, this README. The three-tier split wasn't invented from scratch - it's roughly the same separation ideas that good Git repos, Architecture Decision Records ([Michael Nygard's original](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR](https://adr.github.io/madr/)), and incident response playbooks have landed on independently for years. This just applies it specifically to Claude Code's memory model.
-
-If you're building skills yourself, [`/shakedown`](https://github.com/belousov-petr/shakedown) is the companion repo for auditing what's broken in a project before you ship.
+Companion skill: [`/shakedown`](https://github.com/belousov-petr/shakedown) for auditing what's broken in a project before you ship.
 
 ## Author
 
