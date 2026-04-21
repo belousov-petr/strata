@@ -174,25 +174,25 @@ savepoint/
 
 ## A few honest things
 
-Some things worth knowing before you drop this into a serious workflow.
+A few caveats before you lean on this.
 
-- **State files are hints, not truth.** If the state says you have uncommitted changes but `git status` is clean, trust git. Load-point is built to flag the mismatch, but the flag only matters if you read it instead of barreling through.
+- **Trust `git status` when it disagrees with the state file.** Load-point is supposed to flag the mismatch, but the flag is just text on the screen. If you skim past it, you're back to the problem it was meant to prevent.
 
-- **Tier mode works best for projects with real history.** If the project has one session and two open items, flat mode is fine. You don't need ADRs and rollover discipline on a weekend prototype. The skill detects the pattern rather than pushing you into it - you opt in by creating `PROJECT-MAP.md`.
+- **Tier mode earns its keep on projects with real history.** On a weekend prototype, flat mode is fine and ADRs are overkill. The skill doesn't force you in. It switches over when it sees a `PROJECT-MAP.md` at the repo root.
 
-- **"Right tier" calls are judgment, not rules.** Is a new caveat a behavioral rule (hot feedback) or a gotcha someone should grep for once (warm reference)? I've been wrong on this plenty of times. When in doubt, put it in hot memory and let the next `/save-point` move it later if it turns out evergreen.
+- **Where knowledge belongs is a judgment call.** Is a new caveat a behavioral rule (hot feedback) or a gotcha someone will grep for once a quarter (warm reference)? I've landed wrong on this often enough. In doubt, leave it in hot memory and let the next session's `/save-point` promote it if it turns out evergreen.
 
-- **Archive isn't deletion.** Files that roll to `memory/archive/` or `docs/ops/archive/` are still there - preserved, grep-able, git-tracked if the project tracks memory. They just stop auto-loading.
+- **Archiving keeps the file around.** Files that roll to `memory/archive/` or `docs/ops/archive/` keep the same git tracking and the same grep-ability. What changes is whether the agent loads them without being asked.
 
-- **Migration is reversible within a session.** If you run `/save-point` with the migration option and don't like the result, `git restore` the docs and memory changes, delete `docs/PROJECT-MAP.md`, and the next run goes back to flat mode. Worth committing pre-migration first.
+- **Migration is reversible inside a session.** If you run `/save-point` with the migration option and don't like the result, `git restore` the docs and memory, delete `docs/PROJECT-MAP.md`, and the next run is back to flat mode. Commit the pre-migration state first so you have a clean restore point.
 
 ## What building this taught me
 
-**One big state file is a false economy.** Having four files instead of one wasn't the cost. The cost was the agent's memory search pulling stale bits out of a file that was trying to be four things at once. Splitting wasn't about being tidy - it was about controlling what loads by default.
+**A single file doesn't stay cheap.** The agent's memory search pulls from it every session, and the bigger the file, the more old and new get returned side by side. Ten sessions in, mine was still surfacing tasks I'd closed three weeks earlier. So I split it. Four smaller files, each narrow enough that memory search mostly pulls from the right one.
 
-**The three-tier idea isn't mine.** Git, incident-response playbooks, and the ADR community all landed on the same separation - current state, decision log, cold archive - independently, over years. I didn't notice until I was most of the way through building this. What I did here is apply the pattern to Claude Code specifically. Sources in Acknowledgments.
+**The three-tier shape is borrowed.** Git has it. ADRs have it. Incident-response playbooks had it before Claude Code existed. Current state, decisions, archive. I only noticed the overlap after I'd built most of this, which is its own kind of embarrassing. Whatever's original here is the application to Claude Code. Sources in Acknowledgments.
 
-**The state file drifts if nothing enforces hygiene.** A month in, `project_state.md` had action items still marked open long after they were done, questions I'd already answered, and contradictions I hadn't noticed while writing them. Nothing was technically wrong - it just didn't cohere. The file became hard to trust, and a state file you can't trust is almost worse than no state file at all, because you end up verifying every claim before acting on it anyway. That's what forced the split and the routing rules.
+**A drifting state file costs more than no state file.** A month in, mine had action items that had been closed for weeks, questions I'd answered in session two, and paragraphs that contradicted each other outright. Each was true when I wrote it; none were true together. Once you stop trusting the file, you go check the code anyway before acting on anything, and at that point reading the file is wasted motion. That's what pushed me toward the split and the routing rules.
 
 ## Contributing
 
