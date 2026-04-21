@@ -1,72 +1,114 @@
 ---
 name: load-point
-description: Use when starting a new session on a project that has been worked on before — loads saved state so you can resume without asking the user to re-explain context
+description: Use when starting a new session on a project that has been worked on before — loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md.
 ---
 
 # Load Project State
 
-Read the saved project state and orient yourself so you can resume work immediately without asking the user what happened last time.
+Read the saved state and orient yourself so you can resume work immediately without asking "what were we doing?" — but without bulk-loading every decision record the project has ever made.
 
-## When to Use
+## When to use
 
 - Starting a new session on an existing project
-- User says "pick up where we left off", "continue", or "what were we doing?"
-- You see a `project_state.md` exists in the memory directory
+- User says "pick up where we left off", "continue", "what were we doing?"
+- You see a `project_state.md` in the memory directory
 
 ## Process
 
-### 1. Read State Files
+### 1. Detect the mode
 
-Read from `~/.claude/projects/<project>/memory/`:
+Check whether the project uses the three-tier pattern. Look for `docs/PROJECT-MAP.md` in the project root.
 
-1. `MEMORY.md` — the full index of all memory files
-2. `project_state.md` — the main state file (start here)
-3. Any other memory files referenced that seem relevant to what the user is asking
+- **Present** → **tier mode**. Load shallow-to-deep per the map's load order.
+- **Absent** → **flat mode**. Read `project_state.md` as a single source.
 
-The `<project>` path is the CWD-encoded directory name (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
+State which mode you detected.
 
-**If `project_state.md` doesn't exist:** Tell the user this appears to be a fresh project with no saved state. Offer to explore the codebase instead.
+### 2. Load in order (shallow → deep)
 
-### 2. Orient from "WHERE WE LEFT OFF"
+Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or the archive — they're on-demand.
 
-The top section of `project_state.md` contains the resumption point. Extract:
-- What was last completed
-- What the immediate next action is
-- Any prerequisites (env vars, services, manual steps)
-- Whether there are uncommitted changes to be aware of
+**Tier mode:**
 
-### 3. Verify State is Current
+1. `MEMORY.md` — the hot index (auto-loaded anyway, but re-check).
+2. `open_action_items.md` — what's actionable right now.
+3. `project_state.md` — current + last completed session only.
+4. `docs/PROJECT-MAP.md` — orientation if you're unfamiliar with the project layout.
+5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if the user's task touches pipeline structure or ops.
+6. Specific ADRs / parked docs / reference docs — only when the current task makes them relevant.
 
-State files are snapshots — they may be stale. Run these checks:
-- `git status` — do uncommitted changes mentioned in state still exist? If state says "half-done edit in X" but working tree is clean, the changes were likely lost (reset, stash, or committed separately)
-- `git log --oneline -5` — are there commits after the last saved session? If so, someone (or another session) worked on the project since
-- Do key files/paths mentioned in state still exist? (quick spot-check, not exhaustive)
+**Flat mode:**
+
+1. `MEMORY.md` — the index.
+2. `project_state.md` — the full state file.
+3. Any other memory file that looks directly relevant to the user's ask.
+
+The `<encoded-cwd>` path under `~/.claude/projects/` is the current working directory with separators replaced by `--` (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
+
+**If `project_state.md` doesn't exist:** tell the user this is a fresh project with no saved state. Offer to explore the codebase instead.
+
+### 3. Orient from "WHERE WE LEFT OFF"
+
+The top section of `project_state.md` is the resumption point. Pull:
+
+- Last completed action
+- Immediate next action
+- Prerequisites (env vars, services, manual steps)
+- Uncommitted changes and their scope
+
+### 4. Verify the state is current
+
+State files are snapshots — they may be stale. Check:
+
+- `git status` — do uncommitted changes listed in state still exist? If state says "half-done edit in X" but the working tree is clean, the changes were committed, stashed, or lost.
+- `git log --oneline -5` — are there commits after the last saved session? Someone (or another session) worked on the project since.
+- Do key files/paths mentioned in state still exist? Quick spot-check, not exhaustive.
+- **Tier mode extra:** if `project_state.md` references an ADR number, grep `docs/decisions/` to confirm it exists. If a parked item is mentioned, confirm the file is still in `docs/parked/`.
 
 **If state conflicts with reality:**
-- Tell the user what's different: "State says X but I see Y"
-- Trust current repo state over saved state — state is a hint, git is truth
-- Don't silently act on outdated state
 
-### 4. Present a Brief Summary
+- Tell the user what's different: "State says X but I see Y".
+- Trust current repo state over saved state — state is a hint, git is truth.
+- Don't silently act on stale state.
+
+### 5. Present a brief summary
 
 Give the user a concise orientation (not a wall of text):
 
 ```
-**Last session ([date]):** [1-sentence summary of what was done]
-**Next up:** [the immediate next action]
-**Prerequisites:** [anything needed before starting, or "none"]
-**Open items:** [list the most urgent items, if any are noted in state]
+**Last session (<date>):** <1-sentence summary of what was done>
+**Next up:** <the immediate next action>
+**Prerequisites:** <anything needed before starting, or "none">
+**Open items:** <the most urgent ones, if any>
 ```
 
-Then ask: "Ready to continue, or do you want to work on something else?"
+Tier mode — add one line on where the next action will probably write:
 
-### 5. If User Continues — Start Working
+```
+**Touches:** memory/open_action_items.md + (likely) a new ADR in docs/decisions/
+```
 
-Don't re-read the entire codebase. Trust the state file for context and begin the next action. Only read files you actually need to modify.
+Then ask: "Ready to continue, or work on something else?"
+
+### 6. If the user continues — start working
+
+Don't re-explore the codebase. Trust the state file for context and begin the next action. Only read files you actually need to modify.
+
+If the task surfaces a decision that needs lasting rationale, remember that at `/save-point` it should route to an ADR, not get dumped into `project_state.md`.
+
+## Quality bar
+
+After load-point, you should be able to:
+
+- Answer "what are we doing?" in one sentence.
+- Start the next action without asking the user for context.
+- Catch state-vs-reality drift before acting on stale info.
+- Know which tier files are relevant to the task without loading all of them.
 
 ## Do NOT
 
 - Dump the entire state file contents at the user
 - Re-explore the codebase from scratch when state exists
-- Silently act on state that conflicts with what you observe in the repo
-- Assume state is authoritative over current git/file state — state is a hint, reality wins
+- Bulk-load every ADR, parked item, or archive file during orientation
+- Silently act on state that conflicts with git
+- Assume state is authoritative over current repo state — state is a hint, reality wins
