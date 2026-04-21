@@ -6,15 +6,13 @@ Save and restore Claude Code project state across sessions. Two skills: `/save-p
 
 ![Savepoint](Savepoint.png)
 
-> I designed the tier system and the routing. Claude drafted the skills, the templates, and most of this README. Judgment mine, typing Claude's.
-
 ## Why this exists
 
 I run multiple active projects. An intelligence pipeline, a content library, a couple of smaller scripts. Claude Code has memory - `CLAUDE.md` + per-project files under `~/.claude/projects/` auto-load every session - but it's only as good as what gets written to it. Without a habit of saving state at the end of each session, those files either stay empty or drift stale. Next time I opened a project I'd either scroll through yesterday's transcript or re-explain what I did last Thursday, what I tried that didn't work, what was almost done, what I was waiting on.
 
 So I started writing a `project_state.md` at the end of every session. That worked for a month. Then it grew to 1,085 lines, carrying fourteen sessions of narrative, every decision I'd made, every gotcha I'd hit. The file was doing too many jobs - resumption point, decision log, reference manual, rejected-approaches graveyard - and the agent's memory search kept returning stale bits alongside current ones.
 
-So I split it. Current state stays hot. Shipped decisions go to architecture decision records with rationale. Parked work gets a "revive when" trigger. Old sessions roll to a cold archive. The skills here now route new knowledge to the right tier instead of dumping everything into `project_state.md`. Lighter context window, readable history, no archaeology next session.
+So I split it. Current state stays hot. Shipped decisions go to Architecture Decision Records (ADRs) - short, dated notes that capture what was decided and why, committed to git so they don't drift. Parked work gets a "revive when" trigger. Old sessions roll to a cold archive. The skills here now route new knowledge to the right tier instead of dumping everything into `project_state.md`. Lighter context window, readable history, no archaeology next session.
 
 ## What it does
 
@@ -26,7 +24,7 @@ Two commands. One saves, one restores.
 
 Captures what happened in the current session and routes it:
 
-- New decision with rationale → new ADR (Architecture Decision Record) in `docs/decisions/`
+- New decision with rationale → new ADR in `docs/decisions/`
 - Parked initiative → `docs/parked/<slug>.md` with a "Revive when:" trigger
 - Behavioral rule → `memory/feedback_<slug>.md`
 - Session narrative → `project_state.md` (trimmed; older sessions roll to archive)
@@ -55,17 +53,17 @@ It **is not**:
 
 ## Design choices worth explaining
 
-A few calls where the alternatives weren't obviously worse. If you're adapting this, these are the forks.
+A few places where I picked one option and the alternative wasn't obviously worse. If you're adapting this for your own setup, these are the forks.
 
-**Three tiers.** Hot loads by default, warm is grep-on-demand in git, cold is archive. I didn't work back from two or five - three just fell out of naming what I wanted loaded every session, versus what I wanted reachable but not noisy. Fewer tiers would shove different kinds of knowledge back into the same file, which is the monolith problem. More tiers multiplies "where does this belong" calls, and at some point the agent stops routing consistently.
+**Three tiers.** Hot loads every session, warm is grep-on-demand in git, cold is archive. I didn't work backward from two or five - three just fell out of naming what I wanted loading every session versus what I wanted reachable but not noisy. Two tiers runs back into the monolith problem. More than three starts producing "where does this belong" arguments with the agent, and the agent tends to resolve them inconsistently.
 
-**Skills, not hooks.** Hooks run on their own. Skills run when I ask them to. I wanted end-of-session discipline to be a deliberate act, not a background cron. Typing `/save-point` is the friction, and the friction is the feature - it makes me name what I'm saving instead of letting everything pile up. Which is how I got to a 1,085-line file in the first place.
+**Skills, not hooks.** Saving state should be a deliberate act. If I automated it, the skill would save everything including the noise, and noise is what got me to 1,085 lines in the first place. Typing `/save-point` forces me to name what I'm actually saving.
 
-**Opt-in tier mode.** Auto-migration would be nicer to install and worse to live with. The tier pattern only earns its keep when a project has real history; on a weekend script it's overhead. Checking for `PROJECT-MAP.md` means if you install the skills and never create that file, nothing about your existing flow changes.
+**Opt-in tier mode.** Auto-migration is nicer to install and worse to live with. Tiers only earn their keep on projects with real history. On a weekend script they're overhead. The skill looks for `PROJECT-MAP.md` and only switches modes if it finds one - install and nothing changes unless you opt in.
 
-**ADRs, not a wiki.** Wikis are for pages you edit. ADRs are for decisions you made on a specific day and then moved on from. For provenance I wanted the second thing - dated, in git, append-only. MADR already had the format; I just wrote the rules that push new entries into it.
+**ADRs, not a wiki.** A wiki is for pages you keep editing. ADRs get written on the day the decision happens, dated, committed, and left alone. For decision provenance I wanted the second thing. MADR already had the format, I just wrote the rules that route new decisions into it.
 
-**Trim at sessions, not at line count.** Line counts drift with how chatty I was that week. "Three sessions back" is something I can actually reason about at 11pm, which is usually when I notice things are getting heavy.
+**Trim at sessions, not line count.** Line counts drift with how chatty I was that week. "Three sessions back" is something I can reason about at 11pm, which is usually when I notice things are getting heavy.
 
 ## Memory tier system
 
@@ -176,25 +174,25 @@ savepoint/
 
 ## A few honest things
 
-Before you drop this into a serious workflow.
+Some things worth knowing before you drop this into a serious workflow.
 
-- **State files are hints, not truth.** If the state says you have uncommitted changes but `git status` is clean, trust git. The load-point flow is built to flag this, but it's on you to read the flag and not barrel through.
+- **State files are hints, not truth.** If the state says you have uncommitted changes but `git status` is clean, trust git. Load-point is built to flag the mismatch, but the flag only matters if you read it instead of barreling through.
 
-- **Tier mode works best for projects with real history.** If the project has one session and two open items, flat mode is fine. You don't need ADRs and rollover discipline on a weekend prototype. The skill doesn't push you into tier mode - it detects the pattern, and you opt in by creating `PROJECT-MAP.md`.
+- **Tier mode works best for projects with real history.** If the project has one session and two open items, flat mode is fine. You don't need ADRs and rollover discipline on a weekend prototype. The skill detects the pattern rather than pushing you into it - you opt in by creating `PROJECT-MAP.md`.
 
-- **The "right tier" calls are judgment, not rules.** Is a new caveat a behavioral rule (hot feedback) or a gotcha someone should grep for once (warm reference)? I've been wrong on this plenty of times. When in doubt, put it in hot memory and let the next `/save-point` move it if it turns out evergreen.
+- **"Right tier" calls are judgment, not rules.** Is a new caveat a behavioral rule (hot feedback) or a gotcha someone should grep for once (warm reference)? I've been wrong on this plenty of times. When in doubt, put it in hot memory and let the next `/save-point` move it later if it turns out evergreen.
 
-- **Archive isn't deletion.** Files that roll to `memory/archive/` or `docs/ops/archive/` are preserved, grep-able, and git-tracked if the project tracks memory. Nothing gets lost - it just stops auto-loading.
+- **Archive isn't deletion.** Files that roll to `memory/archive/` or `docs/ops/archive/` are still there - preserved, grep-able, git-tracked if the project tracks memory. They just stop auto-loading.
 
-- **Migration is reversible for a session.** If you run `/save-point` with the migration option and don't like what it produces, `git restore` the docs and memory changes, delete `docs/PROJECT-MAP.md`, and the next run goes back to flat mode. Worth committing the pre-migration state first.
+- **Migration is reversible within a session.** If you run `/save-point` with the migration option and don't like the result, `git restore` the docs and memory changes, delete `docs/PROJECT-MAP.md`, and the next run goes back to flat mode. Worth committing pre-migration first.
 
 ## What building this taught me
 
-**One big state file is a false economy.** The pain wasn't having four files instead of one. It was the agent pulling stale bits out of a file that was trying to be four things at once. Splitting it wasn't really about tidiness. It was about what loads by default.
+**One big state file is a false economy.** Having four files instead of one wasn't the cost. The cost was the agent's memory search pulling stale bits out of a file that was trying to be four things at once. Splitting wasn't about being tidy - it was about controlling what loads by default.
 
-**The three-tier thing isn't mine.** Git, Architecture Decision Records ([Michael Nygard's original](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR](https://adr.github.io/madr/)), and incident-response playbooks all landed on roughly the same separation independently. Current state, decision log, cold archive. I didn't notice until I was most of the way in. Applying the pattern to Claude Code is the contribution here. The pattern itself has been sitting there for years.
+**The three-tier idea isn't mine.** Git, incident-response playbooks, and the ADR community all landed on the same separation - current state, decision log, cold archive - independently, over years. I didn't notice until I was most of the way through building this. What I did here is apply the pattern to Claude Code specifically. Sources in Acknowledgments.
 
-**The state file drifts if nothing enforces hygiene.** A month in, `project_state.md` had action items still marked open long after they were done, questions I'd already answered, and contradictions I hadn't noticed while writing them. Nothing was technically wrong. It just didn't cohere. The file became hard to trust, which made it almost useless - I had to verify every claim before acting on it anyway, so I might as well have started from scratch. That's what forced the split and the routing rules.
+**The state file drifts if nothing enforces hygiene.** A month in, `project_state.md` had action items still marked open long after they were done, questions I'd already answered, and contradictions I hadn't noticed while writing them. Nothing was technically wrong - it just didn't cohere. The file became hard to trust, and a state file you can't trust is almost worse than no state file at all, because you end up verifying every claim before acting on it anyway. That's what forced the split and the routing rules.
 
 ## Contributing
 
@@ -209,6 +207,10 @@ If you've run this and found gaps, I'd like to hear about it. Open an issue or P
 [MIT](LICENSE). Use it, fork it, ship it - credit appreciated but not required.
 
 ## Acknowledgments
+
+Claude Code ([@claude](https://github.com/claude)) wrote this - the skills, the templates, this README. I designed the tier system, the routing rules, and the rollover discipline. Division of labor: mine is judgment, Claude's is typing speed.
+
+The three-tier pattern borrows from Michael Nygard's [original ADR post](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, and incident-response playbook conventions. None of those were built for Claude Code. They just converge on the same separation, and that convergence is what made me trust the structure.
 
 Companion skill: [`/shakedown`](https://github.com/belousov-petr/shakedown) for auditing what's broken in a project before you ship.
 
