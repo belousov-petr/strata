@@ -4,7 +4,7 @@ Three-tier pattern for keeping Claude Code memory lean and a companion `docs/` t
 
 ## The problem it solves
 
-Memory drifts into a dumping ground. Superseded state snapshots, shipped-initiative specs, one-time incident notes, duplicated decision records — they accumulate. Two side effects:
+Memory drifts into a dumping ground. Superseded state snapshots, shipped-initiative specs, one-time incident notes, duplicated decision records - they accumulate. Two side effects:
 
 1. The hot `MEMORY.md` index bloats to dozens of entries, so on-demand memory search returns stale files alongside current ones.
 2. The *rationale* for shipped decisions lives only in memory. When those files age out, the "why" evaporates.
@@ -27,14 +27,14 @@ The three-tier pattern fixes both by routing each type of knowledge to its corre
 ├── docs/
 │   ├── PROJECT-MAP.md            # open-this-first orientation doc
 │   ├── ARCHITECTURE.md           # system topology, data flow
-│   ├── OPS.md                    # optional — lean ops runbook
+│   ├── OPS.md                    # optional - lean ops runbook
 │   ├── roadmap.md                # no-deadline strategic items
-│   ├── decisions/                # ADRs — one file per decision
+│   ├── decisions/                # ADRs - one file per decision
 │   │   ├── README.md             # ADR format guide
 │   │   └── ADR-NNNN-<slug>.md
 │   ├── reference/                # stable reference material
 │   ├── parked/                   # deferred with "Revive when:" triggers
-│   └── ops/                      # optional — deep ops + incidents + archive
+│   └── ops/                      # optional - deep ops + incidents + archive
 └── ...
 
 ~/.claude/projects/<encoded-path>/memory/
@@ -65,10 +65,10 @@ What problem / situation prompted the decision. Constraints that mattered.
 What we decided.
 
 ## Rationale
-Why — tradeoffs, alternatives rejected, principle at stake.
+Why - tradeoffs, alternatives rejected, principle at stake.
 
 ## Consequences
-Downstream effects — what it makes easier, what it locks us into.
+Downstream effects - what it makes easier, what it locks us into.
 
 ## Related
 - Source memory / code paths
@@ -127,4 +127,4 @@ If a project has an oversized `project_state.md` or a sprawling memory directory
 6. **Trim open_action_items.md.** Move no-deadline items to `docs/roadmap.md`. Keep only A-tier + in-flight.
 7. **Hook CLAUDE.md.** Add the Orientation section.
 
-The `/save-point` skill can help — in flat mode, it offers to migrate once `project_state.md` passes ~500 lines.
+The `/save-point` skill can help - in flat mode, it offers to migrate once `project_state.md` passes ~500 lines.

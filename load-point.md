@@ -1,11 +1,11 @@
 ---
 name: load-point
-description: Use when starting a new session on a project that has been worked on before — loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md.
+description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md.
 ---
 
 # Load Project State
 
-Read the saved state and orient yourself so you can resume work immediately without asking "what were we doing?" — but without bulk-loading every decision record the project has ever made.
+Read the saved state and orient yourself so you can resume work immediately without asking "what were we doing?" - but without bulk-loading every decision record the project has ever made.
 
 ## When to use
 
@@ -26,21 +26,21 @@ State which mode you detected.
 
 ### 2. Load in order (shallow → deep)
 
-Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or the archive — they're on-demand.
+Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or the archive - they're on-demand.
 
 **Tier mode:**
 
-1. `MEMORY.md` — the hot index (auto-loaded anyway, but re-check).
-2. `open_action_items.md` — what's actionable right now.
-3. `project_state.md` — current + last completed session only.
-4. `docs/PROJECT-MAP.md` — orientation if you're unfamiliar with the project layout.
-5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if the user's task touches pipeline structure or ops.
-6. Specific ADRs / parked docs / reference docs — only when the current task makes them relevant.
+1. `MEMORY.md` - the hot index (auto-loaded anyway, but re-check).
+2. `open_action_items.md` - what's actionable right now.
+3. `project_state.md` - current + last completed session only.
+4. `docs/PROJECT-MAP.md` - orientation if you're unfamiliar with the project layout.
+5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the user's task touches pipeline structure or ops.
+6. Specific ADRs / parked docs / reference docs - only when the current task makes them relevant.
 
 **Flat mode:**
 
-1. `MEMORY.md` — the index.
-2. `project_state.md` — the full state file.
+1. `MEMORY.md` - the index.
+2. `project_state.md` - the full state file.
 3. Any other memory file that looks directly relevant to the user's ask.
 
 The `<encoded-cwd>` path under `~/.claude/projects/` is the current working directory with separators replaced by `--` (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
@@ -58,17 +58,17 @@ The top section of `project_state.md` is the resumption point. Pull:
 
 ### 4. Verify the state is current
 
-State files are snapshots — they may be stale. Check:
+State files are snapshots - they may be stale. Check:
 
-- `git status` — do uncommitted changes listed in state still exist? If state says "half-done edit in X" but the working tree is clean, the changes were committed, stashed, or lost.
-- `git log --oneline -5` — are there commits after the last saved session? Someone (or another session) worked on the project since.
+- `git status` - do uncommitted changes listed in state still exist? If state says "half-done edit in X" but the working tree is clean, the changes were committed, stashed, or lost.
+- `git log --oneline -5` - are there commits after the last saved session? Someone (or another session) worked on the project since.
 - Do key files/paths mentioned in state still exist? Quick spot-check, not exhaustive.
 - **Tier mode extra:** if `project_state.md` references an ADR number, grep `docs/decisions/` to confirm it exists. If a parked item is mentioned, confirm the file is still in `docs/parked/`.
 
 **If state conflicts with reality:**
 
 - Tell the user what's different: "State says X but I see Y".
-- Trust current repo state over saved state — state is a hint, git is truth.
+- Trust current repo state over saved state - state is a hint, git is truth.
 - Don't silently act on stale state.
 
 ### 5. Present a brief summary
@@ -82,7 +82,7 @@ Give the user a concise orientation (not a wall of text):
 **Open items:** <the most urgent ones, if any>
 ```
 
-Tier mode — add one line on where the next action will probably write:
+Tier mode - add one line on where the next action will probably write:
 
 ```
 **Touches:** memory/open_action_items.md + (likely) a new ADR in docs/decisions/
@@ -90,7 +90,7 @@ Tier mode — add one line on where the next action will probably write:
 
 Then ask: "Ready to continue, or work on something else?"
 
-### 6. If the user continues — start working
+### 6. If the user continues - start working
 
 Don't re-explore the codebase. Trust the state file for context and begin the next action. Only read files you actually need to modify.
 
@@ -111,4 +111,4 @@ After load-point, you should be able to:
 - Re-explore the codebase from scratch when state exists
 - Bulk-load every ADR, parked item, or archive file during orientation
 - Silently act on state that conflicts with git
-- Assume state is authoritative over current repo state — state is a hint, reality wins
+- Assume state is authoritative over current repo state - state is a hint, reality wins

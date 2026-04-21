@@ -1,12 +1,12 @@
 # PROJECT-MAP.md template
 
-Copy this into `docs/PROJECT-MAP.md` in your project and fill in the blanks. It's the "open-this-first" orientation doc — a fresh agent (or future-you) reads it and knows where everything lives without trawling through 30 memory files.
+Copy this into `docs/PROJECT-MAP.md` in your project and fill in the blanks. It's the "open-this-first" orientation doc - a fresh agent (or future-you) reads it and knows where everything lives without trawling through 30 memory files.
 
 When you copy it, also add this to your project's `CLAUDE.md`:
 
 ```markdown
 ## Orientation
-Before memory operations or deep work, consult `docs/PROJECT-MAP.md` — it defines
+Before memory operations or deep work, consult `docs/PROJECT-MAP.md` - it defines
 the hot/warm/cold tiers, where each type of knowledge belongs, and the
 `/save-point` routing rules for this project.
 ```
@@ -16,7 +16,7 @@ CLAUDE.md is auto-loaded, so this primer lands every session.
 ---
 
 ```markdown
-# PROJECT-MAP — <project name>
+# PROJECT-MAP - <project name>
 
 **Open this first.** Tells you where everything lives, what goes where, and how `/save-point` routes new knowledge.
 
@@ -43,7 +43,7 @@ CLAUDE.md is auto-loaded, so this primer lands every session.
 | Behavioral rules enforced in-session | `.claude/memory/feedback_*.md` |
 | Current session state | `.claude/memory/project_state.md` |
 | Historical sessions / superseded specs | `.claude/memory/archive/ARCHIVE.md` |
-<Add project-specific rows — standards, agent instructions, normative specs, whatever lives outside the default structure.>
+<Add project-specific rows - standards, agent instructions, normative specs, whatever lives outside the default structure.>
 
 ## The three tiers
 
@@ -92,12 +92,12 @@ When `/save-point` runs on this project:
 
 Read shallow → deep:
 
-1. `MEMORY.md` — auto-loaded hot index.
-2. `open_action_items.md` — what's actionable right now.
-3. `project_state.md` — current + last session context.
-4. `docs/PROJECT-MAP.md` — this file, if orientation is needed.
-5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if the task touches them.
-6. Specific ADRs / parked docs / reference docs — on demand.
+1. `MEMORY.md` - auto-loaded hot index.
+2. `open_action_items.md` - what's actionable right now.
+3. `project_state.md` - current + last session context.
+4. `docs/PROJECT-MAP.md` - this file, if orientation is needed.
+5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the task touches them.
+6. Specific ADRs / parked docs / reference docs - on demand.
 
 **Do NOT** bulk-load all ADRs, all parked items, or the archive.
 

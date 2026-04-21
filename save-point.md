@@ -1,6 +1,6 @@
 ---
 name: save-point
-description: Use when ending a work session, switching context, or before closing Claude Code — captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md.
+description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md.
 ---
 
 # Save Project State
@@ -20,7 +20,7 @@ Capture what happened in this session so the next one starts hot. If the project
 
 Before anything else, check whether the project uses the three-tier pattern. Look for `docs/PROJECT-MAP.md` in the project root.
 
-- **Present** → **tier mode**. The project has already been structured — follow the routing rules in the map and the rollover discipline in `MEMORY.md`.
+- **Present** → **tier mode**. The project has already been structured - follow the routing rules in the map and the rollover discipline in `MEMORY.md`.
 - **Absent** → **flat mode**. Either the project is small or it hasn't adopted the pattern yet. Capture a single `project_state.md` as before, and at the end offer to migrate (see "Offer migration").
 
 State which mode you detected before proceeding, so the user can correct you.
@@ -29,8 +29,8 @@ State which mode you detected before proceeding, so the user can correct you.
 
 Read from `~/.claude/projects/<encoded-cwd>/memory/`:
 
-- `MEMORY.md` — the index
-- `project_state.md` — the session narrative (if it exists)
+- `MEMORY.md` - the index
+- `project_state.md` - the session narrative (if it exists)
 - Any `open_action_items.md` / `parked_items.md` / `feedback_*.md` / `project_*.md` that look active
 
 The `<encoded-cwd>` is the current working directory with separators replaced by `--` (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
@@ -39,7 +39,7 @@ The `<encoded-cwd>` is the current working directory with separators replaced by
 
 ### 3. Inventory this session's work
 
-Review the conversation — what was actually done, decided, or discovered:
+Review the conversation - what was actually done, decided, or discovered:
 
 - Code changes, fixes, features, tests
 - Decisions made and why (including alternatives rejected)
@@ -48,7 +48,7 @@ Review the conversation — what was actually done, decided, or discovered:
 - Non-obvious learnings and gotchas
 - What was verified and how
 
-Separate into categories — each category routes differently in tier mode.
+Separate into categories - each category routes differently in tier mode.
 
 ### 4. Capture the resumption point
 
@@ -62,7 +62,7 @@ This is the single most important section. Write it specifically enough that a f
 
 ### 5. Route knowledge to the right tier
 
-**Tier mode — use the routing tree from `docs/PROJECT-MAP.md`:**
+**Tier mode - use the routing tree from `docs/PROJECT-MAP.md`:**
 
 | What you learned | Where it goes |
 |---|---|
@@ -74,14 +74,14 @@ This is the single most important section. Write it specifically enough that a f
 | New incident response pattern | `docs/ops/incidents/<symptom>.md` (warm, if the project has an ops tree) |
 | Session narrative | append to current `project_state.md` |
 
-**Flat mode** — everything goes into `project_state.md` under its appropriate section (see the template in Step 7).
+**Flat mode** - everything goes into `project_state.md` under its appropriate section (see the template in Step 7).
 
 ### 6. Apply rollover discipline (tier mode only)
 
 This keeps the hot memory from re-polluting:
 
 1. **`project_state.md` bloat check.** If it now covers 3+ sessions (current + last completed + older), roll the oldest into `memory/archive/YYYY-MM-sessions-XX-YY.md`. Trim the hot file to current + last completed only.
-2. **Open action items — shipped scan.** For each item in `open_action_items.md` completed this session:
+2. **Open action items - shipped scan.** For each item in `open_action_items.md` completed this session:
    - If it was a shipped decision with rationale → extract to a new ADR in `docs/decisions/`, archive any source to `memory/archive/source-adr-NNNN-*.md`, remove the item from `open_action_items.md`.
    - If it was a plain task → just remove it.
 3. **In-flight ship check.** For each `memory/project_<slug>.md`:
@@ -91,18 +91,18 @@ This keeps the hot memory from re-polluting:
 
 ### 7. Update `project_state.md`
 
-**Tier mode** — keep it lean (≤200 lines). Structure:
+**Tier mode** - keep it lean (≤200 lines). Structure:
 
 ```markdown
 ---
 name: <Project> State
-description: Session N (date) — 1-line summary.
+description: Session N (date) - 1-line summary.
 type: project
 ---
 
 ## WHERE WE LEFT OFF (session N, most recent)
 
-**Session N — <date>.** <1-2 sentence summary.>
+**Session N - <date>.** <1-2 sentence summary.>
 
 ### Last completed
 - …
@@ -119,15 +119,15 @@ type: project
 ---
 
 ## WHERE WE LEFT OFF (session N-1, last completed)
-<previous session block — trim to key facts, full narrative rolled to archive>
+<previous session block - trim to key facts, full narrative rolled to archive>
 
 ---
 
-## Older sessions — archived
+## Older sessions - archived
 Sessions 1–(N-2) moved to `archive/YYYY-MM-sessions-XX-YY.md`.
 ```
 
-**Flat mode** — fuller single-file structure:
+**Flat mode** - fuller single-file structure:
 
 ```markdown
 ## WHERE WE LEFT OFF
@@ -142,7 +142,7 @@ Uncommitted changes: [scope or "none"]
 - Build: [status]
 
 ## Session History
-### Session N: <date> — <summary>
+### Session N: <date> - <summary>
 Decisions: …
 
 ## Environment Requirements
@@ -160,12 +160,12 @@ P0 / P1 / P2 …
 
 ### 8. Update the MEMORY.md index
 
-- **Tier mode** — MEMORY.md is lean (~60–80 lines). Only list hot files with one-line pointers. Do NOT re-add archived files or ADR sources. Confirm the "Where to look" table still points at the right places.
-- **Flat mode** — update the one-line description of `project_state.md` to reflect the current session number.
+- **Tier mode** - MEMORY.md is lean (~60–80 lines). Only list hot files with one-line pointers. Do NOT re-add archived files or ADR sources. Confirm the "Where to look" table still points at the right places.
+- **Flat mode** - update the one-line description of `project_state.md` to reflect the current session number.
 
 ### 9. Fix stale references
 
-Scan `MEMORY.md` and any `feedback_*.md` / `project_*.md` for statements this session made factually wrong (e.g., "auth uses passport.js" but you just replaced it). Correct them. Skip files unrelated to this session's work — don't audit the entire memory directory.
+Scan `MEMORY.md` and any `feedback_*.md` / `project_*.md` for statements this session made factually wrong (e.g., "auth uses passport.js" but you just replaced it). Correct them. Skip files unrelated to this session's work - don't audit the entire memory directory.
 
 ### 10. Update the project README (optional)
 
@@ -206,7 +206,7 @@ Stale refs corrected: 1.
 
 If the project is in flat mode and `project_state.md` has grown past ~500 lines, or you spot 3+ distinct decisions with lasting rationale mixed into the narrative, offer to migrate:
 
-> "`project_state.md` is getting large and has several shipped decisions mixed with session narrative. I can set up the three-tier pattern — split out ADRs, create `docs/PROJECT-MAP.md`, trim the hot file. Want me to?"
+> "`project_state.md` is getting large and has several shipped decisions mixed with session narrative. I can set up the three-tier pattern - split out ADRs, create `docs/PROJECT-MAP.md`, trim the hot file. Want me to?"
 
 Don't push. If the user declines, stay in flat mode.
 
@@ -226,16 +226,16 @@ The state capture must let a fresh session:
 |---|---|
 | Dumping the whole codebase structure into state | Only save what's NOT derivable from reading files or `git log` |
 | Vague resumption point ("continue working on auth") | Specific: "implement refresh token rotation in `src/auth/tokens.ts`, tests stubbed in `tests/auth.test.ts`" |
-| Forgetting rejected approaches | Document what was tried and why it failed — prevents loops |
+| Forgetting rejected approaches | Document what was tried and why it failed - prevents loops |
 | Saving stack traces or temp file paths | Ephemeral. Save the root cause and fix, not the debug output |
-| Creating new memory files for everything (flat mode) | Most state fits in `project_state.md` — only split when the pattern calls for it |
+| Creating new memory files for everything (flat mode) | Most state fits in `project_state.md` - only split when the pattern calls for it |
 | Re-bloating hot memory with shipped decisions (tier mode) | Extract to ADR. The rationale belongs in `docs/decisions/`, not `memory/` |
 | Skipping stale-reference scan | Outdated feedback memories mislead the next session |
 | Dumping code into state | State captures decisions and status. Code lives in files. |
 
 ## Do NOT
 
-- Ask the user what to capture — figure it out from context
+- Ask the user what to capture - figure it out from context
 - Save code patterns derivable from reading source
 - Duplicate what `git log` shows (commit hashes, diffs)
 - Save environment-specific paths that won't exist next session
