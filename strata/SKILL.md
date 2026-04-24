@@ -21,7 +21,7 @@ Two entry points:
 |---|---|---|---|
 | **Hot** | `.claude/memory/` | Every session (`MEMORY.md` auto-loaded) + on-demand | Active work, current state, evergreen behavioral rules |
 | **Warm** | `docs/` | On demand only | Architecture, ADRs, roadmap, reference, parked items |
-| **Cold** | `.claude/memory/archive/` + `docs/ops/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, historical session narratives, completion log |
+| **Cold** | `.claude/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, historical session narratives, completion log |
 
 **Loading discipline.** Auto-loaded content should fit in `MEMORY.md` (≤80 lines) + `project_state.md` (≤200 lines) + `open_action_items.md` (active only). Everything else on demand.
 
