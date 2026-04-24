@@ -4,7 +4,7 @@ A tier-aware memory system for Claude Code that doesn't bloat your context windo
 
 > Tier-aware when the project has a `docs/PROJECT-MAP.md` — routes new knowledge to the right tier (hot memory, warm docs, cold archive) instead of dumping everything into one file. Works in flat mode too if the project hasn't adopted the pattern.
 
-![Strata](Savepoint.png)
+![Strata](Strata.png)
 
 ## Why this exists
 
