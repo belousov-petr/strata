@@ -6,7 +6,7 @@ type: project
 
 ## WHERE WE LEFT OFF (session 0, initial)
 
-**Session 0 — {{INIT_DATE}}.** Tier-memory initialized for this project.
+**Session 0 — {{INIT_DATE}}.** Strata initialized for this project.
 
 ### Last completed
 - Project initialized with 3-tier memory structure (hot/warm/cold).

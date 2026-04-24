@@ -1,13 +1,13 @@
 ---
 name: load-point
-description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules live in the `tier-memory` skill.
+description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules live in the `strata` skill.
 ---
 
 # Load Project State
 
 Read the saved state and orient yourself so you can resume work immediately without asking "what were we doing?" - but without bulk-loading every decision record the project has ever made.
 
-**Authoritative rules live in `Skill: tier-memory`.** This command orchestrates the load flow; the skill defines the tier model and loading order. Do not restate them here.
+**Authoritative rules live in `Skill: strata`.** This command orchestrates the load flow; the skill defines the tier model and loading order. Do not restate them here.
 
 ## When to use
 

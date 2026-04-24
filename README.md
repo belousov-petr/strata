@@ -1,10 +1,10 @@
-# Savepoint
+# Strata
 
-Save and restore Claude Code project state across sessions, with a tier-aware memory system that doesn't bloat your context window. Two slash commands (`/save-point`, `/load-point`) wired to one skill (`tier-memory`) that owns the rules, the routing, and the rollover.
+A tier-aware memory system for Claude Code that doesn't bloat your context window. Two slash commands (`/save-point`, `/load-point`) wired to one skill (`strata`) that owns the tier model, the routing, and the rollover.
 
 > Tier-aware when the project has a `docs/PROJECT-MAP.md` — routes new knowledge to the right tier (hot memory, warm docs, cold archive) instead of dumping everything into one file. Works in flat mode too if the project hasn't adopted the pattern.
 
-![Savepoint](Savepoint.png)
+![Strata](Savepoint.png)
 
 ## Why this exists
 
@@ -14,15 +14,19 @@ So I started writing a `project_state.md` at the end of every session. That work
 
 So I split it. Current state stays hot. Shipped decisions go to Architecture Decision Records (ADRs) — short, dated notes that capture what was decided and why, committed to git so they don't drift. Parked work gets a "revive when" trigger. Old sessions roll to a cold archive. The commands now route new knowledge to the right tier instead of dumping everything into `project_state.md`. Lighter context window, readable history, no archaeology next session.
 
+## Why the name
+
+The system separates three kinds of knowledge that live in different places and load at different times. Three layers. Like rock strata. The word names the shape of the thing — "savepoint" was the verb; the product is the layered memory discipline underneath.
+
 ## What's in this repo
 
 Three things that work together. Two user-facing slash commands and one skill that both commands defer to for rules.
 
 ```
-savepoint/
+strata/
 ├── save-point.md                    # /save-point command
 ├── load-point.md                    # /load-point command
-├── tier-memory/
+├── strata/
 │   ├── SKILL.md                     # Authoritative tier model, routing rules, init workflow
 │   └── templates/                   # Scaffolded into new projects by `init`
 │       ├── MEMORY.md
@@ -82,7 +86,7 @@ Reads the saved state shallow-to-deep — `MEMORY.md` → `open_action_items.md`
 
 Hard skip: does **not** auto-re-read `feedback_*.md` files on load — they're referenced via `MEMORY.md` and fire when relevant. Does **not** auto-read anything in `archive/` — that's cold storage, grep on demand.
 
-### `Skill: tier-memory init`
+### `Skill: strata init`
 
 One-shot scaffold for a new project. Invoke the skill with `init`, answer two questions (project name + code vs knowledge project), and it writes:
 
@@ -113,7 +117,7 @@ It **is not**:
 
 **Three tiers.** Hot loads every session, warm is grep-on-demand in git, cold is archive. Two tiers runs back into the monolith problem. More than three starts producing "where does this belong" arguments with the agent, and the agent tends to resolve them inconsistently.
 
-**Skill + commands, not a plugin.** Skills are the natural home for rules; commands are the natural home for verbs the user types. Keeping them separate means the rules live in exactly one place (`tier-memory/SKILL.md`) and both commands reference them. No rule duplication, no drift between "what save-point does" and "what load-point expects."
+**Skill + commands, not a plugin.** Skills are the natural home for rules; commands are the natural home for verbs the user types. Keeping them separate means the rules live in exactly one place (`strata/SKILL.md`) and both commands reference them. No rule duplication, no drift between "what save-point does" and "what load-point expects."
 
 **Preview-confirm gate, not CLI flags.** I tried `--apply` as a safeguard for the move-execution phase; it felt wrong. Flags are CLI metaphors that don't fit a conversational agent. A single preview block and a `y/n` does the same job in a shape that matches how the agent and the human actually talk.
 
@@ -137,7 +141,7 @@ The commands separate four kinds of knowledge:
 
 A fourth kind lives in the project's code/config itself — anything derivable from reading files or `git log` should stay there, not in memory.
 
-Authoritative rules: [`tier-memory/SKILL.md`](tier-memory/SKILL.md). Per-project scaffolds: [`tier-memory/templates/`](tier-memory/templates/).
+Authoritative rules: [`strata/SKILL.md`](strata/SKILL.md). Per-project scaffolds: [`strata/templates/`](strata/templates/).
 
 ## Installation
 
@@ -146,14 +150,14 @@ Authoritative rules: [`tier-memory/SKILL.md`](tier-memory/SKILL.md). Per-project
 Clone the repo and copy the commands + skill into your `~/.claude/` tree:
 
 ```bash
-git clone https://github.com/belousov-petr/savepoint.git
-cp savepoint/save-point.md ~/.claude/commands/save-point.md
-cp savepoint/load-point.md ~/.claude/commands/load-point.md
-mkdir -p ~/.claude/skills/tier-memory
-cp -r savepoint/tier-memory/* ~/.claude/skills/tier-memory/
+git clone https://github.com/belousov-petr/strata.git
+cp strata/save-point.md ~/.claude/commands/save-point.md
+cp strata/load-point.md ~/.claude/commands/load-point.md
+mkdir -p ~/.claude/skills/strata
+cp -r strata/strata/* ~/.claude/skills/strata/
 ```
 
-Restart Claude Code. The commands appear as `/save-point` and `/load-point`. The skill is invocable as `Skill(name='tier-memory')` — the commands defer to it for rules automatically.
+Restart Claude Code. The commands appear as `/save-point` and `/load-point`. The skill is invocable as `Skill(name='strata')` — the commands defer to it for rules automatically.
 
 To update later: `git pull` in the clone, re-copy.
 
@@ -162,7 +166,7 @@ To update later: `git pull` in the clone, re-copy.
 Inside the project root, invoke the skill:
 
 ```
-Skill(name='tier-memory', args='init')
+Skill(name='strata', args='init')
 ```
 
 It'll ask for the project name and project type, then scaffold `.claude/memory/` + `docs/PROJECT-MAP.md` + (for code projects) `docs/decisions/` and `docs/parked/`. Idempotent — refuses to overwrite existing setup.
@@ -184,7 +188,7 @@ If the project already has history in a flat `project_state.md`, run `/save-poin
 9. **Fixes stale references** — scans for statements this session made wrong.
 10. **Reports** — what was saved where, what got extracted, what got archived.
 
-Full contract: [`save-point.md`](save-point.md) + [`tier-memory/SKILL.md`](tier-memory/SKILL.md) §5.
+Full contract: [`save-point.md`](save-point.md) + [`strata/SKILL.md`](strata/SKILL.md) §5.
 
 ## How load-point works
 
@@ -195,7 +199,7 @@ Full contract: [`save-point.md`](save-point.md) + [`tier-memory/SKILL.md`](tier-
 5. **Presents a four-line summary** — what was last done, what's next, open items, prerequisites.
 6. **Starts the next action on confirm** — without re-exploring the codebase.
 
-Full contract: [`load-point.md`](load-point.md) + [`tier-memory/SKILL.md`](tier-memory/SKILL.md) §6.
+Full contract: [`load-point.md`](load-point.md) + [`strata/SKILL.md`](strata/SKILL.md) §6.
 
 ## A few honest things
 
@@ -215,6 +219,8 @@ Full contract: [`load-point.md`](load-point.md) + [`tier-memory/SKILL.md`](tier-
 **A drifting state file costs more than no state file.** A month in, mine had action items that had been closed for weeks, questions I'd answered in session two, and paragraphs that contradicted each other outright. Each was true when I wrote it; none were true together. Once you stop trusting the file, you go check the code anyway before acting on anything, and at that point reading the file is wasted motion.
 
 **Completed items don't belong in an "open" list.** The most recent thing I was wrong about: leaving DONE entries in `open_action_items.md` with a tag, expecting "next memory sweep" to clean them up. That's tombstone-by-neglect. A separate append-only `action_log.md` in cold storage is the honest answer — active list is about what's open, log is about what got done.
+
+**The name matters less than the boundaries.** I shipped this as "savepoint" first, because the verb was what I actually typed. It turned out the product was the layered discipline underneath, not the save moment. Renaming to "strata" cost nothing (private repo) and made the thing explain itself.
 
 ## Contributing
 

@@ -1,13 +1,13 @@
 ---
 name: save-point
-description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules and routing live in the `tier-memory` skill — invoke it for the authoritative definitions.
+description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules and routing live in the `strata` skill — invoke it for the authoritative definitions.
 ---
 
 # Save Project State
 
 Capture what happened in this session so the next one starts hot. If the project uses the three-tier memory pattern (hot memory + warm docs + cold archive), route new knowledge to the right tier instead of dumping everything into one file. If it doesn't, fall back to a single-file capture.
 
-**Authoritative rules live in `Skill: tier-memory`.** This command orchestrates the save flow; the skill defines the tier model, routing table, rollover rules, and `action_log.md` format. Do not restate those rules here — read them from the skill when needed.
+**Authoritative rules live in `Skill: strata`.** This command orchestrates the save flow; the skill defines the tier model, routing table, rollover rules, and `action_log.md` format. Do not restate those rules here — read them from the skill when needed.
 
 ## When to use
 
@@ -64,7 +64,7 @@ This is the single most important section. Write it specifically enough that a f
 
 ### 5. Route knowledge to the right tier
 
-**Tier mode — see `Skill: tier-memory` §2 for the canonical routing table.** Summary:
+**Tier mode — see `Skill: strata` §2 for the canonical routing table.** Summary:
 
 - new behavioral rule → `memory/feedback_<slug>.md`
 - shipped decision with rationale → `docs/decisions/ADR-NNNN-<slug>.md` (+ archive source)
@@ -79,7 +79,7 @@ This is the single most important section. Write it specifically enough that a f
 
 ### 6. Preview-confirm-execute gate (tier mode only)
 
-**Do not move files silently.** Before any write/move/delete, produce ONE preview block and wait for user `y/n`. See `Skill: tier-memory` §5 for the full contract. Short version:
+**Do not move files silently.** Before any write/move/delete, produce ONE preview block and wait for user `y/n`. See `Skill: strata` §5 for the full contract. Short version:
 
 #### 6a — Build the proposed-changes list
 

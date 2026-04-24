@@ -1,10 +1,10 @@
 ---
-name: tier-memory
+name: strata
 description: 3-tier project memory system (hot/warm/cold) with automated save-point routing, load-point orientation, and one-shot project initialization. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold the structure into a new project. Used internally by /save-point and /load-point commands as the authoritative source of tier definitions and routing rules.
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---
 
-# Tier-Memory — cohesive project memory
+# Strata — cohesive project memory
 
 This skill is the **single source of truth** for the 3-tier project memory pattern. The `/save-point` and `/load-point` commands defer to the rules below; do not restate them elsewhere.
 
@@ -194,7 +194,7 @@ State conflicts with git? Tell the user; trust git; do not silently act on stale
 
 ## 7. `init` action — scaffold into a new project
 
-Invoked when user calls the skill with "init" as argument (`Skill(name='tier-memory', args='init')`) or explicitly asks to set up tier memory in a project.
+Invoked when user calls the skill with "init" as argument (`Skill(name='strata', args='init')`) or explicitly asks to set up tier memory in a project.
 
 ### Preconditions
 
@@ -211,7 +211,7 @@ Invoked when user calls the skill with "init" as argument (`Skill(name='tier-mem
 
 ### Files to write
 
-Templates live at `~/.claude/skills/tier-memory/templates/`. For each target, Read the template, substitute placeholders, Write to the target path:
+Templates live at `~/.claude/skills/strata/templates/`. For each target, Read the template, substitute placeholders, Write to the target path:
 
 | Template (skill dir) | Target (project dir) |
 |---|---|
@@ -236,7 +236,7 @@ If code project type was chosen:
 Print exactly:
 
 ```
-tier-memory initialized in <cwd>.
+strata initialized in <cwd>.
 
 Created:
 - .claude/memory/ (hot tier: MEMORY.md, open_action_items.md, project_state.md)
@@ -273,4 +273,4 @@ Next steps:
 - **`atlas-memory`** — SQLite + vector search. Orthogonal; fine if the project needs semantic recall over many notes.
 - **`agentdb-memory-patterns`** — HNSW vector store + reinforcement learning. Heavier; overlaps only if you want neural pattern recall.
 
-`tier-memory` is the **structural pattern** (where things live, when they move). The others are **storage backends** (how things are indexed / retrieved). They do not conflict.
+`strata` is the **structural pattern** (where things live, when they move). The others are **storage backends** (how things are indexed / retrieved). They do not conflict.

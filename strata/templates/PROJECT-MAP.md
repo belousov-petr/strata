@@ -2,7 +2,7 @@
 
 **Open this first.** It tells you where everything lives, what goes where, and how `/save-point` should route new knowledge.
 
-Authoritative tier rules live in the `tier-memory` skill; this file is the per-project manifestation.
+Authoritative tier rules live in the `strata` skill; this file is the per-project manifestation.
 
 ---
 
@@ -82,13 +82,13 @@ Things that should **never** live in memory:
 
 ## `/save-point` behavior
 
-Governed by the `tier-memory` skill §5. Preview-confirm-execute gate: Claude proposes a single plan of moves/writes/appends/deletions, user confirms with y/n, then execution.
+Governed by the `strata` skill §5. Preview-confirm-execute gate: Claude proposes a single plan of moves/writes/appends/deletions, user confirms with y/n, then execution.
 
 ---
 
 ## `/load-point` behavior
 
-Governed by the `tier-memory` skill §6. Tier-mode load order:
+Governed by the `strata` skill §6. Tier-mode load order:
 
 1. `MEMORY.md`
 2. `open_action_items.md`
