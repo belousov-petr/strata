@@ -1,11 +1,13 @@
 ---
 name: load-point
-description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md.
+description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules live in the `tier-memory` skill.
 ---
 
 # Load Project State
 
 Read the saved state and orient yourself so you can resume work immediately without asking "what were we doing?" - but without bulk-loading every decision record the project has ever made.
+
+**Authoritative rules live in `Skill: tier-memory`.** This command orchestrates the load flow; the skill defines the tier model and loading order. Do not restate them here.
 
 ## When to use
 
@@ -36,6 +38,10 @@ Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or
 4. `docs/PROJECT-MAP.md` - orientation if you're unfamiliar with the project layout.
 5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the user's task touches pipeline structure or ops.
 6. Specific ADRs / parked docs / reference docs - only when the current task makes them relevant.
+
+**Do NOT auto-re-read `feedback_*.md` files during load-point.** They are referenced from `MEMORY.md` (which auto-loads) and fire when relevant in-session; re-reading them here bulks context without adding information. If the user's task specifically touches a feedback rule, open the matching file then — not at orientation time.
+
+**Do NOT auto-read `archive/action_log.md` or anything under `archive/`.** The log is cold storage — grep on demand when the user asks "did we post X?" or "when did we do Y?". Never load it proactively.
 
 **Flat mode:**
 

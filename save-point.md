@@ -1,11 +1,13 @@
 ---
 name: save-point
-description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md.
+description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules and routing live in the `tier-memory` skill — invoke it for the authoritative definitions.
 ---
 
 # Save Project State
 
 Capture what happened in this session so the next one starts hot. If the project uses the three-tier memory pattern (hot memory + warm docs + cold archive), route new knowledge to the right tier instead of dumping everything into one file. If it doesn't, fall back to a single-file capture.
+
+**Authoritative rules live in `Skill: tier-memory`.** This command orchestrates the save flow; the skill defines the tier model, routing table, rollover rules, and `action_log.md` format. Do not restate those rules here — read them from the skill when needed.
 
 ## When to use
 
@@ -62,32 +64,73 @@ This is the single most important section. Write it specifically enough that a f
 
 ### 5. Route knowledge to the right tier
 
-**Tier mode - use the routing tree from `docs/PROJECT-MAP.md`:**
+**Tier mode — see `Skill: tier-memory` §2 for the canonical routing table.** Summary:
 
-| What you learned | Where it goes |
-|---|---|
-| New behavioral rule the agent should follow | `memory/feedback_<slug>.md` (hot, 10–25 lines, with **Why:** and **How to apply:**) |
-| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` (warm, 40–80 lines). Archive the in-flight memory source to `memory/archive/source-adr-NNNN-*.md` for provenance. |
-| New in-flight initiative | `memory/project_<slug>.md` (hot). Stays there until ship. |
-| Deferred initiative (no date, may revive) | `docs/parked/<slug>.md` with a **Revive when:** trigger (warm) |
-| Stable reference material (paths, brand, frameworks) | `docs/reference/<slug>.md` (warm) |
-| New incident response pattern | `docs/ops/incidents/<symptom>.md` (warm, if the project has an ops tree) |
-| Session narrative | append to current `project_state.md` |
+- new behavioral rule → `memory/feedback_<slug>.md`
+- shipped decision with rationale → `docs/decisions/ADR-NNNN-<slug>.md` (+ archive source)
+- in-flight initiative → `memory/project_<slug>.md`
+- deferred (no date) → `docs/parked/<slug>.md` with **Revive when:**
+- reference material → `docs/reference/<slug>.md`
+- incident response pattern → `docs/ops/incidents/<symptom>.md`
+- session narrative → append to `project_state.md`
+- **completed action with external artifact (PR, comment, email sent) → append to `memory/archive/action_log.md`** (new as of 2026-04-24)
 
-**Flat mode** - everything goes into `project_state.md` under its appropriate section (see the template in Step 7).
+**Flat mode** — everything goes into `project_state.md` under its appropriate section (see template in Step 7).
 
-### 6. Apply rollover discipline (tier mode only)
+### 6. Preview-confirm-execute gate (tier mode only)
 
-This keeps the hot memory from re-polluting:
+**Do not move files silently.** Before any write/move/delete, produce ONE preview block and wait for user `y/n`. See `Skill: tier-memory` §5 for the full contract. Short version:
 
-1. **`project_state.md` bloat check.** If it now covers 3+ sessions (current + last completed + older), roll the oldest into `memory/archive/YYYY-MM-sessions-XX-YY.md`. Trim the hot file to current + last completed only.
-2. **Open action items - shipped scan.** For each item in `open_action_items.md` completed this session:
-   - If it was a shipped decision with rationale → extract to a new ADR in `docs/decisions/`, archive any source to `memory/archive/source-adr-NNNN-*.md`, remove the item from `open_action_items.md`.
-   - If it was a plain task → just remove it.
+#### 6a — Build the proposed-changes list
+
+Classify this session's work into four buckets: NEW FILES, APPENDS, MOVES, DELETIONS. Include rollover work:
+
+1. **`project_state.md` bloat check.** If it covers more than current + last completed, the oldest block → `archive/YYYY-MM-DD-sessions-NN.md`.
+2. **Open action items — shipped scan.** For each item completed this session:
+   - Shipped decision with rationale → NEW ADR in `docs/decisions/` + MOVE source to `archive/source-adr-NNNN-*.md` + DELETE block from `open_action_items.md`.
+   - Completed external action (PR posted, email sent, comment made) → APPEND entry to `archive/action_log.md` + DELETE block from `open_action_items.md`.
+   - Plain task → DELETE block from `open_action_items.md`.
 3. **In-flight ship check.** For each `memory/project_<slug>.md`:
-   - Shipped this session → promote to ADR (as above), delete the memory source (or archive it).
-   - No work for 30+ days → move to `docs/parked/<slug>.md` with a **Revive when:** trigger, archive the source.
-4. **Parked-items promotion.** If any entry in `docs/parked/` had its revive trigger fire this session, move it back to `memory/project_<slug>.md` and note it in `open_action_items.md`.
+   - Shipped this session → promote to ADR + archive source.
+   - No work for 30+ days → MOVE to `docs/parked/<slug>.md` with **Revive when:** + archive source.
+4. **Parked-items promotion.** If a parked item's revive trigger fired, MOVE back to `memory/project_<slug>.md` + add to `open_action_items.md`.
+
+#### 6b — Safeguards (apply before showing preview)
+
+- **Git-dirty check.** For each target file (MOVE/DELETE-FROM only; pure writes are safe), run `git status --porcelain -- <file>`. If dirty, mark as SKIP in preview; do not touch.
+- **ADR collision guard.** Before assigning `ADR-NNNN`, run `ls docs/decisions/ADR-*.md` and pick `highest + 1`.
+- **Never delete whole files.** Deletions only remove sections within files (e.g. an F3 block in `open_action_items.md`). Whole-file removal requires explicit user instruction.
+
+#### 6c — Render the preview
+
+Single block, this shape:
+
+```
+Proposed changes for /save-point:
+
+NEW FILES:
+- <path>  ← <why>
+
+APPENDS:
+- <path>  ← <what>
+
+MOVES:
+- <src>  →  <dst>
+
+DELETIONS (section-only):
+- <file>: remove <section-id>
+
+SKIP (uncommitted edits — commit or stash first):
+- <path>
+
+Confirm? (y/n)
+```
+
+If the list is empty ("no changes proposed"), say so and stop.
+
+#### 6d — Execute
+
+On `y`, execute in this order: **writes → appends → moves → deletions**. Deletions only fire after their corresponding appends/moves succeed. On `n`, abort with zero changes.
 
 ### 7. Update `project_state.md`
 
