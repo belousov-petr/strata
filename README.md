@@ -238,9 +238,9 @@ If you've run this and found gaps, I'd like to hear about it. Open an issue or P
 
 ## Acknowledgments
 
-The three-tier pattern borrows from Michael Nygard's [original ADR post](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, and incident-response playbook conventions. None of those were built for Claude Code. They converge on the same separation, and that convergence is what made me trust the structure.
+[Claude Code](https://claude.com/claude-code) ([@claude](https://github.com/claude)) wrote this - the skill, the commands, the templates, the docs. I designed the tier model and routing rules, decided what knowledge goes where and why, and directed the work. Division of labor: mine is judgment, Claude's is typing speed.
 
-Built with [Claude Code](https://claude.com/claude-code) as the implementation partner - the skill, commands, templates, and this README were drafted in-session and iterated on together.
+The three-tier pattern borrows from Michael Nygard's [original ADR post](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, and incident-response playbook conventions. None of those were built for Claude Code. They converge on the same separation, and that convergence is what made me trust the structure.
 
 Companion skill: [`/shakedown`](https://github.com/belousov-petr/shakedown) for auditing what's broken in a project before you ship.
 
