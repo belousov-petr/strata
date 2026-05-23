@@ -1,6 +1,6 @@
 ---
 name: save-point
-description: Use when ending a work session, switching context, or before closing Claude Code - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules and routing live in the `strata` skill — invoke it for the authoritative definitions.
+description: Use when ending an AI coding session, switching context, or wrapping up work - captures project state so the next session resumes without re-discovery or repeated questions. Tier-aware when the project has `.ai/MEMORY-MAP.md`. Tier rules and routing live in the `strata` skill — invoke it for the authoritative definitions.
 ---
 
 # Save Project State
@@ -20,22 +20,20 @@ Capture what happened in this session so the next one starts hot. If the project
 
 ### 1. Detect the mode
 
-Before anything else, check whether the project uses the three-tier pattern. Look for `docs/PROJECT-MAP.md` in the project root.
+Before anything else, check whether the project uses the three-tier pattern. Look for `.ai/MEMORY-MAP.md` in the project root.
 
-- **Present** → **tier mode**. The project has already been structured - follow the routing rules in the map and the rollover discipline in `MEMORY.md`.
-- **Absent** → **flat mode**. Either the project is small or it hasn't adopted the pattern yet. Capture a single `project_state.md` as before, and at the end offer to migrate (see "Offer migration").
+- **Present** → **tier mode**. The project has already been structured - follow the routing rules in the map and the rollover discipline in `.ai/memory/MEMORY.md`.
+- **Absent** → **flat mode**. Either the project is small or it has legacy/tool-specific memory. Capture a single `.ai/memory/project_state.md` and at the end offer to initialize or migrate into the tier pattern (see "Offer migration").
 
 State which mode you detected before proceeding, so the user can correct you.
 
 ### 2. Read the current memory
 
-Read from `~/.claude/projects/<encoded-cwd>/memory/`:
+Read from `.ai/memory/`:
 
 - `MEMORY.md` - the index
 - `project_state.md` - the session narrative (if it exists)
 - Any `open_action_items.md` / `parked_items.md` / `feedback_*.md` / `project_*.md` that look active
-
-The `<encoded-cwd>` is the current working directory with separators replaced by `--` (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
 
 **First run (no `project_state.md`):** create one using the template in Step 4.
 
@@ -66,14 +64,14 @@ This is the single most important section. Write it specifically enough that a f
 
 **Tier mode — see `Skill: strata` §2 for the canonical routing table.** Summary:
 
-- new behavioral rule → `memory/feedback_<slug>.md`
+- new behavioral rule → `.ai/memory/feedback_<slug>.md`
 - shipped decision with rationale → `docs/decisions/ADR-NNNN-<slug>.md` (+ archive source)
-- in-flight initiative → `memory/project_<slug>.md`
+- in-flight initiative → `.ai/memory/project_<slug>.md`
 - deferred (no date) → `docs/parked/<slug>.md` with **Revive when:**
 - reference material → `docs/reference/<slug>.md`
 - incident response pattern → `docs/ops/incidents/<symptom>.md`
-- session narrative → append to `project_state.md`
-- **completed action with external artifact (PR, comment, email sent) → append to `memory/archive/action_log.md`** (new as of 2026-04-24)
+- session narrative → append to `.ai/memory/project_state.md`
+- **completed action with external artifact (PR, comment, email sent) → append to `.ai/memory/archive/action_log.md`**
 
 **Flat mode** — everything goes into `project_state.md` under its appropriate section (see template in Step 7).
 
@@ -90,10 +88,10 @@ Classify this session's work into four buckets: NEW FILES, APPENDS, MOVES, DELET
    - Shipped decision with rationale → NEW ADR in `docs/decisions/` + MOVE source to `archive/source-adr-NNNN-*.md` + DELETE block from `open_action_items.md`.
    - Completed external action (PR posted, email sent, comment made) → APPEND entry to `archive/action_log.md` + DELETE block from `open_action_items.md`.
    - Plain task → DELETE block from `open_action_items.md`.
-3. **In-flight ship check.** For each `memory/project_<slug>.md`:
+3. **In-flight ship check.** For each `.ai/memory/project_<slug>.md`:
    - Shipped this session → promote to ADR + archive source.
    - No work for 30+ days → MOVE to `docs/parked/<slug>.md` with **Revive when:** + archive source.
-4. **Parked-items promotion.** If a parked item's revive trigger fired, MOVE back to `memory/project_<slug>.md` + add to `open_action_items.md`.
+4. **Parked-items promotion.** If a parked item's revive trigger fired, MOVE back to `.ai/memory/project_<slug>.md` + add to `open_action_items.md`.
 
 #### 6b — Safeguards (apply before showing preview)
 
@@ -240,7 +238,7 @@ Cleaned: 2 stale feedback references.
 Flat mode example:
 
 ```
-Mode: flat (no docs/PROJECT-MAP.md detected).
+Mode: flat (no .ai/MEMORY-MAP.md detected).
 Saved: project_state.md (session 7, 3 new decisions, 2 open items).
 Stale refs corrected: 1.
 ```
@@ -249,7 +247,7 @@ Stale refs corrected: 1.
 
 If the project is in flat mode and `project_state.md` has grown past ~500 lines, or you spot 3+ distinct decisions with lasting rationale mixed into the narrative, offer to migrate:
 
-> "`project_state.md` is getting large and has several shipped decisions mixed with session narrative. I can set up the three-tier pattern - split out ADRs, create `docs/PROJECT-MAP.md`, trim the hot file. Want me to?"
+> "`project_state.md` is getting large and has several shipped decisions mixed with session narrative. I can set up the three-tier pattern - split out ADRs, create `.ai/MEMORY-MAP.md`, trim the hot file. Want me to?"
 
 Don't push. If the user declines, stay in flat mode.
 

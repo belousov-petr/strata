@@ -2,7 +2,7 @@
 
 Hot tier index. Lists files that should be auto-considered each session. Keep this under ~80 lines — if it grows, move detail into linked files, not here.
 
-See `docs/PROJECT-MAP.md` for tier model + routing rules.
+See `.ai/MEMORY-MAP.md` for tier model + routing rules.
 
 ## Hot files (active)
 
@@ -20,8 +20,8 @@ See `docs/PROJECT-MAP.md` for tier model + routing rules.
 | Operations | `docs/OPS.md` (if present) |
 | Parked initiatives | `docs/parked/` |
 | Reference material | `docs/reference/` |
-| History / archive | `.claude/memory/archive/ARCHIVE.md` |
-| Completion log | `.claude/memory/archive/action_log.md` (grep on demand) |
+| History / archive | `.ai/memory/archive/ARCHIVE.md` |
+| Completion log | `.ai/memory/archive/action_log.md` (grep on demand) |
 
 ## Discipline
 

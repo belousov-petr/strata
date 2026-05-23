@@ -1,6 +1,6 @@
 ---
 name: load-point
-description: Use when starting a new session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has a docs/PROJECT-MAP.md. Tier rules live in the `strata` skill.
+description: Use when starting an AI coding session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Tier-aware when the project has `.ai/MEMORY-MAP.md`. Tier rules live in the `strata` skill.
 ---
 
 # Load Project State
@@ -19,7 +19,7 @@ Read the saved state and orient yourself so you can resume work immediately with
 
 ### 1. Detect the mode
 
-Check whether the project uses the three-tier pattern. Look for `docs/PROJECT-MAP.md` in the project root.
+Check whether the project uses the three-tier pattern. Look for `.ai/MEMORY-MAP.md` in the project root.
 
 - **Present** → **tier mode**. Load shallow-to-deep per the map's load order.
 - **Absent** → **flat mode**. Read `project_state.md` as a single source.
@@ -32,10 +32,10 @@ Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or
 
 **Tier mode:**
 
-1. `MEMORY.md` - the hot index (auto-loaded anyway, but re-check).
-2. `open_action_items.md` - what's actionable right now.
-3. `project_state.md` - current + last completed session only.
-4. `docs/PROJECT-MAP.md` - orientation if you're unfamiliar with the project layout.
+1. `.ai/MEMORY-MAP.md` - memory contract, tiers, and project-specific routing notes.
+2. `.ai/memory/MEMORY.md` - the hot index.
+3. `.ai/memory/open_action_items.md` - what's actionable right now.
+4. `.ai/memory/project_state.md` - current + last completed session only.
 5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the user's task touches pipeline structure or ops.
 6. Specific ADRs / parked docs / reference docs - only when the current task makes them relevant.
 
@@ -45,11 +45,9 @@ Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or
 
 **Flat mode:**
 
-1. `MEMORY.md` - the index.
-2. `project_state.md` - the full state file.
+1. `.ai/memory/MEMORY.md` - the index, if present.
+2. `.ai/memory/project_state.md` - the full state file.
 3. Any other memory file that looks directly relevant to the user's ask.
-
-The `<encoded-cwd>` path under `~/.claude/projects/` is the current working directory with separators replaced by `--` (e.g., `C--Users-john-myproject` for `C:\Users\john\myproject`).
 
 **If `project_state.md` doesn't exist:** tell the user this is a fresh project with no saved state. Offer to explore the codebase instead.
 
@@ -91,7 +89,7 @@ Give the user a concise orientation (not a wall of text):
 Tier mode - add one line on where the next action will probably write:
 
 ```
-**Touches:** memory/open_action_items.md + (likely) a new ADR in docs/decisions/
+**Touches:** .ai/memory/open_action_items.md + (likely) a new ADR in docs/decisions/
 ```
 
 Then ask: "Ready to continue, or work on something else?"

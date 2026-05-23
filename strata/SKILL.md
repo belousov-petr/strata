@@ -1,12 +1,12 @@
 ---
 name: strata
-description: 3-tier project memory system (hot/warm/cold) with automated save-point routing, load-point orientation, and one-shot project initialization. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold the structure into a new project. Used internally by /save-point and /load-point commands as the authoritative source of tier definitions and routing rules.
+description: Tool-neutral 3-tier project memory system (hot/warm/cold) with automated save-point routing, load-point orientation, and one-shot project initialization. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold the structure into a new project. Used internally by /save-point and /load-point commands as the authoritative source of tier definitions and routing rules.
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---
 
-# Strata — cohesive project memory
+# Strata — universal project memory
 
-This skill is the **single source of truth** for the 3-tier project memory pattern. The `/save-point` and `/load-point` commands defer to the rules below; do not restate them elsewhere.
+This skill is the **single source of truth** for the 3-tier project memory pattern. Project memory is owned by the repo under `.ai/`, not by Claude, Codex, Gemini, or any other tool. Tool-specific files such as `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` are adapters that point at `.ai/MEMORY-MAP.md`; they should not contain separate memory.
 
 Two entry points:
 
@@ -19,11 +19,13 @@ Two entry points:
 
 | Tier | Location | When loaded | Purpose |
 |---|---|---|---|
-| **Hot** | `.claude/memory/` | Every session (`MEMORY.md` auto-loaded) + on-demand | Active work, current state, evergreen behavioral rules |
+| **Hot** | `.ai/memory/` | Every session (`MEMORY.md` auto-loaded) + on-demand | Active work, current state, evergreen behavioral rules |
 | **Warm** | `docs/` | On demand only | Architecture, ADRs, roadmap, reference, parked items |
-| **Cold** | `.claude/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, historical session narratives, completion log |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, historical session narratives, completion log |
 
-**Loading discipline.** Auto-loaded content should fit in `MEMORY.md` (≤80 lines) + `project_state.md` (≤200 lines) + `open_action_items.md` (active only). Everything else on demand.
+**Memory map.** `.ai/MEMORY-MAP.md` is the project-level contract. It states that the project uses hot/warm/cold memory, where each tier lives, and which files to load first.
+
+**Loading discipline.** Tool adapters should load `.ai/MEMORY-MAP.md`, then `.ai/memory/MEMORY.md`. Auto-loaded content should fit in `MEMORY.md` (≤80 lines) + `project_state.md` (≤200 lines) + `open_action_items.md` (active only). Everything else is on demand.
 
 ---
 
@@ -31,14 +33,14 @@ Two entry points:
 
 | What you learned this session | Destination | Tier |
 |---|---|---|
-| New behavioral rule for the agent | `.claude/memory/feedback_<slug>.md` (10–25 lines, with **Why:** and **How to apply:**) | Hot |
-| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` (40–80 lines). Raw source archives to `.claude/memory/archive/source-adr-NNNN-*.md`. | Warm (+ cold source) |
-| New in-flight initiative | `.claude/memory/project_<slug>.md` — stays hot until ship | Hot |
+| New behavioral rule for the agent | `.ai/memory/feedback_<slug>.md` (10–25 lines, with **Why:** and **How to apply:**) | Hot |
+| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` (40–80 lines). Raw source archives to `.ai/memory/archive/source-adr-NNNN-*.md`. | Warm (+ cold source) |
+| New in-flight initiative | `.ai/memory/project_<slug>.md` — stays hot until ship | Hot |
 | Deferred initiative (no date, may revive) | `docs/parked/<slug>.md` with a **Revive when:** trigger | Warm |
 | Stable reference material (paths, brand, frameworks) | `docs/reference/<slug>.md` | Warm |
 | New incident response pattern | `docs/ops/incidents/<symptom>.md` | Warm |
-| Session narrative | append to `.claude/memory/project_state.md`; older sessions archive at session start | Hot → Cold |
-| Completed action item with external artifact (PR, comment, email sent) | append to `.claude/memory/archive/action_log.md` | Cold |
+| Session narrative | append to `.ai/memory/project_state.md`; older sessions archive at session start | Hot → Cold |
+| Completed action item with external artifact (PR, comment, email sent) | append to `.ai/memory/archive/action_log.md` | Cold |
 
 **Never store in memory:**
 
@@ -116,22 +118,22 @@ Produce ONE preview block listing every proposed change. Example:
 Proposed changes for /save-point:
 
 NEW FILES:
-- .claude/memory/feedback_<slug>.md  ← "<one-line rule>"
+- .ai/memory/feedback_<slug>.md  ← "<one-line rule>"
 - docs/decisions/ADR-0015-<slug>.md  ← promoted from project_<slug>.md
-- .claude/memory/archive/2026-04-24-session-47.md  ← rolled from project_state.md
+- .ai/memory/archive/2026-04-24-session-47.md  ← rolled from project_state.md
 
 APPENDS:
-- .claude/memory/archive/action_log.md  ← F3, F4, F5 completion entries
-- .claude/memory/project_state.md  ← session 47 block
+- .ai/memory/archive/action_log.md  ← F3, F4, F5 completion entries
+- .ai/memory/project_state.md  ← session 47 block
 
 MOVES:
 - project_<slug>.md  →  archive/source-adr-0015-<slug>.md (ADR source)
 
 DELETIONS:
-- .claude/memory/open_action_items.md F3/F4/F5 blocks (after action_log append)
+- .ai/memory/open_action_items.md F3/F4/F5 blocks (after action_log append)
 
 SKIP (uncommitted edits — commit or stash first):
-- .claude/memory/feedback_something.md
+- .ai/memory/feedback_something.md
 
 Confirm? (y/n)
 ```
@@ -164,10 +166,10 @@ Print concise summary: what was written, appended, moved, deleted. Include ADR n
 
 When `/load-point` is invoked in tier mode, load in this order (stop early if user's task is clear):
 
-1. `.claude/memory/MEMORY.md` — hot index (already auto-loaded by runtime)
-2. `.claude/memory/open_action_items.md` — full file; what's actionable now
-3. `.claude/memory/project_state.md` — current + last completed session only (trimmed)
-4. `docs/PROJECT-MAP.md` — only if unfamiliar with project layout
+1. `.ai/MEMORY-MAP.md` — memory contract, tiers, and project-specific routing notes
+2. `.ai/memory/MEMORY.md` — hot index
+3. `.ai/memory/open_action_items.md` — full file; what's actionable now
+4. `.ai/memory/project_state.md` — current + last completed session only (trimmed)
 5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if task touches pipeline/ops
 6. Specific ADRs / parked docs / reference — only when current task makes them relevant
 
@@ -200,7 +202,8 @@ Invoked when user calls the skill with "init" as argument (`Skill(name='strata',
 
 1. Current working directory is the target project root.
 2. Project has a git repo (run `git rev-parse --is-inside-work-tree`; error out if not).
-3. **Idempotence guard.** If `.claude/memory/MEMORY.md` OR `docs/PROJECT-MAP.md` already exists, refuse: "Project already initialized. Existing memory at <path>. If you want to re-bootstrap, move or delete the existing files first."
+3. **Idempotence guard.** If `.ai/memory/MEMORY.md` OR `.ai/MEMORY-MAP.md` already exists, refuse: "Project already initialized. Existing memory at <path>. If you want to re-bootstrap, move or delete the existing files first."
+4. **Legacy guard.** If `.claude/memory/MEMORY.md`, `docs/PROJECT-MAP.md`, or a tool-owned per-project memory directory exists, do not create a second memory silently. Report the legacy location and offer a migration into `.ai/`.
 
 ### Questions to ask (single `AskUserQuestion` call)
 
@@ -211,16 +214,16 @@ Invoked when user calls the skill with "init" as argument (`Skill(name='strata',
 
 ### Files to write
 
-Templates live at `~/.claude/skills/strata/templates/`. For each target, Read the template, substitute placeholders, Write to the target path:
+Templates live in this skill's `templates/` directory. For each target, read the template, substitute placeholders, and write to the target path:
 
 | Template (skill dir) | Target (project dir) |
 |---|---|
-| `templates/MEMORY.md` | `.claude/memory/MEMORY.md` |
-| `templates/open_action_items.md` | `.claude/memory/open_action_items.md` |
-| `templates/project_state.md` | `.claude/memory/project_state.md` |
-| `templates/ARCHIVE.md` | `.claude/memory/archive/ARCHIVE.md` |
-| `templates/action_log.md` | `.claude/memory/archive/action_log.md` |
-| `templates/PROJECT-MAP.md` | `docs/PROJECT-MAP.md` |
+| `templates/MEMORY.md` | `.ai/memory/MEMORY.md` |
+| `templates/open_action_items.md` | `.ai/memory/open_action_items.md` |
+| `templates/project_state.md` | `.ai/memory/project_state.md` |
+| `templates/ARCHIVE.md` | `.ai/memory/archive/ARCHIVE.md` |
+| `templates/action_log.md` | `.ai/memory/archive/action_log.md` |
+| `templates/MEMORY-MAP.md` | `.ai/MEMORY-MAP.md` |
 
 **Placeholders to substitute:**
 
@@ -239,15 +242,15 @@ Print exactly:
 strata initialized in <cwd>.
 
 Created:
-- .claude/memory/ (hot tier: MEMORY.md, open_action_items.md, project_state.md)
-- .claude/memory/archive/ (cold tier: ARCHIVE.md, action_log.md)
-- docs/PROJECT-MAP.md (tier map + routing rules)
+- .ai/memory/ (hot tier: MEMORY.md, open_action_items.md, project_state.md)
+- .ai/memory/archive/ (cold tier: ARCHIVE.md, action_log.md)
+- .ai/MEMORY-MAP.md (tier map + routing rules)
 <+ docs/decisions/ and docs/parked/ if code project>
 
 Next steps:
 - At end of session, run /save-point (will now route by tier)
 - At start of session, run /load-point (will orient from hot tier only)
-- Edit docs/PROJECT-MAP.md to describe your project (What it is, Structural overview)
+- Edit .ai/MEMORY-MAP.md to describe your project (What it is, Structural overview)
 ```
 
 ---
@@ -256,14 +259,14 @@ Next steps:
 
 | Mistake | Fix |
 |---|---|
-| Restating routing rules in save-point.md or CLAUDE.md | Rules live HERE. Other docs reference this skill. |
+| Restating routing rules in save-point.md or tool adapter files | Rules live HERE. Tool adapters point at `.ai/MEMORY-MAP.md`. |
 | Executing save-point moves without preview | Preview is non-optional. One preview block, one y/n. |
 | Re-reading `feedback_*.md` during /load-point | Skip. They're index-referenced, not context-loaded. |
 | Bulk-loading all ADRs during /load-point | Only load ADRs when the current task makes them relevant. |
 | Leaving DONE entries in open_action_items.md | That's what `action_log.md` is for. Migrate at save-point. |
 | Deleting instead of archiving | Cold tier exists so misclassification is recoverable. Move, never delete. |
 | New ADR with colliding number | Scan `docs/decisions/` first; pick `highest + 1`. |
-| `init` over an existing setup | Refuse. User must move/delete existing memory first. |
+| `init` over an existing setup | Refuse. User must migrate, move, or delete existing memory first. |
 
 ---
 

@@ -1,24 +1,24 @@
-# PROJECT-MAP.md template
+# MEMORY-MAP.md template
 
-Copy this into `docs/PROJECT-MAP.md` in your project and fill in the blanks. It's the "open-this-first" orientation doc - a fresh agent (or future-you) reads it and knows where everything lives without trawling through 30 memory files.
+Copy this into `.ai/MEMORY-MAP.md` in your project and fill in the blanks. It is the "open-this-first" memory contract - a fresh agent or future-you reads it and knows where everything lives without trawling through 30 memory files.
 
-When you copy it, also add this to your project's `CLAUDE.md`:
+When you copy it, also add the same short orientation note to whatever tool adapters the project uses: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or equivalent.
 
 ```markdown
 ## Orientation
-Before memory operations or deep work, consult `docs/PROJECT-MAP.md` - it defines
+Before memory operations or deep work, consult `.ai/MEMORY-MAP.md` - it defines
 the hot/warm/cold tiers, where each type of knowledge belongs, and the
 `/save-point` routing rules for this project.
 ```
 
-CLAUDE.md is auto-loaded, so this primer lands every session.
+Tool adapters are primers only. They point at `.ai/MEMORY-MAP.md`; they do not contain separate memory.
 
 ---
 
 ```markdown
-# PROJECT-MAP - <project name>
+# MEMORY-MAP - <project name>
 
-**Open this first.** Tells you where everything lives, what goes where, and how `/save-point` routes new knowledge.
+**Open this first.** This is the project-owned memory contract for every AI tool working in this repo.
 
 ## What <project> is
 
@@ -26,7 +26,7 @@ CLAUDE.md is auto-loaded, so this primer lands every session.
 
 ## Structural overview
 
-<Tree diagram of docs/, .claude/memory/, any app-specific directories. One line per folder explaining its role. Cut anything that's derivable from ls.>
+<Tree diagram of docs/, .ai/memory/, any app-specific directories. One line per folder explaining its role. Cut anything that's derivable from ls.>
 
 ## Where do I look for X?
 
@@ -34,32 +34,32 @@ CLAUDE.md is auto-loaded, so this primer lands every session.
 |---|---|
 | System architecture & pipeline flow | `docs/ARCHITECTURE.md` |
 | Why a decision was made | `docs/decisions/ADR-NNNN-*.md` (indexed in `decisions/README.md`) |
-| Current open work | `.claude/memory/open_action_items.md` |
+| Current open work | `.ai/memory/open_action_items.md` |
 | Strategic roadmap (no deadline) | `docs/roadmap.md` |
 | Parked initiatives (revive when…) | `docs/parked/` |
 | Operations runbook | `docs/OPS.md` |
 | Deep ops procedures | `docs/ops/` |
 | Agent IDs, file paths, credentials refs | `docs/reference/` |
-| Behavioral rules enforced in-session | `.claude/memory/feedback_*.md` |
-| Current session state | `.claude/memory/project_state.md` |
-| Historical sessions / superseded specs | `.claude/memory/archive/ARCHIVE.md` |
+| Behavioral rules enforced in-session | `.ai/memory/feedback_*.md` |
+| Current session state | `.ai/memory/project_state.md` |
+| Historical sessions / superseded specs | `.ai/memory/archive/ARCHIVE.md` |
 <Add project-specific rows - standards, agent instructions, normative specs, whatever lives outside the default structure.>
 
 ## The three tiers
 
 | Tier | Location | When loaded | Purpose |
 |---|---|---|---|
-| **Hot** | `.claude/memory/` | Every session (MEMORY.md auto) + on-demand | Active work, current state, evergreen behavioral rules |
+| **Hot** | `.ai/memory/` | Every session (MEMORY.md auto) + on-demand | Active work, current state, evergreen behavioral rules |
 | **Warm** | `docs/` | On demand | Architecture, ADRs, roadmap, reference, parked |
-| **Cold** | `.claude/memory/archive/` + `docs/**/archive/` | Only when searching history | Superseded state, ADR provenance, old session narratives |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when searching history | Superseded state, ADR provenance, old session narratives |
 
 ## How new information gets captured
 
 When saving new knowledge, route by type:
 
-- **New behavioral rule the agent should follow** → `.claude/memory/feedback_<slug>.md` (hot). 10–25 lines. Includes **Why:** and **How to apply:**.
-- **New decision just shipped** → `docs/decisions/ADR-NNNN-<slug>.md` (warm). Archive any in-flight memory source to `memory/archive/source-adr-NNNN-*.md`.
-- **New in-flight initiative** → `.claude/memory/project_<slug>.md` (hot). Promote to ADR on ship.
+- **New behavioral rule the agent should follow** → `.ai/memory/feedback_<slug>.md` (hot). 10–25 lines. Includes **Why:** and **How to apply:**.
+- **New decision just shipped** → `docs/decisions/ADR-NNNN-<slug>.md` (warm). Archive any in-flight memory source to `.ai/memory/archive/source-adr-NNNN-*.md`.
+- **New in-flight initiative** → `.ai/memory/project_<slug>.md` (hot). Promote to ADR on ship.
 - **Deferred initiative (no date)** → `docs/parked/<slug>.md` with a **Revive when:** trigger (warm).
 - **New reference material** → `docs/reference/<slug>.md` (warm).
 - **New incident response pattern** → `docs/ops/incidents/<symptom>.md` (warm).
@@ -92,10 +92,10 @@ When `/save-point` runs on this project:
 
 Read shallow → deep:
 
-1. `MEMORY.md` - auto-loaded hot index.
-2. `open_action_items.md` - what's actionable right now.
-3. `project_state.md` - current + last session context.
-4. `docs/PROJECT-MAP.md` - this file, if orientation is needed.
+1. `.ai/MEMORY-MAP.md` - this file.
+2. `.ai/memory/MEMORY.md` - hot index.
+3. `.ai/memory/open_action_items.md` - what's actionable right now.
+4. `.ai/memory/project_state.md` - current + last session context.
 5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the task touches them.
 6. Specific ADRs / parked docs / reference docs - on demand.
 

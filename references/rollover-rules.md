@@ -12,7 +12,7 @@ Otherwise → `docs/reference/`. A feedback file like "always use officecli for 
 
 ### 2. Project memory stays hot while the initiative is in-flight
 
-On ship: extract the decision's rationale to `docs/decisions/ADR-NNNN-<slug>.md`, archive the memory source to `memory/archive/source-adr-NNNN-*.md`. Don't leave shipped specs in hot memory - the ADR has the rationale; the source is archived for provenance.
+On ship: extract the decision's rationale to `docs/decisions/ADR-NNNN-<slug>.md`, archive the memory source to `.ai/memory/archive/source-adr-NNNN-*.md`. Don't leave shipped specs in hot memory - the ADR has the rationale; the source is archived for provenance.
 
 ### 3. Project memory becomes parked if deferred >30 days without work
 
