@@ -31,6 +31,9 @@ strata/
 ├── strata/
 │   ├── SKILL.md                     # Authoritative tier model, routing rules, init workflow
 │   └── templates/                   # Scaffolded into new projects by `init`
+│       ├── AGENTS.md
+│       ├── CLAUDE.md
+│       ├── GEMINI.md
 │       ├── MEMORY.md
 │       ├── open_action_items.md
 │       ├── project_state.md
@@ -95,9 +98,10 @@ One-shot scaffold for a new project. Invoke the skill with `init`, answer two qu
 - `.ai/memory/` with MEMORY.md, open_action_items.md, project_state.md
 - `.ai/memory/archive/` with ARCHIVE.md, action_log.md
 - `.ai/MEMORY-MAP.md` with your project name substituted in
+- `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` thin adapters if they do not already exist
 - `docs/decisions/` and `docs/parked/` if you picked "code project"
 
-Idempotent. If the setup already exists, init refuses to touch it.
+Idempotent. If the setup already exists, init refuses to touch it. Existing adapter files are preserved rather than overwritten.
 
 ## What it is and what it is not
 
@@ -165,7 +169,7 @@ To update later: `git pull` in the clone, re-copy.
 
 ### Other tools
 
-Use `.ai/MEMORY-MAP.md` as the adapter target. In Codex, point `AGENTS.md` at `.ai/MEMORY-MAP.md`; in Claude, point `CLAUDE.md` at it; in Gemini, point `GEMINI.md` at it. The adapters stay thin. The memory itself lives in `.ai/`.
+Use `.ai/MEMORY-MAP.md` as the adapter target. In Codex, point `AGENTS.md` at `.ai/MEMORY-MAP.md`; in Claude, point `CLAUDE.md` at it; in Gemini, point `GEMINI.md` at it. The adapters stay thin. The memory itself lives in `.ai/`. `strata init` now scaffolds these adapters when they are absent.
 
 ### Scaffold a new project (tier mode from day one)
 

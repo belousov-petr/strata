@@ -224,11 +224,16 @@ Templates live in this skill's `templates/` directory. For each target, read the
 | `templates/ARCHIVE.md` | `.ai/memory/archive/ARCHIVE.md` |
 | `templates/action_log.md` | `.ai/memory/archive/action_log.md` |
 | `templates/MEMORY-MAP.md` | `.ai/MEMORY-MAP.md` |
+| `templates/AGENTS.md` | `AGENTS.md` (Codex adapter; write only if absent) |
+| `templates/CLAUDE.md` | `CLAUDE.md` (Claude adapter; write only if absent) |
+| `templates/GEMINI.md` | `GEMINI.md` (Gemini adapter; write only if absent) |
 
 **Placeholders to substitute:**
 
 - `{{PROJECT_NAME}}` → value from question 1 (user-supplied)
 - `{{INIT_DATE}}` → today in `YYYY-MM-DD` format (from `date +%Y-%m-%d`)
+
+**Tool adapter writes:** For `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md`, write the template only when the target file does not exist. If an adapter already exists, leave it unchanged and list it under "Existing adapters left unchanged" in the report. Adapter files are primers only; they point to `.ai/MEMORY-MAP.md` and must not contain separate project memory.
 
 If code project type was chosen:
 - create empty `docs/decisions/` directory (e.g. `mkdir -p docs/decisions && touch docs/decisions/.gitkeep`)
@@ -245,7 +250,9 @@ Created:
 - .ai/memory/ (hot tier: MEMORY.md, open_action_items.md, project_state.md)
 - .ai/memory/archive/ (cold tier: ARCHIVE.md, action_log.md)
 - .ai/MEMORY-MAP.md (tier map + routing rules)
+- AGENTS.md / CLAUDE.md / GEMINI.md adapters that were absent
 <+ docs/decisions/ and docs/parked/ if code project>
+<+ Existing adapters left unchanged: ... if any already existed>
 
 Next steps:
 - At end of session, run /save-point (will now route by tier)

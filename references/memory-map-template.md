@@ -2,7 +2,7 @@
 
 Copy this into `.ai/MEMORY-MAP.md` in your project and fill in the blanks. It is the "open-this-first" memory contract - a fresh agent or future-you reads it and knows where everything lives without trawling through 30 memory files.
 
-When you copy it, also add the same short orientation note to whatever tool adapters the project uses: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or equivalent.
+When you copy it manually, also add the same short orientation note to whatever tool adapters the project uses: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, or equivalent. `strata init` scaffolds thin adapter files for Codex, Claude, and Gemini automatically when they are absent.
 
 ```markdown
 ## Orientation
