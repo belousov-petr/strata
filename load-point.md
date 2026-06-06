@@ -9,6 +9,8 @@ Read the saved state and orient yourself so you can resume work immediately with
 
 **Authoritative rules live in `Skill: strata`.** This command orchestrates the load flow; the skill defines the tier model and loading order. Do not restate them here.
 
+Load-point is also a quality gate for saved findings. If hot memory says there are unresolved structural issues, stale-doc follow-ups, env/config mismatches, or operational lessons, surface the immediate next action and open only the specific warm doc or action item needed.
+
 ## When to use
 
 - Starting a new session on an existing project
@@ -36,7 +38,7 @@ Read only as much as you need to orient. Do NOT bulk-load ADRs, parked items, or
 2. `.ai/memory/MEMORY.md` - the hot index.
 3. `.ai/memory/open_action_items.md` - what's actionable right now.
 4. `.ai/memory/project_state.md` - current + last completed session only.
-5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the user's task touches pipeline structure or ops.
+5. `docs/ARCHITECTURE.md` + `docs/OPS.md` - only if the user's task touches architecture or operations.
 6. Specific ADRs / parked docs / reference docs - only when the current task makes them relevant.
 
 **Do NOT auto-re-read `feedback_*.md` files during load-point.** They are referenced from `MEMORY.md` (which auto-loads) and fire when relevant in-session; re-reading them here bulks context without adding information. If the user's task specifically touches a feedback rule, open the matching file then — not at orientation time.
@@ -59,6 +61,8 @@ The top section of `project_state.md` is the resumption point. Pull:
 - Immediate next action
 - Prerequisites (env vars, services, manual steps)
 - Uncommitted changes and their scope
+- Unresolved findings or weak spots that have an active next action
+- Any docs/runbooks/reference files the next action depends on
 
 ### 4. Verify the state is current
 
@@ -68,6 +72,7 @@ State files are snapshots - they may be stale. Check:
 - `git log --oneline -5` - are there commits after the last saved session? Someone (or another session) worked on the project since.
 - Do key files/paths mentioned in state still exist? Quick spot-check, not exhaustive.
 - **Tier mode extra:** if `project_state.md` references an ADR number, grep `docs/decisions/` to confirm it exists. If a parked item is mentioned, confirm the file is still in `docs/parked/`.
+- If hot memory references a runbook, incident, architecture doc, reference doc, or issue as the owner of a finding, spot-check that target exists before relying on it.
 
 **If state conflicts with reality:**
 
@@ -84,6 +89,7 @@ Give the user a concise orientation (not a wall of text):
 **Next up:** <the immediate next action>
 **Prerequisites:** <anything needed before starting, or "none">
 **Open items:** <the most urgent ones, if any>
+**Findings:** <urgent unresolved finding, or "none surfaced">
 ```
 
 Tier mode - add one line on where the next action will probably write:
@@ -108,6 +114,7 @@ After load-point, you should be able to:
 - Start the next action without asking the user for context.
 - Catch state-vs-reality drift before acting on stale info.
 - Know which tier files are relevant to the task without loading all of them.
+- Know whether unresolved findings, doc drift, or env/config mismatches need attention before implementation.
 
 ## Do NOT
 

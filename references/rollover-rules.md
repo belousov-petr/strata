@@ -20,7 +20,7 @@ Move to `docs/parked/<slug>.md` with a **Revive when:** trigger. Example:
 
 ```markdown
 ## Revive when
-Next Claude Code outage occurs AND operator confirms watchdog emails still haven't arrived.
+The next runtime outage occurs AND the operator confirms watchdog notifications still have not arrived.
 ```
 
 A specific trigger beats a vague "later." If the trigger fires, `/save-point` moves the file back to hot memory and re-opens the action item.

@@ -6,13 +6,17 @@ type: project
 
 # Open action items — {{PROJECT_NAME}}
 
-Format per item: **WHAT** → **HISTORY** → **WHY STILL OPEN** → **SUGGESTION**.
+Format per item: **WHAT** → **EVIDENCE** → **AFFECTED PATHS/SYSTEMS** → **STATUS** → **STRUCTURAL FIX** → **ACCEPTANCE CRITERIA**.
 
 ## Time-bounded (deadline ≤2 weeks)
 
 _No items yet._
 
 ## In-flight infrastructure
+
+_No items yet._
+
+## Findings and structural fixes
 
 _No items yet._
 

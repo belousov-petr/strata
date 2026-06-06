@@ -32,7 +32,7 @@ Tool adapters are primers only. They point at `.ai/MEMORY-MAP.md`; they do not c
 
 | If you need… | Open… |
 |---|---|
-| System architecture & pipeline flow | `docs/ARCHITECTURE.md` |
+| System architecture & runtime flow | `docs/ARCHITECTURE.md` |
 | Why a decision was made | `docs/decisions/ADR-NNNN-*.md` (indexed in `decisions/README.md`) |
 | Current open work | `.ai/memory/open_action_items.md` |
 | Strategic roadmap (no deadline) | `docs/roadmap.md` |
@@ -40,6 +40,7 @@ Tool adapters are primers only. They point at `.ai/MEMORY-MAP.md`; they do not c
 | Operations runbook | `docs/OPS.md` |
 | Deep ops procedures | `docs/ops/` |
 | Agent IDs, file paths, credentials refs | `docs/reference/` |
+| Structural findings and weak spots | project issue tracker, `.ai/memory/open_action_items.md`, or `docs/parked/` |
 | Behavioral rules enforced in-session | `.ai/memory/feedback_*.md` |
 | Current session state | `.ai/memory/project_state.md` |
 | Historical sessions / superseded specs | `.ai/memory/archive/ARCHIVE.md` |
@@ -50,8 +51,8 @@ Tool adapters are primers only. They point at `.ai/MEMORY-MAP.md`; they do not c
 | Tier | Location | When loaded | Purpose |
 |---|---|---|---|
 | **Hot** | `.ai/memory/` | Every session (MEMORY.md auto) + on-demand | Active work, current state, evergreen behavioral rules |
-| **Warm** | `docs/` | On demand | Architecture, ADRs, roadmap, reference, parked |
-| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when searching history | Superseded state, ADR provenance, old session narratives |
+| **Warm** | `docs/` | On demand | Architecture, ADRs, operations, roadmap, reference, parked |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when searching history | Superseded state, ADR provenance, old session narratives, historical docs |
 
 ## How new information gets captured
 
@@ -63,6 +64,11 @@ When saving new knowledge, route by type:
 - **Deferred initiative (no date)** → `docs/parked/<slug>.md` with a **Revive when:** trigger (warm).
 - **New reference material** → `docs/reference/<slug>.md` (warm).
 - **New incident response pattern** → `docs/ops/incidents/<symptom>.md` (warm).
+- **New operational lesson or runbook change** → `docs/OPS.md`, `docs/ops/<slug>.md`, or an incident note.
+- **New architecture fact or interface contract** → `docs/ARCHITECTURE.md`, `docs/reference/<slug>.md`, or ADR if rationale matters.
+- **Documentation drift** → fix in place, or archive historically useful stale docs under `docs/**/archive/`.
+- **Structural weakness or improvement opportunity** → project issue tracker if configured; otherwise `.ai/memory/open_action_items.md` or `docs/parked/<slug>.md`.
+- **Environment/config mismatch** → reference/runbook update plus hot action item if unresolved. Save env var names and surfaces, never secret values.
 - **Session narrative** → append to `project_state.md`; roll older sessions into `archive/` at session start.
 
 Never in memory:
@@ -71,6 +77,7 @@ Never in memory:
 - Full reference/how-to material
 - Already-shipped rationale without active next step
 - Auto-derivable info (git history, file paths from code, folder structure)
+- Machine-specific absolute paths, local usernames, or OS-specific shell commands unless the project requires them
 
 ## /save-point playbook
 
@@ -81,12 +88,14 @@ When `/save-point` runs on this project:
 3. For each completed `open_action_items.md` entry:
    - Shipped decision → extract ADR, archive source, drop from open_action_items.
    - Plain task → drop from open_action_items.
-4. For each in-flight `project_<slug>.md`:
+4. Update durable docs for architecture, operations, incidents, references, and stale documentation found this session.
+5. Capture unresolved findings with evidence, affected paths/systems, status, root-cause hypothesis, structural fix direction, and acceptance criteria.
+6. For each in-flight `project_<slug>.md`:
    - Shipped → promote to ADR.
    - 30+ days no work → park with revive trigger.
-5. Update `MEMORY.md` index.
-6. Update `archive/ARCHIVE.md`.
-7. Report: `Saved hot: […]. Extracted to ADR: […]. Parked: […]. Archived: […].`
+7. Update `MEMORY.md` index.
+8. Update `archive/ARCHIVE.md`.
+9. Report: `Saved hot: […]. Updated docs: […]. Captured findings: […]. Extracted to ADR: […]. Parked: […]. Archived: […].`
 
 ## /load-point order
 
@@ -111,4 +120,5 @@ Codified in `MEMORY.md`:
 4. `project_state.md` = current + last session only.
 5. Reference material never lives in memory.
 6. Archive is preserved, not auto-surfaced.
+7. Use project-relative paths; record Windows PowerShell and POSIX shell variants when an operational command must be portable.
 ```

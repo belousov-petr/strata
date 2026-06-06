@@ -9,6 +9,8 @@ Capture what happened in this session so the next one starts hot. If the project
 
 **Authoritative rules live in `Skill: strata`.** This command orchestrates the save flow; the skill defines the tier model, routing table, rollover rules, and `action_log.md` format. Do not restate those rules here — read them from the skill when needed.
 
+Capture is broader than hot memory. If the session changed how the project should be operated, documented, reasoned about, or improved, update the durable owner: ADRs, architecture docs, reference docs, ops runbooks, incident notes, action items, issue trackers, and cold archives as appropriate.
+
 ## When to use
 
 - End of a work session
@@ -46,9 +48,15 @@ Review the conversation - what was actually done, decided, or discovered:
 - Bugs found and how they were fixed
 - Experiments and failures (these prevent repeating dead ends next time)
 - Non-obvious learnings and gotchas
+- Bad execution, poor architecture, broken logic, outdated docs, and weak spots discovered while working
+- Operational lessons, runbook changes, incident patterns, and status changes
+- Environment/config mismatches, credential-surface drift, and path/reference updates (never secret values)
+- Documentation updated or now known to be wrong
 - What was verified and how
 
 Separate into categories - each category routes differently in tier mode.
+
+If a finding is high-value and unresolved, capture it immediately while context is fresh. Include symptom, evidence, affected paths/systems, current status, likely root cause or hypotheses, why a quick workaround is insufficient, the structural fix direction, and acceptance criteria.
 
 ### 4. Capture the resumption point
 
@@ -70,6 +78,11 @@ This is the single most important section. Write it specifically enough that a f
 - deferred (no date) → `docs/parked/<slug>.md` with **Revive when:**
 - reference material → `docs/reference/<slug>.md`
 - incident response pattern → `docs/ops/incidents/<symptom>.md`
+- ops lesson / runbook change → `docs/OPS.md`, `docs/ops/<slug>.md`, or incident note
+- architecture fact / structural choice → `docs/ARCHITECTURE.md`, `docs/reference/<slug>.md`, or ADR
+- stale documentation → fix in place, or archive to `docs/**/archive/` if historical
+- structural weakness / improvement opportunity → issue tracker if configured; otherwise active item or parked doc
+- env/config mismatch → reference/runbook update plus hot action item if unresolved
 - session narrative → append to `.ai/memory/project_state.md`
 - **completed action with external artifact (PR, comment, email sent) → append to `.ai/memory/archive/action_log.md`**
 
@@ -84,14 +97,16 @@ This is the single most important section. Write it specifically enough that a f
 Classify this session's work into four buckets: NEW FILES, APPENDS, MOVES, DELETIONS. Include rollover work:
 
 1. **`project_state.md` bloat check.** If it covers more than current + last completed, the oldest block → `archive/YYYY-MM-DD-sessions-NN.md`.
-2. **Open action items — shipped scan.** For each item completed this session:
+2. **Durable-doc scan.** For each discovered fact that makes an existing durable doc wrong or incomplete, include the doc update or archive move in the preview. Do not leave contradictions between hot memory and warm docs.
+3. **Finding-quality scan.** For each unresolved structural finding, make sure the proposed action has evidence, affected paths/systems, current status, root-cause hypothesis, structural fix direction, and acceptance criteria.
+4. **Open action items — shipped scan.** For each item completed this session:
    - Shipped decision with rationale → NEW ADR in `docs/decisions/` + MOVE source to `archive/source-adr-NNNN-*.md` + DELETE block from `open_action_items.md`.
    - Completed external action (PR posted, email sent, comment made) → APPEND entry to `archive/action_log.md` + DELETE block from `open_action_items.md`.
    - Plain task → DELETE block from `open_action_items.md`.
-3. **In-flight ship check.** For each `.ai/memory/project_<slug>.md`:
+5. **In-flight ship check.** For each `.ai/memory/project_<slug>.md`:
    - Shipped this session → promote to ADR + archive source.
    - No work for 30+ days → MOVE to `docs/parked/<slug>.md` with **Revive when:** + archive source.
-4. **Parked-items promotion.** If a parked item's revive trigger fired, MOVE back to `.ai/memory/project_<slug>.md` + add to `open_action_items.md`.
+6. **Parked-items promotion.** If a parked item's revive trigger fired, MOVE back to `.ai/memory/project_<slug>.md` + add to `open_action_items.md`.
 
 #### 6b — Safeguards (apply before showing preview)
 
@@ -192,6 +207,9 @@ Decisions: …
 ## Key Constraints & Gotchas
 …
 
+## Findings & Improvement Opportunities
+- [status] Symptom / evidence / affected paths / likely root cause / structural fix / acceptance criteria
+
 ## Open Items
 P0 / P1 / P2 …
 
@@ -206,7 +224,9 @@ P0 / P1 / P2 …
 
 ### 9. Fix stale references
 
-Scan `MEMORY.md` and any `feedback_*.md` / `project_*.md` for statements this session made factually wrong (e.g., "auth uses passport.js" but you just replaced it). Correct them. Skip files unrelated to this session's work - don't audit the entire memory directory.
+Scan `MEMORY.md`, any `feedback_*.md` / `project_*.md`, and the warm docs touched by this session for statements this session made factually wrong (e.g., "auth uses passport.js" but you just replaced it). Correct them. Skip files unrelated to this session's work - don't audit the entire repository.
+
+If a doc is simply wrong, fix it in place. If it is historically useful but no longer active, move it to the nearest `archive/` directory and update that archive index. Do not add "stale" banners as a resting state.
 
 ### 10. Update the project README (optional)
 
@@ -233,6 +253,8 @@ Extracted to ADR: ADR-0019 (enrichment queue force-drain).
 Parked: email-dispatcher-followup (revive when dispatcher audit needed).
 Archived: sessions 32–33 → archive/2026-04-20-sessions-32-33.md.
 Cleaned: 2 stale feedback references.
+Updated docs: docs/ops/runtime-health.md, docs/reference/auth-surfaces.md.
+Captured findings: A12 docs/source drift follow-up in open_action_items.md.
 ```
 
 Flat mode example:
@@ -260,6 +282,8 @@ The state capture must let a fresh session:
 - Avoid repeating failed approaches
 - Know prerequisites before running anything
 - Understand project health (tests, build, key metrics)
+- Find any unresolved structural weakness with enough evidence to fix it properly
+- Trust warm docs and hot memory to agree about facts discovered this session
 
 ## Common mistakes
 
@@ -268,6 +292,9 @@ The state capture must let a fresh session:
 | Dumping the whole codebase structure into state | Only save what's NOT derivable from reading files or `git log` |
 | Vague resumption point ("continue working on auth") | Specific: "implement refresh token rotation in `src/auth/tokens.ts`, tests stubbed in `tests/auth.test.ts`" |
 | Forgetting rejected approaches | Document what was tried and why it failed - prevents loops |
+| Losing weak spots discovered mid-investigation | Capture them immediately with evidence, status, fix direction, and acceptance criteria |
+| Treating memory as the only output | Update ADRs, docs, runbooks, incidents, references, and action statuses when they are the durable owner |
+| Capturing secret drift by pasting secrets | Save env var names, secret refs, surfaces, and mismatch status only - never values |
 | Saving stack traces or temp file paths | Ephemeral. Save the root cause and fix, not the debug output |
 | Creating new memory files for everything (flat mode) | Most state fits in `project_state.md` - only split when the pattern calls for it |
 | Re-bloating hot memory with shipped decisions (tier mode) | Extract to ADR. The rationale belongs in `docs/decisions/`, not `memory/` |
@@ -280,5 +307,6 @@ The state capture must let a fresh session:
 - Save code patterns derivable from reading source
 - Duplicate what `git log` shows (commit hashes, diffs)
 - Save environment-specific paths that won't exist next session
+- Assume one OS shell when a saved operational command must work across Windows, Linux, and macOS
 - Tier mode: re-populate `MEMORY.md` with archived files
 - Silently switch a flat-mode project into tier mode without offering migration

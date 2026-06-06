@@ -12,6 +12,7 @@ Cold storage. **Not surfaced via `MEMORY.md`.** Files here are preserved for for
 - `project_state.md` sessions older than "current + last completed" → rolled into a dated archive file at session start.
 - Shipped-initiative memory files whose rationale was extracted to an ADR → archived here as `source-adr-NNNN-*` for ADR provenance.
 - Reference/parked content migrated to `docs/reference/` or `docs/parked/` → raw source archived here as `source-reference-*` or `source-parked-*`.
+- Historically useful stale docs → move to the nearest `docs/**/archive/` directory and update that archive's index, not this hot-memory archive.
 - Completed action items with external artifacts (upstream PR/issue, email sent, comment posted) → append entry to `action_log.md`, delete from `open_action_items.md`.
 
 ## Files

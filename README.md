@@ -8,7 +8,7 @@ A tier-aware, tool-neutral memory system for AI coding agents that doesn't bloat
 
 ## Why this exists
 
-I run multiple active projects. An intelligence pipeline, a content library, a couple of smaller scripts. I also switch between tools. Claude, Codex, Gemini, and whatever comes next all need the same project state, but tool-owned memory creates drift. Without a habit of saving state at the end of each session, those files either stay empty or become contradictory. Next time I opened a project I'd either scroll through yesterday's transcript or re-explain what I did last Thursday, what I tried that didn't work, what was almost done, what I was waiting on.
+I run multiple active projects. Automation systems, content libraries, research notes, a couple of smaller scripts. I also switch between tools. Claude, Codex, Gemini, and whatever comes next all need the same project state, but tool-owned memory creates drift. Without a habit of saving state at the end of each session, those files either stay empty or become contradictory. Next time I opened a project I'd either scroll through yesterday's transcript or re-explain what I did last Thursday, what I tried that didn't work, what was almost done, what I was waiting on.
 
 So I started writing a `project_state.md` at the end of every session. That worked for a month. Then it grew to 1,085 lines, carrying fourteen sessions of narrative, every decision I'd made, every gotcha I'd hit. The file was doing too many jobs: resumption point, decision log, reference manual, rejected-approaches graveyard. The agent's memory search kept returning stale bits alongside current ones.
 
@@ -85,6 +85,8 @@ Four safeguards:
 
 If the project doesn't use the tier pattern, save-point falls back to a single-file dump in `project_state.md`.
 
+It also captures more than a session narrative. Decisions, findings, gotchas, runbook updates, documentation drift, operational lessons, architecture choices, config mismatches, and improvement opportunities get routed to the durable owner instead of being buried in hot memory.
+
 ### `/load-point`
 
 Loads the saved state shallow to deep. `.ai/MEMORY-MAP.md` first, then `.ai/memory/MEMORY.md`, then `open_action_items.md`, then `project_state.md` (current + last completed session only). Architecture and ops files only get opened if the task actually touches them. Then it runs `git status` to catch drift, and prints a four-line orientation.
@@ -147,13 +149,17 @@ The commands separate four kinds of knowledge:
 
 A fourth kind lives in the project's code/config itself. Anything derivable from reading files or `git log` should stay there, not in memory.
 
+Paths in Strata are project-relative (`.ai/...`, `docs/...`) so the same memory works on Linux, macOS, and Windows. When a saved operational step is OS-specific, write the relevant PowerShell and POSIX shell variants rather than assuming one machine.
+
 Authoritative rules: [`strata/SKILL.md`](strata/SKILL.md). Per-project scaffolds: [`strata/templates/`](strata/templates/).
 
 ## Installation
 
 ### Claude Code (CLI or Desktop)
 
-Clone the repo and copy the commands + skill into your `~/.claude/` tree:
+Clone the repo and copy the commands + skill into your Claude settings tree.
+
+Linux/macOS:
 
 ```bash
 git clone https://github.com/belousov-petr/strata.git
@@ -161,6 +167,17 @@ cp strata/save-point.md ~/.claude/commands/save-point.md
 cp strata/load-point.md ~/.claude/commands/load-point.md
 mkdir -p ~/.claude/skills/strata
 cp -r strata/strata/* ~/.claude/skills/strata/
+```
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/belousov-petr/strata.git
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands" | Out-Null
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\strata" | Out-Null
+Copy-Item strata\save-point.md "$env:USERPROFILE\.claude\commands\save-point.md" -Force
+Copy-Item strata\load-point.md "$env:USERPROFILE\.claude\commands\load-point.md" -Force
+Copy-Item strata\strata\* "$env:USERPROFILE\.claude\skills\strata" -Recurse -Force
 ```
 
 Restart Claude Code. The commands appear as `/save-point` and `/load-point`. The skill is invocable as `Skill(name='strata')`. The commands defer to it for rules automatically.
@@ -191,7 +208,7 @@ If the project already has history in a flat `project_state.md`, run `/save-poin
 2. **Reads current memory.** `MEMORY.md`, `project_state.md`, active project/feedback files.
 3. **Inventories this session's work.** Code changes, decisions, experiments, failures, verifications.
 4. **Captures the resumption point.** Last completed action, immediate next action, prerequisites, uncommitted changes.
-5. **Routes new knowledge.** Decisions to ADRs, parked to `docs/parked/`, rules to `feedback_*.md`, narrative to `project_state.md`, completed external actions to `archive/action_log.md`.
+5. **Routes new knowledge.** Decisions to ADRs, parked to `docs/parked/`, rules to `feedback_*.md`, findings to issues/action items/parked docs, architecture and operations to warm docs, narrative to `project_state.md`, completed external actions to `archive/action_log.md`.
 6. **Preview-confirm-execute gate.** Builds the full plan of new files / appends / moves / deletions, shows one preview block, waits for `y/n`. On `n`, aborts with zero writes. On `y`, executes writes → appends → moves → deletions.
 7. **Applies rollover discipline.** Trims `project_state.md` at 3+ sessions, promotes shipped initiatives to ADRs, parks stalled ones, archives older sessions.
 8. **Updates `MEMORY.md` + `archive/ARCHIVE.md`.** Keeps the indexes aligned.
@@ -203,7 +220,7 @@ Full contract: [`save-point.md`](save-point.md) + [`strata/SKILL.md`](strata/SKI
 ## How load-point works
 
 1. **Detects mode.** Tier or flat.
-2. **Loads shallow-to-deep.** `.ai/MEMORY-MAP.md` → `.ai/memory/MEMORY.md` → `open_action_items.md` → `project_state.md` (current + last completed only) → architecture/ops only if the task needs them. No bulk-loading ADRs, parked items, archives, or `feedback_*.md`.
+2. **Loads shallow-to-deep.** `.ai/MEMORY-MAP.md` → `.ai/memory/MEMORY.md` → `open_action_items.md` → `project_state.md` (current + last completed only) → architecture/operations docs only if the task needs them. No bulk-loading ADRs, parked items, archives, or `feedback_*.md`.
 3. **Orients from "WHERE WE LEFT OFF".** Pulls last action, next action, prerequisites, uncommitted scope.
 4. **Verifies against git.** `git status`, `git log --oneline -5`, spot-check referenced files. Flags drift instead of silently acting on stale state.
 5. **Presents a four-line summary.** What was last done, what's next, open items, prerequisites.

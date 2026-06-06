@@ -31,7 +31,10 @@ _(Replace this section with a 1–3 sentence description of the project — what
 │           └── action_log.md            ← append-only completion log
 ├── docs/                                ← VERSIONED HUMAN-READABLE DOCS (warm tier)
 │   ├── decisions/                       ← ADRs (why decisions were made)
+│   ├── ops/                             ← runbooks, incidents, operational lessons
 │   ├── reference/                       ← stable reference material
+│   ├── ARCHITECTURE.md                  ← system topology and structural choices
+│   ├── OPS.md                           ← lean operations runbook
 │   └── parked/                          ← deferred initiatives
 └── ...
 ```
@@ -48,6 +51,10 @@ _(Extend this tree with project-specific directories as they develop.)_
 | Current open work | `.ai/memory/open_action_items.md` |
 | Parked initiatives | `docs/parked/` |
 | Reference material | `docs/reference/` |
+| Operations runbook / lessons | `docs/OPS.md` + `docs/ops/` |
+| Incidents and response patterns | `docs/ops/incidents/` |
+| Architecture and interface contracts | `docs/ARCHITECTURE.md` + `docs/decisions/` |
+| Known weak spots or structural fixes | `.ai/memory/open_action_items.md`, project issue tracker, or `docs/parked/` |
 | Behavioral rules enforced in-session | `.ai/memory/feedback_*.md` |
 | Current session state | `.ai/memory/project_state.md` |
 | Historical sessions | `.ai/memory/archive/ARCHIVE.md` |
@@ -60,8 +67,8 @@ _(Extend this tree with project-specific directories as they develop.)_
 | Tier | Location | When loaded | Purpose |
 |---|---|---|---|
 | **Hot** | `.ai/memory/` | Every session (MEMORY.md auto) + on-demand | Active work, current state, evergreen behavioral rules |
-| **Warm** | `docs/` | On demand | ADRs, reference, parked initiatives |
-| **Cold** | `.ai/memory/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, completion log |
+| **Warm** | `docs/` | On demand | Architecture, ADRs, ops, runbooks, reference, parked initiatives |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded state, ADR provenance, historical docs, completion log |
 
 ---
 
@@ -72,6 +79,11 @@ _(Extend this tree with project-specific directories as they develop.)_
 - New in-flight initiative → `.ai/memory/project_<slug>.md`
 - New deferred initiative → `docs/parked/<slug>.md`
 - New reference material → `docs/reference/<slug>.md`
+- New ops lesson or runbook change → `docs/OPS.md`, `docs/ops/<slug>.md`, or `docs/ops/incidents/<symptom>.md`
+- New architecture fact or interface contract → `docs/ARCHITECTURE.md`, `docs/reference/<slug>.md`, or ADR if rationale matters
+- Documentation drift → fix in place, or move historical stale docs to `docs/**/archive/` with archive index
+- Structural weakness or improvement opportunity → project issue tracker if configured; otherwise `.ai/memory/open_action_items.md` or `docs/parked/<slug>.md`
+- Env/config mismatch → docs/reference or docs/ops update plus hot action item if unresolved; never record secret values
 - New session narrative → append to `project_state.md`; archive older sessions at session start
 - **Completed action with external artifact (upstream PR/issue, email sent, comment posted) → append to `.ai/memory/archive/action_log.md` and delete from `open_action_items.md`**
 
@@ -81,6 +93,7 @@ Things that should **never** live in memory:
 - Full reference material that belongs in `docs/reference/`
 - Already-shipped rationale without an active next step
 - Auto-derivable information such as folder structure or git history
+- Raw transcripts, full stack traces, or debug blobs when a concise root cause + evidence is enough
 
 ---
 

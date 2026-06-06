@@ -27,6 +27,10 @@ Two entry points:
 
 **Loading discipline.** Tool adapters should load `.ai/MEMORY-MAP.md`, then `.ai/memory/MEMORY.md`. Auto-loaded content should fit in `MEMORY.md` (≤80 lines) + `project_state.md` (≤200 lines) + `open_action_items.md` (active only). Everything else is on demand.
 
+**Capture discipline.** Strata captures knowledge needed to resume, operate, or structurally improve the project. It is not just "memory": route decisions, findings, gotchas, documentation changes, operational lessons, architecture references, runbooks, incidents, and status changes to their durable homes while the context is fresh.
+
+**Portability discipline.** Strata is project-relative and tool-neutral. Use `.ai/...` and `docs/...` paths in memory/docs; avoid persisting machine-specific absolute paths, local usernames, shell profiles, or OS-specific commands unless the project itself requires them. When commands matter, record the Windows PowerShell and POSIX shell variants if both are relevant.
+
 ---
 
 ## 2. Routing rules — where new knowledge goes
@@ -39,6 +43,11 @@ Two entry points:
 | Deferred initiative (no date, may revive) | `docs/parked/<slug>.md` with a **Revive when:** trigger | Warm |
 | Stable reference material (paths, brand, frameworks) | `docs/reference/<slug>.md` | Warm |
 | New incident response pattern | `docs/ops/incidents/<symptom>.md` | Warm |
+| Operational lesson, runbook change, or recurring gotcha | `docs/OPS.md`, `docs/ops/<slug>.md`, or `docs/ops/incidents/<symptom>.md` | Warm |
+| Architecture fact, interface contract, or structural choice | `docs/ARCHITECTURE.md`, `docs/reference/<slug>.md`, or ADR if rationale matters | Warm |
+| Documentation drift or stale guidance found while working | Fix in place, or move historically useful stale docs to `docs/**/archive/` with archive index | Warm → Cold |
+| Bad execution, poor architecture, broken logic, or improvement opportunity discovered | Project issue tracker if configured; otherwise `.ai/memory/open_action_items.md` for active work or `docs/parked/<slug>.md` for deferred work | Hot or Warm |
+| Environment/config mismatch without exposing secret values | Relevant runbook/reference doc plus hot action item if still unresolved | Warm (+ Hot if open) |
 | Session narrative | append to `.ai/memory/project_state.md`; older sessions archive at session start | Hot → Cold |
 | Completed action item with external artifact (PR, comment, email sent) | append to `.ai/memory/archive/action_log.md` | Cold |
 
@@ -47,6 +56,9 @@ Two entry points:
 - API keys, tokens, credentials
 - Already-shipped rationale without an active next step (extract to ADR instead)
 - Auto-derivable info (folder structure, `git log` output)
+- Raw transcripts, full stack traces, debug blobs, or complete command output when a concise root cause + evidence is enough
+
+**Finding capture bar.** When an investigation exposes a weakness worth fixing later, capture enough for a structural fix: symptom, evidence, affected paths/systems, current status, likely root cause or competing hypotheses, why the quick workaround is insufficient, proposed long-term fix, and acceptance criteria. Do this immediately for high-value findings if waiting until `/save-point` risks losing the reasoning.
 
 ---
 
@@ -106,6 +118,10 @@ Inventory this session's work into these buckets:
 - Shipped decisions → candidate ADRs
 - New in-flight work → candidate `project_*.md` entries
 - Parked/deferred → candidate `docs/parked/` entries
+- Structural findings / weak spots → candidate issue, action item, parked item, ADR, or reference/runbook update
+- Operational lessons / runbook changes → candidate `docs/ops/` updates or incident notes
+- Documentation drift → candidate fix-in-place or cold archive move
+- Environment/config mismatches → candidate reference/runbook update plus active action item if unresolved
 - Completed external actions → candidate `action_log.md` appends
 - Session narrative → append target for `project_state.md`
 - Rollover candidates → `project_state.md` bloat, 30+ day inactivity, etc.
@@ -170,7 +186,7 @@ When `/load-point` is invoked in tier mode, load in this order (stop early if us
 2. `.ai/memory/MEMORY.md` — hot index
 3. `.ai/memory/open_action_items.md` — full file; what's actionable now
 4. `.ai/memory/project_state.md` — current + last completed session only (trimmed)
-5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if task touches pipeline/ops
+5. `docs/ARCHITECTURE.md` + `docs/OPS.md` — only if task touches architecture or operations
 6. Specific ADRs / parked docs / reference — only when current task makes them relevant
 
 **Do not auto-re-read `feedback_*.md` files.** They are visible via `MEMORY.md` index and fire when relevant; re-reading bulks context without benefit.
@@ -272,6 +288,9 @@ Next steps:
 | Bulk-loading all ADRs during /load-point | Only load ADRs when the current task makes them relevant. |
 | Leaving DONE entries in open_action_items.md | That's what `action_log.md` is for. Migrate at save-point. |
 | Deleting instead of archiving | Cold tier exists so misclassification is recoverable. Move, never delete. |
+| Capturing only `project_state.md` while docs/runbooks/ADRs are now wrong | Update the durable owner in warm docs; state files are not a substitute for docs. |
+| Saving vague findings like "architecture needs cleanup" | Capture evidence, paths, root-cause hypothesis, structural fix direction, status, and acceptance criteria. |
+| Hiding a discovered problem because it is not part of the original task | Capture it as a finding or deferred item while context is fresh; do not let it vanish. |
 | New ADR with colliding number | Scan `docs/decisions/` first; pick `highest + 1`. |
 | `init` over an existing setup | Refuse. User must migrate, move, or delete existing memory first. |
 

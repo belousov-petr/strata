@@ -9,15 +9,15 @@ Memory drifts into a dumping ground. Superseded state snapshots, shipped-initiat
 1. The hot `MEMORY.md` index bloats to dozens of entries, so on-demand memory search returns stale files alongside current ones.
 2. The *rationale* for shipped decisions lives only in memory. When those files age out, the "why" evaporates.
 
-The three-tier pattern fixes both by routing each type of knowledge to its correct persistence layer.
+The three-tier pattern fixes both by routing each type of knowledge to its correct persistence layer. It works for code, research, operations, documentation, and mixed projects; project-specific terms belong in the project memory map, not in the generic Strata skill.
 
 ## Three tiers
 
 | Tier | Location | When loaded | Contains |
 |---|---|---|---|
 | **Hot** | `.ai/memory/` (lean) | Every session (`MEMORY.md` auto) + on-demand | Active open items, current session state, in-flight initiatives, evergreen behavioral feedback |
-| **Warm** | `docs/` (git-versioned) | On demand | Architecture, ADRs (decision rationale), roadmap, reference, parked initiatives |
-| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded snapshots, old session narratives, ADR provenance, historical incidents |
+| **Warm** | `docs/` (git-versioned) | On demand | Architecture, ADRs (decision rationale), operations, roadmap, reference, parked initiatives |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded snapshots, old session narratives, ADR provenance, historical incidents/docs |
 
 ## Target structure
 
@@ -88,13 +88,18 @@ When saving something new:
 4. **Deferred initiative (no date)** → `docs/parked/<slug>.md` with **Revive when:** trigger.
 5. **Reference material** (paths, brand, frameworks) → `docs/reference/<slug>.md`. Never in memory.
 6. **Incident response pattern** → `docs/ops/incidents/<symptom>.md`.
-7. **Session narrative** → append to current `project_state.md`; roll older sessions into `.ai/memory/archive/` at session start.
+7. **Operational lesson or runbook change** → `docs/OPS.md`, `docs/ops/<slug>.md`, or an incident note.
+8. **Architecture fact or interface contract** → `docs/ARCHITECTURE.md`, `docs/reference/<slug>.md`, or ADR if rationale matters.
+9. **Documentation drift** → fix in place, or archive historically useful stale docs under `docs/**/archive/`.
+10. **Structural weakness or improvement opportunity** → project issue tracker if configured; otherwise `.ai/memory/open_action_items.md` or `docs/parked/<slug>.md`.
+11. **Session narrative** → append to current `project_state.md`; roll older sessions into `.ai/memory/archive/` at session start.
 
 Never in memory:
 
-- Raw secrets/keys (use `secret_ref` or env-var names)
+- Raw secrets/keys (use secret-manager references or env-var names)
 - Already-shipped rationale without active next step (it's an ADR)
 - Stuff derivable from code / git / filesystem
+- Machine-specific absolute paths, local usernames, or OS-specific commands unless the project requires them
 
 ## Rollover discipline
 
@@ -106,6 +111,8 @@ Applied at `/save-point` and at session start. Codify these in the project's `ME
 4. `project_state.md` keeps only current session + last completed. Older → `archive/YYYY-MM-sessions-XX-YY.md` at session start.
 5. Reference material never lives in memory.
 6. Archive is preserved, not auto-surfaced. Not listed in `MEMORY.md`.
+7. Durable docs stay in sync with discoveries: runbooks, architecture docs, references, incidents, and stale docs get updated when the session changes their truth.
+8. Saved operational commands are portable when needed: record Windows PowerShell and POSIX shell variants instead of assuming one OS.
 
 ## Setup checklist (new project)
 
@@ -124,8 +131,9 @@ If a project has an oversized `project_state.md` or a sprawling memory directory
 2. **Extract ADRs.** For each shipped initiative with rationale in memory, write an ADR in `docs/decisions/` and archive the source to `.ai/memory/archive/source-adr-NNNN-*.md`.
 3. **Migrate reference.** Move paths-and-credentials, framework notes, brand rules to `docs/reference/`. Sanitize any secrets.
 4. **Park deferred.** Move stalled initiatives to `docs/parked/<slug>.md` with **Revive when:** triggers.
-5. **Rewrite MEMORY.md.** Lean index pointing at hot files + warm docs + archive.
-6. **Trim open_action_items.md.** Move no-deadline items to `docs/roadmap.md`. Keep only A-tier + in-flight.
-7. **Hook tool adapters.** Add the Orientation section to each tool adapter the project uses.
+5. **Extract operations and architecture.** Move runbooks, incidents, interface contracts, and structural choices to the durable warm docs.
+6. **Rewrite MEMORY.md.** Lean index pointing at hot files + warm docs + archive.
+7. **Trim open_action_items.md.** Move no-deadline items to `docs/roadmap.md`. Keep only A-tier + in-flight.
+8. **Hook tool adapters.** Add the Orientation section to each tool adapter the project uses.
 
 The `/save-point` skill can help - in flat mode, it offers to migrate once `project_state.md` passes ~500 lines.
