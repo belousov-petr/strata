@@ -49,6 +49,28 @@ strata/
 
 Three verbs.
 
+### What Strata captures
+
+Strata routes more than "what happened this session." The point is to preserve anything a future agent needs to resume work, operate the project, or fix it structurally without rediscovering the same facts.
+
+It captures and routes:
+
+- **Session state**: last completed action, next action, prerequisites, uncommitted scope, background processes, and verification results. This stays hot in `.ai/memory/project_state.md`.
+- **Open work and status changes**: active blockers, in-flight initiatives, completed plain tasks, deferred items, and "do not re-raise" notes. Active items stay in `.ai/memory/open_action_items.md`; deferred items move to `docs/parked/` with a `Revive when:` trigger.
+- **Behavioral memory**: rules the agent must apply in future sessions, such as "verify before asserting" or "never paste secret values." These live in `.ai/memory/feedback_<slug>.md` only when they change in-session behavior.
+- **Decisions and tradeoffs**: shipped decisions with non-obvious rationale, rejected alternatives, constraints, consequences, and follow-up implications. These become `docs/decisions/ADR-NNNN-<slug>.md`; any in-flight source note is archived as ADR provenance.
+- **Findings and weak spots**: bad execution, poor architecture, broken logic, brittle workflows, confusing APIs, missing tests, unclear ownership, bad docs, or anything that deserves a structural fix. A useful finding includes symptom, evidence, affected paths/systems, status, likely root cause or hypotheses, why a quick workaround is insufficient, structural fix direction, and acceptance criteria.
+- **Gotchas and learnings**: things that would cause a future agent to waste time if forgotten, including failed approaches, surprising tool behavior, command pitfalls, dependency conflicts, or non-obvious project conventions. These route to hot feedback only if they change behavior; otherwise they belong in reference or operations docs.
+- **Runbooks and operational lessons**: changed maintenance steps, health checks, deployment procedures, recurring incidents, recovery commands, monitoring interpretations, and "what this signal really means." These go to `docs/OPS.md`, `docs/ops/<topic>.md`, or `docs/ops/incidents/<symptom>.md`.
+- **Documentation drift**: docs made wrong by the session, stale instructions, obsolete diagrams, old issues, dead parked notes, or duplicated sources of truth. Current docs are fixed in place. Historically useful stale docs move to the nearest `docs/**/archive/` folder with that archive's index updated.
+- **Architecture and interface references**: system topology, data flow, stable interfaces, integration surfaces, path conventions, schema ownership, and architectural choices that do not need a full ADR. These go to `docs/ARCHITECTURE.md` or `docs/reference/<topic>.md`; choices with rationale become ADRs.
+- **Config and environment mismatches**: env-var name drift, secret-binding drift, local config vs managed config mismatch, missing setup steps, OS-specific command differences, or credential-surface confusion. Strata records env var names, config surfaces, and mismatch status, never secret values.
+- **Incidents**: symptoms, impact, root cause, remediation, verification, follow-up, and recurrence prevention. Incidents live in warm docs, usually under `docs/ops/incidents/`, not in hot memory.
+- **External completions**: PRs opened, issues filed, comments posted, emails sent, bookings made, API actions with durable URLs. These are appended to `.ai/memory/archive/action_log.md` and removed from active open items.
+- **Historical context**: old session narratives, superseded state snapshots, ADR source notes, and completion logs. These stay grep-able in cold archive but are not auto-loaded.
+
+It deliberately does **not** capture raw secrets, long transcripts, full stack traces, full command logs, giant diffs, or facts that can be re-derived from code, filesystem layout, or `git log`.
+
 ### `/save-point`
 
 Captures what happened in the session and routes it. Before anything moves, the command shows you a plan and waits for `y` or `n`:
@@ -63,9 +85,11 @@ NEW FILES:
 APPENDS:
 - .ai/memory/archive/action_log.md  ← F3, F4, F5 completion entries
 - .ai/memory/project_state.md  ← session 47 block
+- docs/ops/runtime-health.md  ← new probe interpretation rule
 
 MOVES:
 - project_voice_tags_design.md  →  archive/source-adr-0015-voice-tags.md
+- docs/parked/old-plan.md  →  docs/parked/archive/old-plan.md
 
 DELETIONS (section-only):
 - open_action_items.md: remove F3/F4/F5 blocks
@@ -102,6 +126,7 @@ One-shot scaffold for a new project. Invoke the skill with `init`, answer two qu
 - `.ai/MEMORY-MAP.md` with your project name substituted in
 - `AGENTS.md`, `CLAUDE.md`, and `GEMINI.md` thin adapters if they do not already exist
 - `docs/decisions/` and `docs/parked/` if you picked "code project"
+- optional warm-doc homes such as `docs/ARCHITECTURE.md`, `docs/OPS.md`, `docs/ops/`, and `docs/reference/` are referenced in the memory map and filled as the project needs them
 
 Idempotent. If the setup already exists, init refuses to touch it. Existing adapter files are preserved rather than overwritten.
 
@@ -139,17 +164,61 @@ It **is not**:
 
 ## Memory tier system
 
-The commands separate four kinds of knowledge:
+The commands separate knowledge by how often it should load and who owns the truth:
 
 | Tier | Where it lives | When loaded | What's in it |
 |---|---|---|---|
-| **Hot** | `.ai/memory/` | Every session (`MEMORY.md` auto) + on-demand | Active work, current session, evergreen behavioral rules |
-| **Warm** | `docs/` (git-versioned) | On demand | Architecture, ADRs, roadmap, reference, parked items |
-| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded snapshots, ADR provenance, old session narratives, `action_log.md` |
+| **Hot** | `.ai/memory/` | Every session (`MEMORY.md` auto) + on-demand | Active work, current session, open findings, in-flight initiatives, evergreen behavioral rules |
+| **Warm** | `docs/` (git-versioned) | On demand | Architecture, ADRs, operations, runbooks, incidents, reference, roadmap, parked items |
+| **Cold** | `.ai/memory/archive/` + `docs/**/archive/` | Only when explicitly searching history | Superseded snapshots, ADR provenance, old session narratives, stale-but-useful docs, `action_log.md` |
 
 A fourth kind lives in the project's code/config itself. Anything derivable from reading files or `git log` should stay there, not in memory.
 
 Paths in Strata are project-relative (`.ai/...`, `docs/...`) so the same memory works on Linux, macOS, and Windows. When a saved operational step is OS-specific, write the relevant PowerShell and POSIX shell variants rather than assuming one machine.
+
+### Scaffolded project structure
+
+`strata init` gives a project this shape, then the project fills in only the warm docs it actually needs:
+
+```text
+<project>/
+├── AGENTS.md                         # Codex adapter; points at .ai/MEMORY-MAP.md
+├── CLAUDE.md                         # Claude adapter; points at .ai/MEMORY-MAP.md
+├── GEMINI.md                         # Gemini adapter; points at .ai/MEMORY-MAP.md
+├── .ai/
+│   ├── MEMORY-MAP.md                 # project memory contract and routing map
+│   └── memory/
+│       ├── MEMORY.md                 # hot index; keep short
+│       ├── open_action_items.md      # active work, findings, blockers, status
+│       ├── project_state.md          # current + last completed session only
+│       ├── feedback_<slug>.md        # behavior rules that change agent behavior
+│       ├── project_<slug>.md         # in-flight initiatives
+│       └── archive/
+│           ├── ARCHIVE.md            # cold memory index
+│           ├── action_log.md         # external completions, append-only
+│           ├── YYYY-MM-sessions-*.md # old session narratives
+│           ├── source-adr-*.md       # source notes behind ADRs
+│           └── source-*.md           # provenance for promoted/parked/reference material
+├── docs/
+│   ├── ARCHITECTURE.md               # topology, data flow, interfaces
+│   ├── OPS.md                        # lean operations runbook
+│   ├── decisions/
+│   │   └── ADR-NNNN-<slug>.md        # shipped decisions and rationale
+│   ├── ops/
+│   │   ├── incidents/                # incident notes and response patterns
+│   │   └── archive/                  # stale historical ops docs
+│   ├── reference/                    # stable paths, APIs, schemas, conventions
+│   │   └── archive/                  # stale historical reference docs
+│   ├── parked/                       # deferred initiatives with Revive when triggers
+│   │   └── archive/                  # stale historical parked notes
+│   └── roadmap.md                    # optional no-deadline strategic work
+└── ...
+```
+
+The two archive families are intentionally separate:
+
+- `.ai/memory/archive/` is cold memory: old session state, ADR source notes, action logs, provenance for memory that moved elsewhere.
+- `docs/**/archive/` is cold documentation: historically useful docs that should not appear in active surveys. Do not leave "stale" banners in active docs; fix them or move them to archive.
 
 Authoritative rules: [`strata/SKILL.md`](strata/SKILL.md). Per-project scaffolds: [`strata/templates/`](strata/templates/).
 
