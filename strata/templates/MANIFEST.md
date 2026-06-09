@@ -1,0 +1,98 @@
+---
+strata_version: 3
+---
+
+# MANIFEST — {{PROJECT_NAME}}
+
+**Open this first.** The project-owned memory contract for every AI tool working in this repo — and the *only* place structure and routing live. Other files (including `memory/MEMORY.md`) index and point; they do not restate this contract.
+
+Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) v3. Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
+
+## What {{PROJECT_NAME}} is
+
+_(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
+
+## Structural overview
+
+```
+<project>/
+├── AGENTS.md · CLAUDE.md          tool adapters → this file (thin)
+├── README.md                      human front door
+└── .strata/
+    ├── MANIFEST.md                this contract (strata_version, routing, load order)
+    ├── memory/                    HOT — loads at session start
+    │   ├── MEMORY.md              pure index: live pointers + rules-by-trigger table (≤80 lines)
+    │   ├── project_state.md       current + last completed session (≤200 lines)
+    │   ├── learnings/             operation-keyed behavioral rules (+ generated INDEX.md)
+    │   └── archive/               COLD — ARCHIVE.md · action_log.md · old sessions · source-*
+    ├── issues/                    single backlog: findings + tasks + initiatives
+    │   ├── ACTIVE.md / OPEN.md / PARKED.md    generated views (edit items, not views)
+    │   ├── <id>-<slug>.md         one item per file
+    │   └── archive/               resolved / wont-fix
+    └── docs/                      WARM — on-demand depth (grow as needed)
+        ├── ARCHITECTURE.md        codemap + index into architecture/
+        ├── product/ · architecture/ · decisions/ · reference/ · ops/
+        └── CHANGELOG.md · roadmap.md   (when they exist)
+```
+
+_(Extend with project-specific directories as they develop.)_
+
+## Where do I look for X?
+
+| If you need… | Open… |
+|---|---|
+| What was I doing last session | `memory/project_state.md` |
+| Work in flight right now | `issues/ACTIVE.md` |
+| What's on the backlog (by area) | `issues/OPEN.md` |
+| Deferred work + revive triggers | `issues/PARKED.md` |
+| A rule before doing operation X | `memory/MEMORY.md` rules-by-trigger table → `memory/learnings/<slug>.md` |
+| Why a decision was made | `docs/decisions/ADR-NNNN-*.md` |
+| How a subsystem works | `docs/ARCHITECTURE.md` → `docs/architecture/<slug>.md` |
+| Product requirements | `docs/product/<slug>.md` |
+| A stable fact (paths, schemas, APIs) | `docs/reference/<slug>.md` |
+| A procedure / runbook / incident pattern | `docs/ops/` |
+| Did we send / post / complete X externally | `memory/archive/action_log.md` (grep) |
+| Old sessions, closed issues, provenance | `memory/archive/` · `issues/archive/` (grep) |
+
+## The three tiers
+
+| Tier | Where | When loaded |
+|---|---|---|
+| **Hot** | `memory/` + `issues/ACTIVE.md` | Session start |
+| **Warm** | `docs/` + individual `issues/*.md` | On demand, by task |
+| **Cold** | `memory/archive/` + `issues/archive/` | Only on explicit history search |
+
+## Routing — where new knowledge goes
+
+| You produced / discovered | Write to | When |
+|---|---|---|
+| Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md` (copy `issues/_TEMPLATE.md`), status `open`, full rationale + diagnostics | **Immediately, mid-session** |
+| Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
+| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` (copy `_TEMPLATE.md`) | at `/strata-save`, or immediately if hard-won |
+| Shipped decision with rationale | `docs/decisions/ADR-NNNN-<slug>.md` (+ source → `memory/archive/source-adr-*`) | at `/strata-save` |
+| Product requirement | `docs/product/<slug>.md` | when it exists |
+| How a subsystem works | `docs/architecture/<slug>.md` (+ row in `ARCHITECTURE.md`) | when it stabilizes |
+| Stable fact | `docs/reference/<slug>.md` | on second lookup |
+| Procedure, runbook, incident | `docs/ops/…` | when it changes |
+| Session narrative | `memory/project_state.md` (rollover → archive) | at `/strata-save` |
+| Completed external action (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata-save` |
+
+**Never store:** secret values (env var *names* only); anything derivable from code or `git log`; raw transcripts, stack traces, command dumps — root cause + evidence instead.
+
+## Load order (`/strata-load`)
+
+1. This file
+2. `memory/MEMORY.md`
+3. `issues/ACTIVE.md`
+4. `memory/project_state.md` (current + last completed only)
+
+Then on demand: `issues/OPEN.md` by area · matching `learnings/<slug>.md` at operation time · specific `docs/**` by task · `archive/` only via explicit grep. **Never bulk-load:** learnings, ADRs, individual issues, anything under `archive/`.
+
+## States and types
+
+- **Issue types:** `bug | improvement | debt | task | feature | initiative`
+- **Issue statuses:** `open | in-progress | parked | resolved | wont-fix`
+- **Severity:** `high | med | low`
+- **Learning origin:** `success | failure`
+
+`parked` requires a concrete `revive-when:` trigger. `resolved`/`wont-fix` are terminal → `issues/archive/` at next `/strata-save`. Status changes are frontmatter edits, not file moves.

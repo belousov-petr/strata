@@ -1,0 +1,20 @@
+---
+name: {{PROJECT_NAME}} State
+description: Session 0 ({{INIT_DATE}}) — strata initialized.
+---
+
+## WHERE WE LEFT OFF (session 0, current)
+
+**Session 0 — {{INIT_DATE}}.** Strata v3 initialized for this project.
+
+### Last completed
+- Project initialized: `.strata/` memory + issues backlog + docs homes scaffolded.
+
+### Next action
+- Begin work. Capture findings to `.strata/issues/` as they surface; run `/strata-save` at session end. (Once issues exist, point this line at an issue id.)
+
+### Prerequisites
+- None.
+
+### Uncommitted changes
+- Initial `.strata/` scaffolding (not yet committed).

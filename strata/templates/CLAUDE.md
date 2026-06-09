@@ -1,7 +1,7 @@
-# {{PROJECT_NAME}} Claude Adapter
+# {{PROJECT_NAME}} — Claude adapter
 
-Before memory operations or deep project work, open [`.ai/MEMORY-MAP.md`](.ai/MEMORY-MAP.md), then [`.ai/memory/MEMORY.md`](.ai/memory/MEMORY.md).
+Before memory operations or deep project work, read [`.strata/MANIFEST.md`](.strata/MANIFEST.md) — the project memory contract (structure, routing rules, load order) — and load per its rules.
 
-Project memory is repo-owned under `.ai/`. Do not write project memory to tool-owned paths such as `~/.claude/`, `~/.codex/`, or other per-tool state directories.
+Project memory is repo-owned under `.strata/` (strata format, version 3). Do not write project memory to tool-owned paths such as `~/.claude/` or `~/.codex/`.
 
-Keep this adapter thin. Put project-specific loading order, routing notes, and memory structure in `.ai/MEMORY-MAP.md`; put durable decisions in `docs/decisions/`.
+Keep this adapter thin: memory rules live in the manifest; project operational content (build/test commands, style, conventions) belongs in `AGENTS.md`.
