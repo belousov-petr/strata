@@ -76,7 +76,7 @@ One lesson per `memory/learnings/<slug>.md`:
 ---
 trigger: <when this applies — operation-keyed>
 applies-when: <glob/area, optional>
-origin: success|failure
+origin: success | failure
 ---
 **Lesson:** <1–3 sentences>
 ```
