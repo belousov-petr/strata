@@ -54,9 +54,9 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Save autosave + flat migration contracts
+# 2. Save autosave + immediate capture + flat migration contracts
 # ---------------------------------------------------------------------------
-SAVE_SURFACE=("$SKILL_DIR/SKILL.md" strata-save.md README.md docs/DESIGN.md)
+SAVE_SURFACE=("$SKILL_DIR/SKILL.md" strata-save.md strata-capture.md README.md docs/DESIGN.md)
 if grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}" >/dev/null 2>&1; then
   fail "save surface still contains Confirm? (y/n):"
   grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}"
@@ -68,6 +68,26 @@ if grep -qF "Invoking \`/strata-save\` is the confirmation" strata-save.md READM
   ok "strata-save autosave contract documented"
 else
   fail "strata-save autosave contract missing"
+fi
+
+if [ -f strata-capture.md ]; then
+  ok "/strata-capture command exists"
+else
+  fail "/strata-capture command missing"
+fi
+
+for f in "$SKILL_DIR/SKILL.md" README.md strata-save.md strata-load.md; do
+  if grep -qF "/strata-capture" "$f"; then
+    ok "$f mentions /strata-capture"
+  else
+    fail "$f missing /strata-capture guidance"
+  fi
+done
+
+if grep -qF "Skill(name='strata', args='capture')" "$SKILL_DIR/SKILL.md" README.md; then
+  ok "Codex capture entry point documented"
+else
+  fail "Codex capture entry point missing"
 fi
 
 if grep -qF "## Rung 0: flat → v3" MIGRATIONS.md && \

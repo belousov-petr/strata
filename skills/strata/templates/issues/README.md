@@ -4,7 +4,7 @@ The single backlog: findings, tasks, and initiatives, one file per item. Any too
 
 ## Rules
 
-- **Capture immediately.** The moment a finding or bug surfaces mid-task: copy `_TEMPLATE.md` to `<id>-<slug>.md`, write full rationale and diagnostics (Tried/Error/Hypothesis/Repro for bugs), status `open` — then return to what you were doing. Don't hold it in your head until save time.
+- **Capture immediately.** The moment a finding or bug surfaces mid-task, use `/strata-capture` or copy `_TEMPLATE.md` to `<id>-<slug>.md`, write full rationale and diagnostics (Tried/Error/Hypothesis/Repro for bugs), status `open` — then return to what you were doing. Don't hold it in your head until save time.
 - **Id:** `YYYYMMDD-NN` (date + per-day sequence), e.g. `20260609-01`. Stable, unique, sortable.
 - **Types:** `bug | improvement | debt | task | feature | initiative` · **Statuses:** `open | in-progress | parked | resolved | wont-fix` · **Severity:** `high | med | low`
 - **Status changes are frontmatter edits** — items don't move between folders while alive.

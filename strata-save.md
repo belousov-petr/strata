@@ -1,13 +1,13 @@
 ---
 name: strata-save
-description: Use when ending an AI coding session, switching context, or wrapping up work - captures session state and routes new knowledge (issues, learnings, decisions, docs) to its durable home. Strata-aware when the project has `.strata/MANIFEST.md`. Tier rules and routing live in the `strata` skill - invoke it for the authoritative definitions.
+description: Use when ending an AI coding session, switching context, or wrapping up work - captures session state and routes new knowledge (issues, learnings, decisions, docs) to its durable home. Strata-aware when the project has `.strata/MANIFEST.md`. Fresh failures/gotchas should be captured earlier with `/strata-capture`; this command verifies and bookkeeps them.
 ---
 
 # Save Project State
 
 Capture what happened in this session so the next one starts hot. In strata mode, route each kind of knowledge to its store — issues, learnings, decisions, docs, narrative, action log — instead of dumping everything into one file. In flat mode, fall back to a single-file capture.
 
-**Authoritative rules live in `Skill: strata`.** This command orchestrates the save flow; the skill defines the tiers, routing table, store contracts, and safeguards. Do not restate rules here — read them from the skill.
+**Authoritative rules live in `Skill: strata`.** This command orchestrates the save flow; the skill defines the tiers, immediate-capture path, routing table, store contracts, and safeguards. Do not restate rules here — read them from the skill.
 
 ## When to use
 
@@ -33,7 +33,7 @@ State the detected mode before proceeding.
 Sort what actually happened into the v3 buckets:
 
 - **Resumption point** — last completed, immediate next action (point at an issue id when one exists), prerequisites, uncommitted scope, background processes. The single most important capture; write it so a fresh session starts without questions.
-- **Issue events** — findings/bugs captured mid-session (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired.
+- **Issue events** — findings/bugs captured mid-session with `/strata-capture` or direct issue writes (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired.
 - **Learnings** — strategies that worked (`origin: success`) and pitfalls that burned (`origin: failure`), distilled to trigger + 1–3 sentence lesson.
 - **Shipped decisions** with non-obvious rationale → ADR candidates.
 - **Durable-doc impact** — architecture/reference/ops/product files this session made wrong or incomplete.

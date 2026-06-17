@@ -65,7 +65,7 @@ Then: "Ready to continue, or work on something else?"
 
 ### 6. On continue — start working
 
-Don't re-explore the codebase; trust the state and open only what the next action needs. Before any operation listed in the rules-by-trigger table, read the matching learning (one file, not the folder). New findings mid-task → write to `issues/` immediately, per the skill.
+Don't re-explore the codebase; trust the state and open only what the next action needs. Before any operation listed in the rules-by-trigger table, read the matching learning (one file, not the folder). New findings mid-task → run `/strata-capture` or write the issue/learning immediately, per the skill.
 
 ## Quality bar
 

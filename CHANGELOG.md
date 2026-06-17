@@ -13,6 +13,7 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 
 ### Added
 - `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
+- `/strata-capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata-save`.
 
 ## v3.0.0 — 2026-06-09
 

@@ -1,6 +1,6 @@
 ---
 name: strata
-description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, and one-shot project initialization under .strata/. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold a fresh project or migrate existing flat/v1/v2 memory without losing provenance. Used internally by /strata-save and /strata-load as the authoritative source of tier definitions and routing rules.
+description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, immediate capture, and one-shot project initialization under .strata/. Invoke with no argument for rule lookup, "capture" to save a fresh finding/gotcha right away, or "init" to scaffold or migrate existing flat/v1/v2 memory without losing provenance. Used by /strata-save, /strata-load, and /strata-capture as the authoritative source of tier definitions and routing rules.
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---
 
@@ -11,7 +11,7 @@ The **single source of truth** for the strata v3 pattern. Project memory is owne
 This file is operational rules only. Depth lives elsewhere — link, don't restate:
 **how it all works** → [docs/DESIGN.md](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · **why** → [docs/decisions/](https://github.com/belousov-petr/strata/blob/main/docs/decisions/README.md) · **upgrades** → [MIGRATIONS.md](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md)
 
-Two entry points: **rule lookup** (default — `/strata-save` and `/strata-load` read §§1–6 for decisions) and **`init`** (scaffold or migrate a project, §7).
+Three entry points: **rule lookup** (default — commands read §§1–7 for decisions), **`capture`** (write a fresh finding/gotcha before context decays, §5), and **`init`** (scaffold or migrate a project, §8).
 
 ---
 
@@ -37,7 +37,7 @@ One routing key per store: `project_state.md` = recency ("what was I doing"), `l
 |---|---|---|
 | Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md`, status `open`, full rationale + diagnostics | **Immediately, mid-session** |
 | Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
-| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` | at `/strata-save`, or immediately if hard-won |
+| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` | at `/strata-save`, `/strata-capture`, or immediately if hard-won |
 | Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` + source → `memory/archive/source-adr-NNNN-*` | at `/strata-save` |
 | Product requirement / PRD | `docs/product/<slug>.md` | when it exists |
 | How a subsystem works | `docs/architecture/<slug>.md` + row in `docs/ARCHITECTURE.md` | when it stabilizes |
@@ -86,7 +86,24 @@ origin: success | failure
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
-## 5. `/strata-save` — preview-execute contract
+## 5. Immediate capture — before context decays
+
+Invoked via `Skill(name='strata', args='capture')`, `/strata-capture`, or any moment a failure/gotcha/finding appears mid-task. Spend tokens now; a compacted-away diagnosis is more expensive than a small file write.
+
+**Trigger:** failed command/tool/API; retry loop; workaround; surprising repo behavior; brittle environment step; bug/finding; doc drift; or a rule future agents should know before repeating an operation.
+
+**Route:**
+
+- Closeable work -> `issues/<id>-<slug>.md` from `_TEMPLATE.md`, with `status: open` or `in-progress`, severity/area, What/Why, Tried/Error/Hypothesis/Repro, evidence, and next action.
+- Reusable behavior -> `memory/learnings/<slug>.md`, with operation-keyed `trigger:`, optional `applies-when:`, `origin: success | failure`, and a 1-3 sentence lesson.
+- Both when needed: issue for the fixable work, learning for the reusable pitfall or counterfactual rule.
+- Flat mode -> append a concise "Fresh capture" entry to `.strata/memory/project_state.md` under Findings/Gotchas/Open Items.
+
+**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing issue/learning when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Do not hand-edit generated views during capture; `/strata-save` regenerates them from source files.
+
+**Report and resume:** say which file(s) were written or updated, then continue the original task unless the capture reveals a blocker.
+
+## 6. `/strata-save` — preview-execute contract
 
 **A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
 
@@ -103,7 +120,7 @@ origin: success | failure
 
 **E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
 
-## 6. `/strata-load` — orientation contract
+## 7. `/strata-load` — orientation contract
 
 Load order (stop early if the task is already clear):
 
@@ -118,7 +135,7 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Present** ≤6 lines: last session · next up (issue id) · active count · prerequisites · fired parked-triggers · drift. Then ask: continue or something else?
 
-## 7. `init` — scaffold or migrate a project
+## 8. `init` — scaffold or migrate a project
 
 Invoked via `Skill(name='strata', args='init')` or an explicit ask to set up project memory.
 
@@ -166,22 +183,22 @@ Created:
 
 Next:
 - Describe the project in .strata/MANIFEST.md ("What <project> is")
-- Work; capture findings to .strata/issues/ as they surface
+- Work; use /strata-capture for findings/gotchas as they surface
 - /strata-save at session end · /strata-load at session start
 ```
 
-## 8. Versioning and migration
+## 9. Versioning and migration
 
 - This skill writes layout **`strata_version: 3`**; the stamp lives in `MANIFEST.md` frontmatter.
 - On `init`, any flat/v1/v2 fingerprint routes to `MIGRATIONS.md` (detect → gated transform → rollback, per rung) instead of fresh scaffolding. On save/load version mismatch: stop, report, point at `MIGRATIONS.md`. Never double-initialize and never overwrite source memory before archiving it.
 - Releases of strata itself: git tags + `CHANGELOG.md` (git-native versioning — no version-archive folders anywhere, one optional `docs/_archive/` for retired docs).
 
-## 9. Common mistakes
+## 10. Common mistakes
 
 | Mistake | Fix |
 |---|---|
 | Restating routing in commands, adapters, or MEMORY.md | MANIFEST + this skill own it; everything else links |
-| Holding a mid-task finding "for save time" | Write the issue file the moment it surfaces |
+| Holding a mid-task finding "for save time" | Run `/strata-capture` or write the issue/learning file the moment it surfaces |
 | Hand-editing ACTIVE/OPEN/PARKED or INDEX | Edit item frontmatter; views regenerate at save |
 | Moving an item file to change its status | Status is frontmatter; files move only on close (→ archive) |
 | `parked` without `revive-when:` | A concrete trigger or it isn't parked, it's abandoned |
@@ -191,6 +208,6 @@ Next:
 | Capturing "architecture needs cleanup" | Evidence, affected paths, hypothesis, fix direction, acceptance criteria — in the issue |
 | `init` over flat or legacy memory | Migrate via `MIGRATIONS.md`; archive source first, then write v3 files |
 
-## 10. Relationship to other memory skills
+## 11. Relationship to other memory skills
 
 `remember:remember` (single handoff note), `atlas-memory` (SQLite + vectors), `agentdb-*` (vector/RL backends) are storage mechanisms and are orthogonal. Strata is the **structural pattern** — where knowledge lives, when it loads, when it moves. They can coexist; strata files stay plain markdown + grep on purpose.

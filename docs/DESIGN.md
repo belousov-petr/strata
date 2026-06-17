@@ -268,7 +268,7 @@ Each generated file carries the header comment `<!-- GENERATED at /strata-save �
 |---|---|---|
 | Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md`, status `open` | **Immediately, mid-session** — full rationale + diagnostics to disk, then keep working |
 | "Later, if X happens" work | Same file, `status: parked` + `revive-when:` | At capture or triage |
-| Behavioral lesson — something that worked or burned you | `memory/learnings/<slug>.md` | At `/strata-save` (or immediately if hard-won) |
+| Behavioral lesson — something that worked or burned you | `memory/learnings/<slug>.md` | At `/strata-capture`, `/strata-save`, or immediately if hard-won |
 | Shipped decision with non-obvious rationale | `.strata/docs/decisions/ADR-NNNN-<slug>.md`; raw source → `memory/archive/source-adr-NNNN-*.md` | At `/strata-save` |
 | Product requirement / PRD | `.strata/docs/product/<slug>.md` | When it exists |
 | Architecture: how a subsystem works | `.strata/docs/architecture/<slug>.md`; `ARCHITECTURE.md` gets the index row | When it stabilizes |
@@ -332,7 +332,7 @@ Transition rules:
 ### 8.2 Session lifecycle (what updates when)
 
 - **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/v1/v2 memory, runs the matching migration rung instead; source memory is archived before v3 hot files replace it.
-- **Mid-session (continuous):** new finding/bug → issue file to disk immediately, as above. High-value lessons may also be written immediately.
+- **`/strata-capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata-save`.
 - **`/strata-save`** (preview, then automatic execution):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
   2. issue triage — new captures get id/severity/area, dedup, status updates; resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;

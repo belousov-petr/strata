@@ -66,9 +66,9 @@ _(Extend with project-specific directories as they develop.)_
 
 | You produced / discovered | Write to | When |
 |---|---|---|
-| Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md` (copy `issues/_TEMPLATE.md`), status `open`, full rationale + diagnostics | **Immediately, mid-session** |
+| Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md` (copy `issues/_TEMPLATE.md`), status `open`, full rationale + diagnostics | **Immediately, mid-session; use `/strata-capture`** |
 | Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
-| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` (copy `_TEMPLATE.md`) | at `/strata-save`, or immediately if hard-won |
+| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` (copy `_TEMPLATE.md`) | at `/strata-capture`, `/strata-save`, or immediately if hard-won |
 | Shipped decision with rationale | `docs/decisions/ADR-NNNN-<slug>.md` (+ source → `memory/archive/source-adr-*`) | at `/strata-save` |
 | Product requirement | `docs/product/<slug>.md` | when it exists |
 | How a subsystem works | `docs/architecture/<slug>.md` (+ row in `ARCHITECTURE.md`) | when it stabilizes |
@@ -78,6 +78,10 @@ _(Extend with project-specific directories as they develop.)_
 | Completed external action (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata-save` |
 
 **Never store:** secret values (env var *names* only); anything derivable from code or `git log`; raw transcripts, stack traces, command dumps — root cause + evidence instead.
+
+## Capture interrupt (`/strata-capture`)
+
+Use this while working when a command fails, an agent retries with a workaround, a brittle environment rule appears, or a finding is too useful to leave in conversation memory. Route closeable work to `issues/`, reusable behavior to `memory/learnings/`, or both. Do not edit generated views during capture; `/strata-save` regenerates them.
 
 ## Load order (`/strata-load`)
 
