@@ -1,0 +1,20 @@
+{
+  "name": "strata",
+  "version": "3.1.0",
+  "description": "Repo-owned project memory for AI coding agents: immediate capture, save/load workflows, operation-keyed learnings, and migration-safe initialization under .strata/.",
+  "author": {
+    "name": "Petr Belousov",
+    "url": "https://github.com/belousov-petr"
+  },
+  "homepage": "https://github.com/belousov-petr/strata",
+  "repository": "https://github.com/belousov-petr/strata",
+  "license": "MIT",
+  "keywords": [
+    "agent-memory",
+    "project-memory",
+    "project-state",
+    "skills",
+    "claude-code",
+    "codex"
+  ]
+}

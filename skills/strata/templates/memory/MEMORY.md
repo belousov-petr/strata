@@ -10,7 +10,7 @@ Pure hot index: live pointers + the generated rules-by-trigger table. Keep ≤80
 
 ## Rules by trigger
 
-<!-- GENERATED at /strata-save from learnings/ frontmatter — do not hand-edit; edit learning files instead -->
+<!-- GENERATED at /strata:save from learnings/ frontmatter — do not hand-edit; edit learning files instead -->
 
 | When you are about to… | Read |
 |---|---|

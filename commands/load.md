@@ -1,5 +1,5 @@
 ---
-name: strata-load
+name: load
 description: Use when starting an AI coding session on a project that has been worked on before - loads saved state shallow-to-deep so you can resume without asking the user to re-explain context. Strata-aware when the project has `.strata/MANIFEST.md`. Tier rules live in the `strata` skill.
 ---
 
@@ -7,7 +7,7 @@ description: Use when starting an AI coding session on a project that has been w
 
 Read the saved state and orient yourself so you can resume immediately — without bulk-loading every record the project has ever made.
 
-**Authoritative rules live in `Skill: strata`.** This command orchestrates the load flow; the skill defines the tiers and load order. Do not restate them here.
+**Authoritative rules live in `Skill: strata:strata`.** This command orchestrates the load flow; the skill defines the tiers and load order. Do not restate them here.
 
 ## When to use
 
@@ -65,7 +65,7 @@ Then: "Ready to continue, or work on something else?"
 
 ### 6. On continue — start working
 
-Don't re-explore the codebase; trust the state and open only what the next action needs. Before any operation listed in the rules-by-trigger table, read the matching learning (one file, not the folder). New findings mid-task → run `/strata-capture` or write the issue/learning immediately, per the skill.
+Don't re-explore the codebase; trust the state and open only what the next action needs. Before any operation listed in the rules-by-trigger table, read the matching learning (one file, not the folder). New findings mid-task → run `/strata:capture` or write the issue/learning immediately, per the skill.
 
 ## Quality bar
 

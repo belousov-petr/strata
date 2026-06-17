@@ -1,2 +1,12 @@
+# Normalize all text files to LF in the working tree on every OS, so the bash
+# test suite (tests/lint.sh, tests/scaffold-check.sh) and its grep anchors
+# behave identically on Windows, macOS, and Linux. Without this, a Windows
+# clone with core.autocrlf=true checks out CRLF .md/.json files and
+# scaffold-check.sh's `^strata_version: 3$` grep fails on the trailing \r.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending normalized.
+*.png binary
+
 # Shell scripts must stay LF — CRLF checkouts can break bash on some setups.
 *.sh text eol=lf

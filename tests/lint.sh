@@ -8,6 +8,18 @@ cd "$(dirname "$0")/.."
 FAIL=0
 fail() { echo "FAIL: $1"; FAIL=1; }
 ok()   { echo "ok:   $1"; }
+json_ok() {
+  local f="$1"
+  if command -v node >/dev/null 2>&1; then
+    node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" >/dev/null 2>&1
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -m json.tool "$f" >/dev/null 2>&1
+  elif command -v python >/dev/null 2>&1; then
+    python -m json.tool "$f" >/dev/null 2>&1
+  else
+    return 1
+  fi
+}
 
 # ---------------------------------------------------------------------------
 # 1. Legacy tokens (.ai/, open_action_items, MEMORY-MAP, GEMINI, /save-point,
@@ -31,7 +43,7 @@ else
 fi
 
 CONTEXT='legacy|Legacy|fingerprint|MIGRATIONS|v1|v2'
-for f in "$SKILL_DIR/SKILL.md" strata-save.md strata-load.md docs/DESIGN.md; do
+for f in "$SKILL_DIR/SKILL.md" commands/save.md commands/load.md docs/DESIGN.md; do
   bad=$(grep -nE "$LEGACY" "$f" | grep -vE "$CONTEXT" || true)
   if [ -n "$bad" ]; then
     fail "legacy tokens outside guard/migration context in $f:"
@@ -43,9 +55,9 @@ done
 
 # Nothing else outside the historical surface may mention legacy tokens at all.
 stray=$(grep -rlE "$LEGACY" --include="*.md" . \
-  --exclude-dir=.git --exclude-dir=.remember --exclude-dir=decisions \
+  --exclude-dir=.git --exclude-dir=.remember --exclude-dir=decisions --exclude-dir=issues \
   --exclude=README.md --exclude=MIGRATIONS.md --exclude=CHANGELOG.md \
-  --exclude=SKILL.md --exclude=strata-save.md --exclude=strata-load.md --exclude=DESIGN.md \
+  --exclude=SKILL.md --exclude=save.md --exclude=load.md --exclude=DESIGN.md \
   2>/dev/null | grep -v "^./$TEMPLATES_DIR/" || true)
 if [ -n "$stray" ]; then
   fail "legacy tokens in unexpected files: $stray"
@@ -56,7 +68,7 @@ fi
 # ---------------------------------------------------------------------------
 # 2. Save autosave + immediate capture + flat migration contracts
 # ---------------------------------------------------------------------------
-SAVE_SURFACE=("$SKILL_DIR/SKILL.md" strata-save.md strata-capture.md README.md docs/DESIGN.md)
+SAVE_SURFACE=("$SKILL_DIR/SKILL.md" commands/save.md commands/capture.md README.md docs/DESIGN.md)
 if grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}" >/dev/null 2>&1; then
   fail "save surface still contains Confirm? (y/n):"
   grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}"
@@ -64,23 +76,23 @@ else
   ok "save surface has no Confirm? (y/n) prompt"
 fi
 
-if grep -qF "Invoking \`/strata-save\` is the confirmation" strata-save.md README.md; then
-  ok "strata-save autosave contract documented"
+if grep -qF "Invoking \`/strata:save\` is the confirmation" commands/save.md README.md; then
+  ok "strata:save autosave contract documented"
 else
-  fail "strata-save autosave contract missing"
+  fail "strata:save autosave contract missing"
 fi
 
-if [ -f strata-capture.md ]; then
-  ok "/strata-capture command exists"
+if [ -f commands/capture.md ]; then
+  ok "/strata:capture command exists"
 else
-  fail "/strata-capture command missing"
+  fail "/strata:capture command missing"
 fi
 
-for f in "$SKILL_DIR/SKILL.md" README.md strata-save.md strata-load.md; do
-  if grep -qF "/strata-capture" "$f"; then
-    ok "$f mentions /strata-capture"
+for f in "$SKILL_DIR/SKILL.md" README.md commands/save.md commands/load.md; do
+  if grep -qF "/strata:capture" "$f"; then
+    ok "$f mentions /strata:capture"
   else
-    fail "$f missing /strata-capture guidance"
+    fail "$f missing /strata:capture guidance"
   fi
 done
 
@@ -103,6 +115,66 @@ if [ -f .codex-plugin/plugin.json ] && \
   ok "Codex plugin manifest points at ./skills/"
 else
   fail "Codex plugin manifest missing or not pointed at ./skills/"
+fi
+
+# ---------------------------------------------------------------------------
+# 2b. Claude Code plugin: manifest + marketplace + namespaced commands
+# ---------------------------------------------------------------------------
+if [ -f .claude-plugin/plugin.json ] && \
+   json_ok .claude-plugin/plugin.json && \
+   grep -qF '"name": "strata"' .claude-plugin/plugin.json; then
+  ok "Claude plugin.json present, valid JSON, name strata"
+else
+  fail "Claude plugin manifest (.claude-plugin/plugin.json) missing or invalid"
+fi
+
+if [ -f .claude-plugin/marketplace.json ] && \
+   json_ok .claude-plugin/marketplace.json && \
+   grep -qF '"name": "strata"' .claude-plugin/marketplace.json && \
+   grep -qF '"source": "."' .claude-plugin/marketplace.json; then
+  ok 'Claude marketplace.json present, valid JSON, lists strata at source "."'
+else
+  fail "Claude marketplace manifest (.claude-plugin/marketplace.json) missing or invalid"
+fi
+
+# Claude plugin.json version tracks the Codex plugin.json version
+cver=$(grep -m1 '"version"' .codex-plugin/plugin.json  | sed -E 's/.*"version"[^"]*"([^"]+)".*/\1/')
+pver=$(grep -m1 '"version"' .claude-plugin/plugin.json | sed -E 's/.*"version"[^"]*"([^"]+)".*/\1/')
+if [ -n "$pver" ] && [ "$pver" = "$cver" ]; then
+  ok "Claude plugin.json version ($pver) matches Codex plugin.json"
+else
+  fail "plugin version mismatch: Claude=$pver Codex=$cver"
+fi
+
+# the three commands resolve to /strata:save | /strata:load | /strata:capture
+for c in save load capture; do
+  if [ -f "commands/$c.md" ] && grep -qiE "^name:[[:space:]]*$c[[:space:]]*$" "commands/$c.md"; then
+    ok "commands/$c.md present (name: $c -> /strata:$c)"
+  else
+    fail "commands/$c.md missing or its 'name:' is not '$c'"
+  fi
+done
+
+# commands, skill, AND scaffolded templates must not re-introduce the bare,
+# un-namespaced slash names (templates scaffold into every project — a stale
+# bare name there propagates to all installs).
+if grep -rnE '/strata-(save|load|capture)\b' commands/ "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR" >/dev/null 2>&1; then
+  fail "old bare /strata-<verb> slash names leaked into commands/, SKILL.md, or templates/:"
+  grep -rnE '/strata-(save|load|capture)\b' commands/ "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR"
+else
+  ok "no bare /strata-<verb> names in commands/, SKILL.md, or templates/"
+fi
+
+# official validator, when the CLI is available (best-effort; CI may lack it)
+if command -v claude >/dev/null 2>&1; then
+  if claude plugin validate . --strict >/dev/null 2>&1; then
+    ok "claude plugin validate . --strict"
+  else
+    fail "claude plugin validate . --strict reported problems:"
+    claude plugin validate . --strict 2>&1 | sed 's/^/      /'
+  fi
+else
+  echo "skip:  claude CLI not found — skipping 'claude plugin validate'"
 fi
 
 # ---------------------------------------------------------------------------

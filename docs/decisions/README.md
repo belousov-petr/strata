@@ -1,6 +1,6 @@
 # Decisions — strata's own ADRs
 
-Architecture Decision Records for the strata skill itself. These eight records lock the v3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
+Architecture Decision Records for the strata skill itself. These nine records lock the v3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
 
 Scaffolded projects get their own decision log at `.strata/docs/decisions/` — this folder is about strata, not about your project.
 
@@ -28,7 +28,7 @@ Rules:
 
 | ADR | Decision | Status |
 |---|---|---|
-| [ADR-0001](ADR-0001-strata-namespace-commands-adapters.md) | `.strata/` namespace, renamed commands, AGENTS.md + CLAUDE.md adapters | accepted |
+| [ADR-0001](ADR-0001-strata-namespace-commands-adapters.md) | `.strata/` namespace, renamed commands, AGENTS.md + CLAUDE.md adapters | accepted (command naming revised by ADR-0009) |
 | [ADR-0002](ADR-0002-unified-issues-backlog.md) | Single unified `issues/` backlog | accepted |
 | [ADR-0003](ADR-0003-operation-keyed-learnings.md) | Operation-keyed `learnings/` (ReasoningBank-style) | accepted |
 | [ADR-0004](ADR-0004-generated-indexes-grep-router.md) | Generated-from-frontmatter indexes; grep as router; MANIFEST owns routing | accepted |
@@ -36,6 +36,7 @@ Rules:
 | [ADR-0006](ADR-0006-in-repo-migrations-strata-version.md) | In-repo migrations keyed off `strata_version` | accepted |
 | [ADR-0007](ADR-0007-warm-docs-taxonomy.md) | Warm-docs taxonomy (Diátaxis + arc42-informed), offered not prescribed | accepted |
 | [ADR-0008](ADR-0008-git-native-versioning.md) | Git-native versioning; no version-archive folders | accepted |
+| [ADR-0009](ADR-0009-claude-plugin-packaging.md) | Claude Code plugin packaging; forced command/skill namespacing (`/strata:save`) | accepted |
 
 ## Provenance
 

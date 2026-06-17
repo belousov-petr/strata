@@ -1,6 +1,6 @@
 ---
 name: strata
-description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, immediate capture, and one-shot project initialization under .strata/. Invoke with no argument for rule lookup, "capture" to save a fresh finding/gotcha right away, or "init" to scaffold or migrate existing flat/v1/v2 memory without losing provenance. Used by /strata-save, /strata-load, and /strata-capture as the authoritative source of tier definitions and routing rules.
+description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, immediate capture, and one-shot project initialization under .strata/. Invoke with no argument for rule lookup, "capture" to save a fresh finding/gotcha right away, or "init" to scaffold or migrate existing flat/v1/v2 memory without losing provenance. Used by /strata:save, /strata:load, and /strata:capture as the authoritative source of tier definitions and routing rules.
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---
 
@@ -12,6 +12,8 @@ This file is operational rules only. Depth lives elsewhere — link, don't resta
 **how it all works** → [docs/DESIGN.md](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · **why** → [docs/decisions/](https://github.com/belousov-petr/strata/blob/main/docs/decisions/README.md) · **upgrades** → [MIGRATIONS.md](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md)
 
 Three entry points: **rule lookup** (default — commands read §§1–7 for decisions), **`capture`** (write a fresh finding/gotcha before context decays, §5), and **`init`** (scaffold or migrate a project, §8).
+
+**Invocation.** The skill's canonical name is `strata`; Codex and other tools call `Skill(name='strata', …)`. Installed as the Claude Code plugin, commands and skill are namespaced under the plugin name — the commands are `/strata:save`, `/strata:load`, `/strata:capture`, and the skill is `Skill(name='strata:strata', …)`. Slash-command references below use the plugin form.
 
 ---
 
@@ -37,15 +39,15 @@ One routing key per store: `project_state.md` = recency ("what was I doing"), `l
 |---|---|---|
 | Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md`, status `open`, full rationale + diagnostics | **Immediately, mid-session** |
 | Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
-| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` | at `/strata-save`, `/strata-capture`, or immediately if hard-won |
-| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` + source → `memory/archive/source-adr-NNNN-*` | at `/strata-save` |
+| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` | at `/strata:save`, `/strata:capture`, or immediately if hard-won |
+| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` + source → `memory/archive/source-adr-NNNN-*` | at `/strata:save` |
 | Product requirement / PRD | `docs/product/<slug>.md` | when it exists |
 | How a subsystem works | `docs/architecture/<slug>.md` + row in `docs/ARCHITECTURE.md` | when it stabilizes |
 | Stable fact (paths, schemas, APIs, conventions) | `docs/reference/<slug>.md` | on second lookup |
 | Procedure, runbook, incident pattern | `docs/ops/…` (`incidents/<symptom>.md`, `release-rollback.md`) | when it changes |
-| Session narrative | `memory/project_state.md`, rollover → `archive/` | at `/strata-save` |
-| Completed action with external artifact (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata-save` |
-| A doc this session made wrong | fix in place; *retired* docs → `docs/_archive/` | at `/strata-save` |
+| Session narrative | `memory/project_state.md`, rollover → `archive/` | at `/strata:save` |
+| Completed action with external artifact (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata:save` |
+| A doc this session made wrong | fix in place; *retired* docs → `docs/_archive/` | at `/strata:save` |
 
 **Never store:** secret values (env-var *names* only); anything derivable from code/`git log`; raw transcripts, full stack traces, command dumps — concise root cause + evidence instead; shipped rationale with no next step outside an ADR.
 
@@ -63,10 +65,10 @@ Operational rules:
 
 1. **Capture immediately and completely.** The moment a finding surfaces mid-task: write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`) from `_TEMPLATE.md` — What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time* — status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
 2. **Status changes are frontmatter edits.** No file moves while an item is alive.
-3. **`parked` requires a concrete `revive-when:`** trigger; `/strata-save` checks triggers against the session and revives matches.
-4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata-save`.
+3. **`parked` requires a concrete `revive-when:`** trigger; `/strata:save` checks triggers against the session and revives matches.
+4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata:save`.
 5. **Dedup at triage:** fold new evidence into an existing item instead of filing a near-duplicate.
-6. **Views are generated, never hand-edited:** `ACTIVE.md` (in-progress), `OPEN.md` (open, by area, severity first), `PARKED.md` (+triggers) — regenerated from frontmatter at every `/strata-save`.
+6. **Views are generated, never hand-edited:** `ACTIVE.md` (in-progress), `OPEN.md` (open, by area, severity first), `PARKED.md` (+triggers) — regenerated from frontmatter at every `/strata:save`.
 
 ## 4. Learnings — operation-keyed behavioral memory
 
@@ -82,13 +84,13 @@ origin: success | failure
 ```
 
 - Capture **failures and successes** — a pitfall with its counterfactual fix is the highest-value item.
-- `learnings/INDEX.md` and the rules-by-trigger table in `MEMORY.md` are regenerated from frontmatter at `/strata-save`.
+- `learnings/INDEX.md` and the rules-by-trigger table in `MEMORY.md` are regenerated from frontmatter at `/strata:save`.
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
 ## 5. Immediate capture — before context decays
 
-Invoked via `Skill(name='strata', args='capture')`, `/strata-capture`, or any moment a failure/gotcha/finding appears mid-task. Spend tokens now; a compacted-away diagnosis is more expensive than a small file write.
+Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any moment a failure/gotcha/finding appears mid-task. Spend tokens now; a compacted-away diagnosis is more expensive than a small file write.
 
 **Trigger:** failed command/tool/API; retry loop; workaround; surprising repo behavior; brittle environment step; bug/finding; doc drift; or a rule future agents should know before repeating an operation.
 
@@ -99,11 +101,11 @@ Invoked via `Skill(name='strata', args='capture')`, `/strata-capture`, or any mo
 - Both when needed: issue for the fixable work, learning for the reusable pitfall or counterfactual rule.
 - Flat mode -> append a concise "Fresh capture" entry to `.strata/memory/project_state.md` under Findings/Gotchas/Open Items.
 
-**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing issue/learning when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Do not hand-edit generated views during capture; `/strata-save` regenerates them from source files.
+**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing issue/learning when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Do not hand-edit generated views during capture; `/strata:save` regenerates them from source files.
 
 **Report and resume:** say which file(s) were written or updated, then continue the original task unless the capture reveals a blocker.
 
-## 6. `/strata-save` — preview-execute contract
+## 6. `/strata:save` — preview-execute contract
 
 **A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
 
@@ -120,7 +122,7 @@ Invoked via `Skill(name='strata', args='capture')`, `/strata-capture`, or any mo
 
 **E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
 
-## 7. `/strata-load` — orientation contract
+## 7. `/strata:load` — orientation contract
 
 Load order (stop early if the task is already clear):
 
@@ -183,8 +185,8 @@ Created:
 
 Next:
 - Describe the project in .strata/MANIFEST.md ("What <project> is")
-- Work; use /strata-capture for findings/gotchas as they surface
-- /strata-save at session end · /strata-load at session start
+- Work; use /strata:capture for findings/gotchas as they surface
+- /strata:save at session end · /strata:load at session start
 ```
 
 ## 9. Versioning and migration
@@ -198,12 +200,12 @@ Next:
 | Mistake | Fix |
 |---|---|
 | Restating routing in commands, adapters, or MEMORY.md | MANIFEST + this skill own it; everything else links |
-| Holding a mid-task finding "for save time" | Run `/strata-capture` or write the issue/learning file the moment it surfaces |
+| Holding a mid-task finding "for save time" | Run `/strata:capture` or write the issue/learning file the moment it surfaces |
 | Hand-editing ACTIVE/OPEN/PARKED or INDEX | Edit item frontmatter; views regenerate at save |
 | Moving an item file to change its status | Status is frontmatter; files move only on close (→ archive) |
 | `parked` without `revive-when:` | A concrete trigger or it isn't parked, it's abandoned |
 | Bulk-loading learnings/ADRs/archive at load | Indexes + trigger table exist so you don't |
-| Save waits for a y/n gate | One preview block, then execute automatically — invoking `/strata-save` is the confirmation |
+| Save waits for a y/n gate | One preview block, then execute automatically — invoking `/strata:save` is the confirmation |
 | New ADR with a colliding number | Scan `docs/decisions/`, take highest + 1 |
 | Capturing "architecture needs cleanup" | Evidence, affected paths, hypothesis, fix direction, acceptance criteria — in the issue |
 | `init` over flat or legacy memory | Migrate via `MIGRATIONS.md`; archive source first, then write v3 files |

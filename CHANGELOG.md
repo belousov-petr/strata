@@ -5,15 +5,18 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 ## Unreleased
 
 ### Changed
-- `/strata-save` now previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
-- The skill bundle now lives under `skills/strata/`, so the repo can also be installed as a Codex plugin while remaining copyable into Claude Code.
+- `/strata:save` now previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
+- The skill bundle now lives under `skills/strata/`, so the repo installs as both a Codex plugin and a Claude Code plugin from one tree.
+- **Claude Code distribution is now a first-class plugin.** Commands moved from the repo root into `commands/`, and the slash verbs are namespaced under the plugin: `/strata:save`, `/strata:load`, `/strata:capture` (were `/strata-save`, `/strata-load`, `/strata-capture`). The skill is `Skill(name='strata:strata', …)` under the plugin; Codex and other tools keep the canonical `Skill(name='strata', …)`. Rationale and the forced-namespacing constraint: [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md).
 
 ### Fixed
 - `strata init` now routes flat `.strata/memory/project_state.md` setups through an explicit flat → v3 migration rung. The flat source is archived as `memory/archive/source-flat-project-state-*` before hot state is rewritten, so accumulated memory and provenance are preserved.
 
 ### Added
+- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, packaging Strata as a Claude Code plugin installable via `/plugin marketplace add belousov-petr/strata`.
 - `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
-- `/strata-capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata-save`.
+- `/strata:capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata:save`.
+- [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md) — Claude plugin packaging and the forced command/skill namespacing.
 
 ## v3.0.0 — 2026-06-09
 

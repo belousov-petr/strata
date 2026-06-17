@@ -2,7 +2,7 @@
 
 Strata stamps every scaffolded `.strata/MANIFEST.md` with a `strata_version`. This file is the ladder between generations: how each layout is detected, the ordered transform to the next one, and how to back out. No breaking layout change ships without a rung here ([ADR-0006](docs/decisions/ADR-0006-in-repo-migrations-strata-version.md)).
 
-Migrations are **agent-runnable but human-gated**: every rung shows one plan, asks y/n, then executes. This is stricter than `/strata-save`, which previews and then writes automatically. Destructive steps are named per rung; nothing destructive happens outside that list.
+Migrations are **agent-runnable but human-gated**: every rung shows one plan, asks y/n, then executes. This is stricter than `/strata:save`, which previews and then writes automatically. Destructive steps are named per rung; nothing destructive happens outside that list.
 
 ## Version detection
 
@@ -36,7 +36,7 @@ v1 note: v1-era hot memory sometimes lived in the *tool's* tree outside the repo
 
 **Detect:** `.strata/memory/project_state.md` exists; no `.strata/MANIFEST.md`; no `.strata/memory/MEMORY.md`.
 
-This is the flat-mode layout created by `/strata-save` before a project adopts the full pattern. It is memory, not scaffold residue. `strata init` must migrate it, not overwrite it.
+This is the flat-mode layout created by `/strata:save` before a project adopts the full pattern. It is memory, not scaffold residue. `strata init` must migrate it, not overwrite it.
 
 **Destructive steps:** D1 archive the flat state source; D2 replace hot `project_state.md` with a trimmed v3 state file. D2 is allowed only after D1 succeeds.
 
@@ -112,7 +112,7 @@ A v1 project should normally run rung 1 and rung 2 in the same sitting (two comm
 15. **Verify:** `grep -rn "\.ai/\|open_action_items\|MEMORY-MAP\|docs/parked" --include="*.md" .` over the project — expect matches only under `.strata/memory/archive/` (provenance). Confirm `MANIFEST.md` carries `strata_version: 3`.
 16. **Commit** `chore(strata): migrate v2 layout to v3`.
 
-**User-side (outside the repo, once per machine):** remove the old commands `~/.claude/commands/save-point.md` and `load-point.md`; install `strata-save.md` and `strata-load.md`; refresh the skill copy at `~/.claude/skills/strata/`. See the README's install section.
+**User-side (once):** if you still have old manually-copied commands in `~/.claude/commands/` (`save-point.md` / `load-point.md`, or `strata-save.md` / `strata-load.md`), remove them. Install Strata as a plugin instead — `/plugin marketplace add belousov-petr/strata` then `/plugin install strata@belousov-petr` (or `/plugin marketplace update belousov-petr` to refresh an existing install) — and start a new session so the new skill text loads. See the README's install section.
 
 **Rollback:** rules above. The content-bearing steps (5–8) archive every source before deleting, so even a partially-applied, committed migration loses nothing — the originals are in `archive/source-issues-extraction-*` and in git history; `pre-strata-v3-migration` holds the full v2 state.
 

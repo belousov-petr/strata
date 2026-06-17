@@ -11,7 +11,7 @@ description: Session 0 ({{INIT_DATE}}) — strata initialized.
 - Project initialized: `.strata/` memory + issues backlog + docs homes scaffolded.
 
 ### Next action
-- Begin work. Capture findings to `.strata/issues/` as they surface; run `/strata-save` at session end. (Once issues exist, point this line at an issue id.)
+- Begin work. Capture findings to `.strata/issues/` as they surface; run `/strata:save` at session end. (Once issues exist, point this line at an issue id.)
 
 ### Prerequisites
 - None.

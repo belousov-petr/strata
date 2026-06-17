@@ -1,13 +1,13 @@
 ---
-name: strata-capture
-description: Use immediately when an agent hits a failure, retry loop, workaround, surprising behavior, gotcha, bug, or important finding that should not wait for /strata-save. Captures issues and behavioral learnings while context is fresh. Strata-aware when the project has `.strata/MANIFEST.md`; flat-mode fallback appends to `.strata/memory/project_state.md`.
+name: capture
+description: Use immediately when an agent hits a failure, retry loop, workaround, surprising behavior, gotcha, bug, or important finding that should not wait for /strata:save. Captures issues and behavioral learnings while context is fresh. Strata-aware when the project has `.strata/MANIFEST.md`; flat-mode fallback appends to `.strata/memory/project_state.md`.
 ---
 
 # Capture Fresh Finding or Gotcha
 
 Write the memory now, then continue. Prefer spending a few tokens on the spot over losing the evidence to compaction.
 
-**Authoritative rules live in `Skill: strata`, especially the immediate-capture contract.** This command is the interrupt you use while working; `/strata-save` remains the end-of-session bookkeeping pass.
+**Authoritative rules live in `Skill: strata:strata`, especially the immediate-capture contract.** This command is the interrupt you use while working; `/strata:save` remains the end-of-session bookkeeping pass.
 
 ## When to use
 
@@ -57,7 +57,7 @@ For an issue, use `.strata/issues/_TEMPLATE.md` and include:
 
 For a learning, use `.strata/memory/learnings/_TEMPLATE.md` and keep the lesson to 1-3 sentences with `origin: success | failure`.
 
-Do not hand-edit generated views (`ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, or the `MEMORY.md` trigger table). `/strata-save` regenerates them from source files.
+Do not hand-edit generated views (`ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, or the `MEMORY.md` trigger table). `/strata:save` regenerates them from source files.
 
 ### 5. Report and resume
 
@@ -74,7 +74,7 @@ Then continue the original task unless the capture shows that the task is blocke
 
 ## Do NOT
 
-- Wait for `/strata-save`
+- Wait for `/strata:save`
 - Ask the user what to capture when the session already shows it
 - Dump full logs, transcripts, secrets, or token values
 - Move closed issues to archive during capture; save handles archive moves

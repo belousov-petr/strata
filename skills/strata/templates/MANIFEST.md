@@ -8,6 +8,15 @@ strata_version: 3
 
 Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) v3. Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
 
+## Invocation — works the same for every tool
+
+This memory is maintained by the **strata** skill; the operations named below (**save**, **load**, **capture**, **init**) are invoked per tool:
+
+- **Claude Code (plugin):** `/strata:save` · `/strata:load` · `/strata:capture`; init via `Skill(name='strata:strata', args='init')`.
+- **Codex and other tools:** `Skill(name='strata', args='init')`, `Skill(name='strata', args='capture')`, and the skill's default rule lookup driving the same save/load flow.
+
+The `/strata:save`-style references throughout this file name those operations — a non-Claude agent performs the identical flow through the skill, not by typing a slash command.
+
 ## What {{PROJECT_NAME}} is
 
 _(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
@@ -66,24 +75,24 @@ _(Extend with project-specific directories as they develop.)_
 
 | You produced / discovered | Write to | When |
 |---|---|---|
-| Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md` (copy `issues/_TEMPLATE.md`), status `open`, full rationale + diagnostics | **Immediately, mid-session; use `/strata-capture`** |
+| Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md` (copy `issues/_TEMPLATE.md`), status `open`, full rationale + diagnostics | **Immediately, mid-session; use `/strata:capture`** |
 | Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
-| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` (copy `_TEMPLATE.md`) | at `/strata-capture`, `/strata-save`, or immediately if hard-won |
-| Shipped decision with rationale | `docs/decisions/ADR-NNNN-<slug>.md` (+ source → `memory/archive/source-adr-*`) | at `/strata-save` |
+| Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` (copy `_TEMPLATE.md`) | at `/strata:capture`, `/strata:save`, or immediately if hard-won |
+| Shipped decision with rationale | `docs/decisions/ADR-NNNN-<slug>.md` (+ source → `memory/archive/source-adr-*`) | at `/strata:save` |
 | Product requirement | `docs/product/<slug>.md` | when it exists |
 | How a subsystem works | `docs/architecture/<slug>.md` (+ row in `ARCHITECTURE.md`) | when it stabilizes |
 | Stable fact | `docs/reference/<slug>.md` | on second lookup |
 | Procedure, runbook, incident | `docs/ops/…` | when it changes |
-| Session narrative | `memory/project_state.md` (rollover → archive) | at `/strata-save` |
-| Completed external action (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata-save` |
+| Session narrative | `memory/project_state.md` (rollover → archive) | at `/strata:save` |
+| Completed external action (PR, email, durable URL) | `memory/archive/action_log.md` append | at `/strata:save` |
 
 **Never store:** secret values (env var *names* only); anything derivable from code or `git log`; raw transcripts, stack traces, command dumps — root cause + evidence instead.
 
-## Capture interrupt (`/strata-capture`)
+## Capture interrupt (`/strata:capture`)
 
-Use this while working when a command fails, an agent retries with a workaround, a brittle environment rule appears, or a finding is too useful to leave in conversation memory. Route closeable work to `issues/`, reusable behavior to `memory/learnings/`, or both. Do not edit generated views during capture; `/strata-save` regenerates them.
+Use this while working when a command fails, an agent retries with a workaround, a brittle environment rule appears, or a finding is too useful to leave in conversation memory. Route closeable work to `issues/`, reusable behavior to `memory/learnings/`, or both. Do not edit generated views during capture; `/strata:save` regenerates them.
 
-## Load order (`/strata-load`)
+## Load order (`/strata:load`)
 
 1. This file
 2. `memory/MEMORY.md`
@@ -99,4 +108,4 @@ Then on demand: `issues/OPEN.md` by area · matching `learnings/<slug>.md` at op
 - **Severity:** `high | med | low`
 - **Learning origin:** `success | failure`
 
-`parked` requires a concrete `revive-when:` trigger. `resolved`/`wont-fix` are terminal → `issues/archive/` at next `/strata-save`. Status changes are frontmatter edits, not file moves.
+`parked` requires a concrete `revive-when:` trigger. `resolved`/`wont-fix` are terminal → `issues/archive/` at next `/strata:save`. Status changes are frontmatter edits, not file moves.

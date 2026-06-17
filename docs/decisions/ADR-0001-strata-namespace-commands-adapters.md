@@ -2,6 +2,7 @@
 
 - **Status:** accepted
 - **Date:** 2026-06-09
+- **Note:** the command-naming decision below (`/strata-save`, `/strata-load`) is revised by [ADR-0009](ADR-0009-claude-plugin-packaging.md) for the Claude Code plugin (`/strata:save`, `/strata:load`, `/strata:capture`); the `.strata/` namespace and adapter decisions stand.
 
 ## Context and Problem Statement
 

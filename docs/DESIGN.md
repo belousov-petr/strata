@@ -70,7 +70,7 @@ What `strata init` produces (full form — code project):
     ├── issues/                     # single backlog: findings + tasks + initiatives
     │   ├── README.md               # how the backlog works (for tools without the skill)
     │   ├── _TEMPLATE.md            # copy-me blank
-    │   ├── ACTIVE.md               # generated: status in-progress (loads at /strata-load)
+    │   ├── ACTIVE.md               # generated: status in-progress (loads at /strata:load)
     │   ├── OPEN.md                 # generated: status open, grouped by area (on demand)
     │   ├── PARKED.md               # generated: status parked + revive triggers (on demand)
     │   ├── <id>-<slug>.md          # one item per file (schema §5.1)
@@ -101,10 +101,10 @@ The load discipline, end to end. "Auto" means without anyone asking.
 | Moment | What loads | Why |
 |---|---|---|
 | Any session, via adapter | `AGENTS.md` / `CLAUDE.md` → pointer to `.strata/MANIFEST.md` | No tool auto-discovers `.strata/`; the adapter is the hook |
-| `/strata-load` step 1 | `.strata/MANIFEST.md` | The contract: version, structure, routing |
-| `/strata-load` step 2 | `.strata/memory/MEMORY.md` | Hot index + rules-by-trigger table |
-| `/strata-load` step 3 | `.strata/issues/ACTIVE.md` | What's in flight right now |
-| `/strata-load` step 4 | `.strata/memory/project_state.md` | Current + last completed session only |
+| `/strata:load` step 1 | `.strata/MANIFEST.md` | The contract: version, structure, routing |
+| `/strata:load` step 2 | `.strata/memory/MEMORY.md` | Hot index + rules-by-trigger table |
+| `/strata:load` step 3 | `.strata/issues/ACTIVE.md` | What's in flight right now |
+| `/strata:load` step 4 | `.strata/memory/project_state.md` | Current + last completed session only |
 | Picking new work | `.strata/issues/OPEN.md`, filtered by area | On demand |
 | About to perform operation X | The one or two `learnings/<slug>.md` whose `trigger:` matches | Fired via the by-trigger table; retrieve few (k≈1) |
 | Task touches a topic | The specific `.strata/docs/**` file | Warm, by relevance |
@@ -128,7 +128,7 @@ Notes:
 
 - `initiative` is the v2 `project_<slug>.md` concept folded into the backlog: multi-session, strategic, still just an issue with a type.
 - `parked` is a *status*, not a place — a parked item stays in `issues/` and must carry `revive-when:`.
-- `resolved` and `wont-fix` are terminal; the item file moves to `issues/archive/` at the next `/strata-save`.
+- `resolved` and `wont-fix` are terminal; the item file moves to `issues/archive/` at the next `/strata:save`.
 - `med` not `medium` — fixed spelling so grep is reliable.
 
 ---
@@ -188,7 +188,7 @@ Required content, in order:
 4. **Where do I look for X?** — lookup table
 5. **The three tiers** — table as in §1
 6. **Routing rules** — table as in §6
-7. **Load order** — list as in §3 (the `/strata-load` steps + never-auto list)
+7. **Load order** — list as in §3 (the `/strata:load` steps + never-auto list)
 8. **States and types** — §4 verbatim
 
 The MANIFEST is the *only* per-project file that states routing and structure ([ADR-0004](decisions/ADR-0004-generated-indexes-grep-router.md)). `MEMORY.md` indexes; it does not route.
@@ -205,7 +205,7 @@ The MANIFEST is the *only* per-project file that states routing and structure ([
 - [Active issues](../issues/ACTIVE.md) — <n> in progress
 - [Open backlog](../issues/OPEN.md) — <n> open
 
-## Rules by trigger   <!-- GENERATED from learnings/ frontmatter at /strata-save -->
+## Rules by trigger   <!-- GENERATED from learnings/ frontmatter at /strata:save -->
 | When you are about to… | Read |
 |---|---|
 | <trigger> | [learnings/<slug>.md](learnings/<slug>.md) |
@@ -235,7 +235,7 @@ description: Session N (<date>) — <one-line summary>.
 Sessions ≤ N−2 → `archive/YYYY-MM-sessions-*.md`.
 ```
 
-Budget ≤200 lines; rollover at `/strata-save` (§8).
+Budget ≤200 lines; rollover at `/strata:save` (§8).
 
 ### 5.6 action_log.md entry
 
@@ -258,7 +258,7 @@ MADR-derived, same format as strata's own records: Status/Date · Context and Pr
 - `learnings/INDEX.md` — every learning: `| trigger | applies-when | origin | file |`.
 - `MEMORY.md` rules-by-trigger table — same rows, trimmed to trigger + link.
 
-Each generated file carries the header comment `<!-- GENERATED at /strata-save — do not hand-edit; edit item frontmatter instead -->`.
+Each generated file carries the header comment `<!-- GENERATED at /strata:save — do not hand-edit; edit item frontmatter instead -->`.
 
 ---
 
@@ -268,15 +268,15 @@ Each generated file carries the header comment `<!-- GENERATED at /strata-save �
 |---|---|---|
 | Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md`, status `open` | **Immediately, mid-session** — full rationale + diagnostics to disk, then keep working |
 | "Later, if X happens" work | Same file, `status: parked` + `revive-when:` | At capture or triage |
-| Behavioral lesson — something that worked or burned you | `memory/learnings/<slug>.md` | At `/strata-capture`, `/strata-save`, or immediately if hard-won |
-| Shipped decision with non-obvious rationale | `.strata/docs/decisions/ADR-NNNN-<slug>.md`; raw source → `memory/archive/source-adr-NNNN-*.md` | At `/strata-save` |
+| Behavioral lesson — something that worked or burned you | `memory/learnings/<slug>.md` | At `/strata:capture`, `/strata:save`, or immediately if hard-won |
+| Shipped decision with non-obvious rationale | `.strata/docs/decisions/ADR-NNNN-<slug>.md`; raw source → `memory/archive/source-adr-NNNN-*.md` | At `/strata:save` |
 | Product requirement / PRD | `.strata/docs/product/<slug>.md` | When it exists |
 | Architecture: how a subsystem works | `.strata/docs/architecture/<slug>.md`; `ARCHITECTURE.md` gets the index row | When it stabilizes |
 | Stable fact (paths, schemas, APIs, conventions) | `.strata/docs/reference/<slug>.md` | When second lookup happens |
 | Procedure, runbook, incident pattern | `.strata/docs/ops/…` (`incidents/<symptom>.md`, `release-rollback.md`) | When it changes |
-| Session narrative | `memory/project_state.md` (rollover → `archive/`) | At `/strata-save` |
-| Completed action with an external artifact | `memory/archive/action_log.md` (append) | At `/strata-save` |
-| A doc this session made wrong | Fix in place; a *retired* doc → `docs/_archive/` | At `/strata-save` durable-doc sync |
+| Session narrative | `memory/project_state.md` (rollover → `archive/`) | At `/strata:save` |
+| Completed action with an external artifact | `memory/archive/action_log.md` (append) | At `/strata:save` |
+| A doc this session made wrong | Fix in place; a *retired* doc → `docs/_archive/` | At `/strata:save` durable-doc sync |
 
 **Never store:** secrets (names of env vars yes, values never); anything derivable from code/`git log`; raw transcripts, full stack traces, command dumps (concise root cause + evidence instead); shipped rationale with no active next step outside an ADR.
 
@@ -325,15 +325,15 @@ Transition rules:
 
 - **Capture is immediate and complete.** The moment a finding/bug surfaces mid-task: write `issues/<id>-<slug>.md` with full rationale and diagnostics (Tried/Error/Hypothesis/Repro), `status: open` — *then return to the task*. Context compaction cannot eat what is on disk. Don't fix it unless it blocks the current task; don't hold it in your head until save time.
 - **Status changes are frontmatter edits** — no file moves between folders while an item is alive.
-- **Closing** fills **Resolution**, links the ADR/learning if the close produced durable knowledge, and the file moves to `issues/archive/` at the next `/strata-save`.
-- **Parking requires a concrete `revive-when:`** ("next time the dispatcher misroutes", not "someday"). `/strata-save` checks parked triggers against the session and revives matches.
+- **Closing** fills **Resolution**, links the ADR/learning if the close produced durable knowledge, and the file moves to `issues/archive/` at the next `/strata:save`.
+- **Parking requires a concrete `revive-when:`** ("next time the dispatcher misroutes", not "someday"). `/strata:save` checks parked triggers against the session and revives matches.
 - **Dedup at triage:** before a new id is assigned at save time, near-duplicates are merged (the newer evidence folds into the older item).
 
 ### 8.2 Session lifecycle (what updates when)
 
 - **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/v1/v2 memory, runs the matching migration rung instead; source memory is archived before v3 hot files replace it.
-- **`/strata-capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata-save`.
-- **`/strata-save`** (preview, then automatic execution):
+- **`/strata:capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata:save`.
+- **`/strata:save`** (preview, then automatic execution):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
   2. issue triage — new captures get id/severity/area, dedup, status updates; resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;
   3. learnings written/updated; **regenerate `learnings/INDEX.md` + the MEMORY.md by-trigger table**;
@@ -342,7 +342,7 @@ Transition rules:
   6. external completions append to `action_log.md`;
   7. `MEMORY.md` and `ARCHIVE.md` indexes sync.
   Safeguards: the preview lists the plan before writes begin; git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
-- **`/strata-load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
+- **`/strata:load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
 - **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/v1/v2 fingerprints here instead of scaffolding over them.
 
 ---
@@ -378,7 +378,7 @@ grep -rn "did we" .strata/memory/archive/action_log.md   # external-action histo
 git log --oneline -- .strata/issues/20260609-01-*.md # an item's full history
 ```
 
-Regeneration contract: `/strata-save` rebuilds every generated view from current frontmatter on every run. Hand-edits to generated files are overwritten by design — edit the item, not the view.
+Regeneration contract: `/strata:save` rebuilds every generated view from current frontmatter on every run. Hand-edits to generated files are overwritten by design — edit the item, not the view.
 
 ---
 
