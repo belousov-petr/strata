@@ -51,7 +51,31 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Size budgets
+# 2. Save autosave + flat migration contracts
+# ---------------------------------------------------------------------------
+SAVE_SURFACE=(strata/SKILL.md strata-save.md README.md docs/DESIGN.md)
+if grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}" >/dev/null 2>&1; then
+  fail "save surface still contains Confirm? (y/n):"
+  grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}"
+else
+  ok "save surface has no Confirm? (y/n) prompt"
+fi
+
+if grep -qF "Invoking \`/strata-save\` is the confirmation" strata-save.md README.md; then
+  ok "strata-save autosave contract documented"
+else
+  fail "strata-save autosave contract missing"
+fi
+
+if grep -qF "## Rung 0: flat → v3" MIGRATIONS.md && \
+   grep -qF "source-flat-project-state" MIGRATIONS.md strata/SKILL.md; then
+  ok "flat memory migrates with provenance archive"
+else
+  fail "flat memory migration/provenance contract missing"
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Size budgets
 # ---------------------------------------------------------------------------
 mem_lines=$(wc -l < strata/templates/memory/MEMORY.md)
 if [ "$mem_lines" -le 80 ]; then ok "templates/memory/MEMORY.md ${mem_lines} lines (<=80)"; else fail "templates/memory/MEMORY.md ${mem_lines} lines (>80)"; fi
@@ -60,7 +84,7 @@ skill_lines=$(wc -l < strata/SKILL.md)
 if [ "$skill_lines" -le 350 ]; then ok "strata/SKILL.md ${skill_lines} lines (<=350)"; else fail "strata/SKILL.md ${skill_lines} lines (>350, bloated)"; fi
 
 # ---------------------------------------------------------------------------
-# 3. Canonical states/types — identical strings everywhere they appear
+# 4. Canonical states/types — identical strings everywhere they appear
 # ---------------------------------------------------------------------------
 TYPES='bug | improvement | debt | task | feature | initiative'
 STATUSES='open | in-progress | parked | resolved | wont-fix'
@@ -87,13 +111,13 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Template placeholder hygiene — only {{PROJECT_NAME}} and {{INIT_DATE}}
+# 5. Template placeholder hygiene — only {{PROJECT_NAME}} and {{INIT_DATE}}
 # ---------------------------------------------------------------------------
 unknown=$(grep -rhoE '\{\{[A-Z_]+\}\}' strata/templates/ | sort -u | grep -vE '^\{\{(PROJECT_NAME|INIT_DATE)\}\}$' || true)
 if [ -n "$unknown" ]; then fail "unknown placeholders in templates: $unknown"; else ok "template placeholders limited to PROJECT_NAME/INIT_DATE"; fi
 
 # ---------------------------------------------------------------------------
-# 5. Internal links resolve (relative .md links in the doc surface)
+# 6. Internal links resolve (relative .md links in the doc surface)
 # ---------------------------------------------------------------------------
 for f in README.md MIGRATIONS.md CHANGELOG.md docs/DESIGN.md docs/decisions/README.md; do
   dir=$(dirname "$f")

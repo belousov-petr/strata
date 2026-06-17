@@ -1,6 +1,6 @@
 ---
 name: strata
-description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, and one-shot project initialization under .strata/. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold a new project. Used internally by /strata-save and /strata-load as the authoritative source of tier definitions and routing rules.
+description: 3-tier project memory (hot/warm/cold) with a unified issues backlog, operation-keyed learnings, generated indexes, and one-shot project initialization under .strata/. Invoke with no argument for a rule-lookup reference; invoke with "init" to scaffold a fresh project or migrate existing flat/v1/v2 memory without losing provenance. Used internally by /strata-save and /strata-load as the authoritative source of tier definitions and routing rules.
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep, AskUserQuestion]
 ---
 
@@ -11,7 +11,7 @@ The **single source of truth** for the strata v3 pattern. Project memory is owne
 This file is operational rules only. Depth lives elsewhere — link, don't restate:
 **how it all works** → [docs/DESIGN.md](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · **why** → [docs/decisions/](https://github.com/belousov-petr/strata/blob/main/docs/decisions/README.md) · **upgrades** → [MIGRATIONS.md](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md)
 
-Two entry points: **rule lookup** (default — `/strata-save` and `/strata-load` read §§1–6 for decisions) and **`init`** (scaffold a project, §7).
+Two entry points: **rule lookup** (default — `/strata-save` and `/strata-load` read §§1–6 for decisions) and **`init`** (scaffold or migrate a project, §7).
 
 ---
 
@@ -86,11 +86,11 @@ origin: success | failure
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
-## 5. `/strata-save` — preview-confirm-execute contract
+## 5. `/strata-save` — preview-execute contract
 
 **A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
 
-**B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then wait for y/n. Empty plan → "no changes proposed", stop.
+**B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
 
 **C — Safeguards** (before preview):
 
@@ -99,7 +99,7 @@ origin: success | failure
 - **Section-only deletions** — never remove whole files without explicit instruction.
 - **Idempotent** — re-run with no new work proposes nothing.
 
-**D — Execute** on `y`, in order: writes → appends → updates (frontmatter/status) → moves → deletions → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`). On `n`: zero changes.
+**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
 
 **E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
 
@@ -118,19 +118,22 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Present** ≤6 lines: last session · next up (issue id) · active count · prerequisites · fired parked-triggers · drift. Then ask: continue or something else?
 
-## 7. `init` — scaffold a project
+## 7. `init` — scaffold or migrate a project
 
 Invoked via `Skill(name='strata', args='init')` or an explicit ask to set up project memory.
 
 **Preconditions:**
 
 1. CWD is the target project root, inside a git repo (`git rev-parse --is-inside-work-tree`; error out if not).
-2. **Idempotence guard.** If `.strata/MANIFEST.md` or `.strata/memory/MEMORY.md` exists, refuse: report the existing memory; re-bootstrap requires the user to move/delete it first.
-3. **Legacy guard.** If any v1/v2 fingerprint exists — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/` (or `.ai/MEMORY-MAP.md`), `open_action_items.md`, `project_<slug>.md` memory files, `docs/parked/`, or project files referencing the old `/save-point`//`/load-point` commands — do **not** scaffold a second memory. Report the fingerprint and offer the `MIGRATIONS.md` ladder instead.
+2. **Existing-memory routing.** Detect before writing:
+   - Valid v3 (`.strata/MANIFEST.md` with `strata_version: 3`) → refuse: report the existing memory; re-bootstrap requires the user to move/delete it first.
+   - Flat mode (`.strata/memory/project_state.md` exists, with no `.strata/MANIFEST.md` and no `.strata/memory/MEMORY.md`) → run the flat→v3 rung in `MIGRATIONS.md`; never overwrite the flat file in place.
+   - v1/v2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/` (or `.ai/MEMORY-MAP.md`), `open_action_items.md`, `project_<slug>.md` memory files, `docs/parked/`, or project files referencing the old `/save-point`//`/load-point` commands → run the matching `MIGRATIONS.md` rung(s), not a fresh scaffold.
+   - Mixed or partial `.strata/` state that is not the flat fingerprint → stop, report every fingerprint, and ask the user to choose repair/migration; never guess and never overwrite.
 
-**Questions** (single `AskUserQuestion`): project name; project type — "Code project (full `.strata/docs/` taxonomy)" vs "Knowledge/ops project (memory + issues; docs grow later)".
+**Questions** (single `AskUserQuestion`): project name; project type — "Code project (full `.strata/docs/` taxonomy)" vs "Knowledge/ops project (memory + issues; docs grow later)". During migration, derive these from existing memory when obvious and ask only for missing values.
 
-**Files to write** — templates from this skill's `templates/`, substituting `{{PROJECT_NAME}}` and `{{INIT_DATE}}` (today, `YYYY-MM-DD`) in **every** copied file:
+**Fresh files to write** — templates from this skill's `templates/`, substituting `{{PROJECT_NAME}}` and `{{INIT_DATE}}` (today, `YYYY-MM-DD`) in **every** copied file:
 
 | Template | Target | Condition |
 |---|---|---|
@@ -145,6 +148,8 @@ Invoked via `Skill(name='strata', args='init')` or an explicit ask to set up pro
 | `templates/docs/ARCHITECTURE.md` + `templates/docs/{product,architecture,decisions,reference,ops}/README.md` | `.strata/docs/…` | code projects |
 
 Existing adapters are left unchanged and reported as such. Adapters are pointers only — never write project memory into them.
+
+Migration writes may target the same paths, but source memory is archived first. Flat `project_state.md` becomes `.strata/memory/archive/source-flat-project-state-<date>.md` before a new hot `project_state.md` is written; extracted issues, learnings, and ADRs cite that archive path or the archived section heading. Ambiguous content stays in the archive and gets a triage issue, not a silent drop.
 
 **Report** exactly:
 
@@ -168,7 +173,7 @@ Next:
 ## 8. Versioning and migration
 
 - This skill writes layout **`strata_version: 3`**; the stamp lives in `MANIFEST.md` frontmatter.
-- On any version mismatch or legacy fingerprint: stop, report, point at `MIGRATIONS.md` (detect → gated transform → rollback, per rung). Never run a migration without the preview-confirm gate; never double-initialize.
+- On `init`, any flat/v1/v2 fingerprint routes to `MIGRATIONS.md` (detect → gated transform → rollback, per rung) instead of fresh scaffolding. On save/load version mismatch: stop, report, point at `MIGRATIONS.md`. Never double-initialize and never overwrite source memory before archiving it.
 - Releases of strata itself: git tags + `CHANGELOG.md` (git-native versioning — no version-archive folders anywhere, one optional `docs/_archive/` for retired docs).
 
 ## 9. Common mistakes
@@ -181,10 +186,10 @@ Next:
 | Moving an item file to change its status | Status is frontmatter; files move only on close (→ archive) |
 | `parked` without `revive-when:` | A concrete trigger or it isn't parked, it's abandoned |
 | Bulk-loading learnings/ADRs/archive at load | Indexes + trigger table exist so you don't |
-| Save without the preview gate | One block, one y/n — non-optional |
+| Save waits for a y/n gate | One preview block, then execute automatically — invoking `/strata-save` is the confirmation |
 | New ADR with a colliding number | Scan `docs/decisions/`, take highest + 1 |
 | Capturing "architecture needs cleanup" | Evidence, affected paths, hypothesis, fix direction, acceptance criteria — in the issue |
-| `init` over an existing or legacy setup | Refuse; idempotence + legacy guards, MIGRATIONS ladder |
+| `init` over flat or legacy memory | Migrate via `MIGRATIONS.md`; archive source first, then write v3 files |
 
 ## 10. Relationship to other memory skills
 

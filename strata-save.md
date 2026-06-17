@@ -20,7 +20,7 @@ Capture what happened in this session so the next one starts hot. In strata mode
 
 - `.strata/MANIFEST.md` present → **strata mode**. Check its `strata_version` — if it isn't `3`, stop and point at `MIGRATIONS.md`.
 - Legacy fingerprints present (`.ai/MEMORY-MAP.md`, `docs/PROJECT-MAP.md`, `.claude/memory/`) → **legacy layout**. Do not save into it and do not scaffold a second memory; offer the migration ladder in `MIGRATIONS.md`.
-- Neither → **flat mode**: capture a single `.strata/memory/project_state.md` and at the end offer `strata init`.
+- Neither → **flat mode**: capture a single `.strata/memory/project_state.md`; later `strata init` migrates that file into v3, archiving the original first.
 
 State the detected mode before proceeding.
 
@@ -40,7 +40,7 @@ Sort what actually happened into the v3 buckets:
 - **External completions** — PRs, emails, posted comments, durable URLs → action-log candidates.
 - **Rollover** — `project_state.md` beyond current + last completed.
 
-### 4. Build the preview (one block, then y/n)
+### 4. Build the preview (one block, then execute)
 
 Apply the skill's routing table and §strata-save contract. Classify every proposed change:
 
@@ -72,11 +72,9 @@ REGENERATED:
 
 SKIP (uncommitted edits — commit or stash first):
 - <path>
-
-Confirm? (y/n)
 ```
 
-Empty plan → say "no changes proposed" and stop. On `n`, abort with zero writes.
+Empty plan → say "no changes proposed" and stop. Otherwise, continue directly to execution. Invoking `/strata-save` is the confirmation; do not ask for a second y/n.
 
 ### 5. Safeguards (before showing the preview)
 
@@ -84,7 +82,7 @@ Per the skill: git-dirty files are never moved or deleted-from (list under SKIP)
 
 ### 6. Execute
 
-On `y`, in this order: **writes → appends → updates → moves → deletions → regenerate views**. Regeneration is last so views reflect the post-save world.
+Immediately after the preview, run in this order: **writes → appends → updates → moves → deletions → regenerate views**. Regeneration is last so views reflect the post-save world.
 
 ### 7. Verify
 
@@ -108,7 +106,7 @@ Action log: 1 entry (upstream PR #14).
 
 ## Flat mode
 
-Everything goes into `.strata/memory/project_state.md` under WHERE WE LEFT OFF / Current State / Session History / Constraints & Gotchas / Findings / Open Items / Rejected Approaches. Then offer migration once the file passes ~500 lines or carries 3+ decisions with lasting rationale: "I can set up the strata pattern — issues backlog, learnings, manifest, trimmed hot file. Want me to?" Don't push.
+Everything goes into `.strata/memory/project_state.md` under WHERE WE LEFT OFF / Current State / Session History / Constraints & Gotchas / Findings / Open Items / Rejected Approaches. Once the file passes ~500 lines or carries 3+ decisions with lasting rationale, report: "Run `strata init` to migrate this flat memory into the full strata pattern; the flat file will be archived first for provenance." Don't push.
 
 ## Quality bar
 
@@ -117,6 +115,7 @@ A fresh session must be able to: know what happened and why; start the next acti
 ## Do NOT
 
 - Ask the user what to capture — derive it from the session
+- Ask for y/n after the preview — save executes automatically once invoked
 - Defer mid-session issue capture to save time (capture is immediate; save is bookkeeping)
 - Hand-edit generated views — edit items, regenerate
 - Save anything derivable from code or `git log`, or any secret value

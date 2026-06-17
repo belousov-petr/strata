@@ -2,6 +2,14 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `strata_version` stamps in scaffolded manifests. When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## Unreleased
+
+### Changed
+- `/strata-save` now previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
+
+### Fixed
+- `strata init` now routes flat `.strata/memory/project_state.md` setups through an explicit flat → v3 migration rung. The flat source is archived as `memory/archive/source-flat-project-state-*` before hot state is rewritten, so accumulated memory and provenance are preserved.
+
 ## v3.0.0 — 2026-06-09
 
 Layout generation **`strata_version: 3`** — breaking; see `MIGRATIONS.md` rung 2 (v2 → v3). Design rationale: [`docs/decisions/`](docs/decisions/README.md), full reference: [`docs/DESIGN.md`](docs/DESIGN.md).

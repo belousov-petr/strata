@@ -88,6 +88,8 @@ What `strata init` produces (full form — code project):
 
 Knowledge/ops projects (no code) skip `.strata/docs/` at init and grow it later if needed; everything else is identical.
 
+If flat or legacy memory already exists, `strata init` does not write this fresh tree over it. It enters the matching `MIGRATIONS.md` rung, archives source memory first, then writes the v3 tree with provenance links back to the archived source.
+
 Strata's **own repo** is the one deliberate exception: its `docs/` (this file, `decisions/`) sits at the repo root, public, because these docs are its product documentation ([ADR-0007](decisions/ADR-0007-warm-docs-taxonomy.md)).
 
 ---
@@ -329,9 +331,9 @@ Transition rules:
 
 ### 8.2 Session lifecycle (what updates when)
 
-- **`strata init`** (once): adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. Idempotent; refuses over an existing setup; legacy guard fires on v1/v2 fingerprints (→ `MIGRATIONS.md`).
+- **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/v1/v2 memory, runs the matching migration rung instead; source memory is archived before v3 hot files replace it.
 - **Mid-session (continuous):** new finding/bug → issue file to disk immediately, as above. High-value lessons may also be written immediately.
-- **`/strata-save`** (preview-confirm gated, y/n):
+- **`/strata-save`** (preview, then automatic execution):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
   2. issue triage — new captures get id/severity/area, dedup, status updates; resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;
   3. learnings written/updated; **regenerate `learnings/INDEX.md` + the MEMORY.md by-trigger table**;
@@ -339,9 +341,9 @@ Transition rules:
   5. durable-doc sync — fix docs the session made wrong, in place;
   6. external completions append to `action_log.md`;
   7. `MEMORY.md` and `ARCHIVE.md` indexes sync.
-  Safeguards: git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
+  Safeguards: the preview lists the plan before writes begin; git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
 - **`/strata-load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
-- **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch.
+- **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/v1/v2 fingerprints here instead of scaffolding over them.
 
 ---
 
@@ -384,5 +386,5 @@ Regeneration contract: `/strata-save` rebuilds every generated view from current
 
 - This layout is **`strata_version: 3`**, stamped in every scaffolded `MANIFEST.md`.
 - Releases of strata itself: git tags + root `CHANGELOG.md`.
-- Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for v1 (`.claude/memory/` + `docs/PROJECT-MAP.md`) and v2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
+- Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for flat mode (`.strata/memory/project_state.md` without a manifest), v1 (`.claude/memory/` + `docs/PROJECT-MAP.md`), and v2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
 - Rationale: [ADR-0006](decisions/ADR-0006-in-repo-migrations-strata-version.md) (migrations), [ADR-0008](decisions/ADR-0008-git-native-versioning.md) (git-native versioning).

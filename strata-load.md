@@ -19,8 +19,8 @@ Read the saved state and orient yourself so you can resume immediately — witho
 ### 1. Detect the mode
 
 - `.strata/MANIFEST.md` present → **strata mode**. If its `strata_version` isn't `3`, say so and point at `MIGRATIONS.md` before loading anything else.
-- Legacy fingerprints (`.ai/MEMORY-MAP.md`, `docs/PROJECT-MAP.md`, `.claude/memory/`) → **legacy layout**: orient from what exists, tell the user this is a v1/v2 layout, offer the `MIGRATIONS.md` ladder. Never scaffold v3 beside it.
-- Neither, but `.strata/memory/project_state.md` exists → **flat mode**: read it as the single source.
+- Legacy fingerprints (`.ai/MEMORY-MAP.md`, `docs/PROJECT-MAP.md`, `.claude/memory/`) → **legacy layout**: orient from what exists, tell the user this is a v1/v2 layout, and say `strata init` will run the matching `MIGRATIONS.md` rung. Never scaffold v3 beside it.
+- Neither, but `.strata/memory/project_state.md` exists → **flat mode**: read it as the single source; say `strata init` will archive and migrate it into v3 when invoked.
 - Nothing → fresh project; say so and offer `strata init` or exploration.
 
 State the detected mode.

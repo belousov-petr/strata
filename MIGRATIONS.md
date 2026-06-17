@@ -2,7 +2,7 @@
 
 Strata stamps every scaffolded `.strata/MANIFEST.md` with a `strata_version`. This file is the ladder between generations: how each layout is detected, the ordered transform to the next one, and how to back out. No breaking layout change ships without a rung here ([ADR-0006](docs/decisions/ADR-0006-in-repo-migrations-strata-version.md)).
 
-Migrations are **agent-runnable but human-gated**: every rung uses the same preview-confirm gate as `/strata-save` — one plan, one y/n, then execution. Destructive steps are named per rung; nothing destructive happens outside that list.
+Migrations are **agent-runnable but human-gated**: every rung shows one plan, asks y/n, then executes. This is stricter than `/strata-save`, which previews and then writes automatically. Destructive steps are named per rung; nothing destructive happens outside that list.
 
 ## Version detection
 
@@ -11,11 +11,12 @@ Check in this order; first match wins.
 | Generation | Fingerprint |
 |---|---|
 | **v3** | `.strata/MANIFEST.md` exists and contains `strata_version: 3` |
+| **flat** | `.strata/memory/project_state.md` exists, with no `.strata/MANIFEST.md` and no `.strata/memory/MEMORY.md` |
 | **v2** | `.ai/MEMORY-MAP.md` exists |
 | **v1** | `docs/PROJECT-MAP.md` exists, or `.claude/memory/MEMORY.md` exists (project-local tool tree) |
 | none | none of the above — fresh project; use `strata init`, not migration |
 
-Mixed fingerprints (e.g. both `.ai/` and `.strata/`) mean an aborted migration or a hand-rolled hybrid: **stop, report what was found, let the human decide.** Never initialize a second memory beside an existing one.
+Mixed fingerprints (e.g. both `.ai/` and `.strata/`, or partial `.strata/` files that are not the flat fingerprint) mean an aborted migration or a hand-rolled hybrid: **stop, report what was found, let the human decide.** Never initialize a second memory beside an existing one.
 
 v1 note: v1-era hot memory sometimes lived in the *tool's* tree outside the repo (`~/.claude/projects/<project>/memory/`). If the repo fingerprint is v1 but the memory files are tool-side, copy them into the repo first — the migration operates on repo-owned files only.
 
@@ -28,6 +29,34 @@ v1 note: v1-era hot memory sometimes lived in the *tool's* tree outside the repo
 5. **Extraction before deletion.** Content-bearing steps write the new files and archive the source *before* removing the original; a crash mid-migration loses nothing.
 6. **Rollback.** Before committing: `git reset --hard && git clean -fd` (the plan lists any untracked files created, so `clean` is informed, not blind). After committing: the backup branch still holds the pre-migration state — `git reset --hard pre-strata-v<N>-migration` or cherry-pick forward.
 7. **One commit per rung**, message `chore(strata): migrate v<N-1> layout to v<N>`.
+
+---
+
+## Rung 0: flat → v3
+
+**Detect:** `.strata/memory/project_state.md` exists; no `.strata/MANIFEST.md`; no `.strata/memory/MEMORY.md`.
+
+This is the flat-mode layout created by `/strata-save` before a project adopts the full pattern. It is memory, not scaffold residue. `strata init` must migrate it, not overwrite it.
+
+**Destructive steps:** D1 archive the flat state source; D2 replace hot `project_state.md` with a trimmed v3 state file. D2 is allowed only after D1 succeeds.
+
+**Transform (ordered):**
+
+1. Preflight per the rules above (backup branch `pre-strata-flat-to-v3-migration`).
+2. Create the v3 skeleton from `strata/templates/`, substituting project name and date, but do **not** write `memory/project_state.md` yet. Adapters are still only written if absent.
+3. *(D1)* Archive the flat source: move committed files with `git mv .strata/memory/project_state.md .strata/memory/archive/source-flat-project-state-YYYY-MM-DD.md`; copy then remove if the file is untracked. The archive path is the provenance anchor.
+4. Extract obvious durable content from the archived state:
+   - open items, findings, and blockers → `issues/<id>-<slug>.md`;
+   - durable gotchas or successful strategies → `memory/learnings/<slug>.md`;
+   - decisions with non-obvious rationale → `docs/decisions/ADR-NNNN-<slug>.md`;
+   - older session narrative → keep only in the archived source unless it changes the current resumption point.
+5. Every extracted file cites the archive path and, when possible, the source heading. Ambiguous content is not discarded; create one `issues/<date>-01-triage-flat-memory.md` item pointing at the archive with the remaining sections to review.
+6. *(D2)* Write the new hot `memory/project_state.md`: current resumption point, last completed session if clear, and a provenance note linking to `memory/archive/source-flat-project-state-YYYY-MM-DD.md`. Keep it within the 200-line budget.
+7. Regenerate `issues/ACTIVE.md`, `issues/OPEN.md`, `issues/PARKED.md`, `memory/learnings/INDEX.md`, and the `MEMORY.md` rules-by-trigger table.
+8. Verify: the source archive exists; `project_state.md` is not a template-only overwrite; generated views match frontmatter; grep for distinctive headings from the flat file finds either an extracted item or the archived source.
+9. Commit `chore(strata): migrate flat memory to v3`.
+
+**Rollback:** before commit, use the rules above; after commit, `pre-strata-flat-to-v3-migration` holds the original flat state. The full original content also remains in `memory/archive/source-flat-project-state-*` for provenance.
 
 ---
 

@@ -30,7 +30,7 @@ Option 3.
 
 - `.strata/MANIFEST.md` carries **`strata_version: 3`**. The layout becomes self-identifying; future tooling can hard-fail on version mismatch instead of misreading structure.
 - Root **`MIGRATIONS.md`** holds the ladder: v1→v2 and v2→v3, each rung with a detection fingerprint, an ordered transform list (git-aware moves first, content extraction spelled out, index regeneration last), and a rollback note. Migrations run on a backup branch; every step is reversible until the user commits.
-- **Destructive steps are explicit and gated.** Directory renames, the `open_action_items`/`project_<slug>`/`docs/parked` → `issues/` extraction, and adapter deletion are listed by name in the ladder and require the same preview-confirm gate as `/strata-save`.
+- **Destructive migration steps are explicit and gated.** Directory renames, the `open_action_items`/`project_<slug>`/`docs/parked` → `issues/` extraction, and adapter deletion are listed by name in the ladder and require a migration preview-confirm gate. `/strata-save` has since moved to preview-then-autosave.
 - The skill's **legacy guard** (init and load) detects v1/v2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/`, `open_action_items.md`, `project_<slug>` files, `docs/parked/`, old command names — refuses to double-initialize, and points at the ladder.
 - `CHANGELOG.md` records what each version changed; the ladder records *how to get there*. They reference, not duplicate, each other.
 
