@@ -18,7 +18,7 @@ At the same time, v3's design is research-derived and worth recording durably �
 2. **Rationale only in the external research report.**
    Pros: zero repo weight. Cons: unversioned, unreachable from a clone, effectively lost.
 3. **Layered docs, each with one job, linked not restated.** *(chosen)*
-   - `strata/SKILL.md` — operational rules only, loaded on invoke; links down for anything deeper.
+   - `skills/strata/SKILL.md` — operational rules only, loaded on invoke; links down for anything deeper.
    - `docs/DESIGN.md` — the exhaustive reference: memory-type model, every store, every schema, what-loads-when, mechanics.
    - `docs/decisions/ADR-*` — why each choice was made and what was rejected, with primary sources.
    - `MIGRATIONS.md` — version detection and transform ladder.

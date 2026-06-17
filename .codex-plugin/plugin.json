@@ -1,0 +1,38 @@
+{
+  "name": "strata",
+  "version": "3.0.1",
+  "description": "Repo-owned project memory for AI coding agents, with save/load workflows and migration-safe initialization.",
+  "author": {
+    "name": "Petr Belousov",
+    "url": "https://github.com/belousov-petr"
+  },
+  "homepage": "https://github.com/belousov-petr/strata",
+  "repository": "https://github.com/belousov-petr/strata",
+  "license": "MIT",
+  "keywords": [
+    "agent-memory",
+    "project-state",
+    "skills",
+    "codex",
+    "claude-code"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Strata",
+    "shortDescription": "Repo-owned memory for AI coding sessions",
+    "longDescription": "Use Strata to initialize, load, save, and migrate plain Markdown project memory under .strata/ so multiple AI coding agents can share one project state.",
+    "developerName": "Petr Belousov",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up Strata memory in this repo.",
+      "Load Strata state and continue the last task.",
+      "Save this session with Strata."
+    ],
+    "brandColor": "#334155",
+    "screenshots": []
+  }
+}

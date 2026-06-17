@@ -35,11 +35,13 @@ Three kinds of knowledge, three places they live, three moments they load. Like 
 
 ```
 strata/
+├── .codex-plugin/plugin.json      # Codex plugin manifest
 ├── strata-save.md                 # /strata-save command
 ├── strata-load.md                 # /strata-load command
-├── strata/
-│   ├── SKILL.md                   # the authoritative rules (lean, operational)
-│   └── templates/                 # scaffolded into projects by init (mirrors .strata/)
+├── skills/
+│   └── strata/
+│       ├── SKILL.md               # authoritative rules (Claude + Codex skill)
+│       └── templates/             # scaffolded into projects by init (mirrors .strata/)
 ├── docs/
 │   ├── DESIGN.md                  # exhaustive reference: every store, schema, lifecycle
 │   └── decisions/                 # ADR-0001..0008: why v3 is shaped this way
@@ -183,9 +185,15 @@ The main external influences are [agents.md](https://agents.md/), [Anthropic's c
 
 ## Installation
 
+### Codex plugin
+
+Strata is packaged as a Codex plugin. The plugin manifest lives at `.codex-plugin/plugin.json` and points at `skills/strata/`.
+
+For local development, clone this repo into your plugin source directory and install it through your Codex plugin marketplace. When you pull a new commit from GitHub, reinstall or update the plugin so Codex refreshes its cached copy. Start a new thread after updating so the new skill text is loaded.
+
 ### Claude Code
 
-Clone the repo, then copy the commands and skill into your Claude settings tree. If you installed an older copy, remove the old skill and old command names first.
+Claude Code does not use the Codex plugin manifest. Clone the repo, then copy the command files and skill into your Claude settings tree. If you installed an older copy, remove the old skill and old command names first.
 
 Linux/macOS:
 
@@ -194,7 +202,7 @@ git clone https://github.com/belousov-petr/strata.git
 rm -rf ~/.claude/skills/strata ~/.claude/commands/save-point.md ~/.claude/commands/load-point.md
 mkdir -p ~/.claude/commands ~/.claude/skills/strata
 cp strata/strata-save.md strata/strata-load.md ~/.claude/commands/
-cp -r strata/strata/* ~/.claude/skills/strata/
+cp -r strata/skills/strata/* ~/.claude/skills/strata/
 ```
 
 Windows PowerShell:
@@ -206,7 +214,7 @@ Remove-Item -Force "$env:USERPROFILE\.claude\commands\save-point.md","$env:USERP
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\commands" | Out-Null
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude\skills\strata" | Out-Null
 Copy-Item strata\strata-save.md,strata\strata-load.md "$env:USERPROFILE\.claude\commands\" -Force
-Copy-Item strata\strata\* "$env:USERPROFILE\.claude\skills\strata" -Recurse -Force
+Copy-Item strata\skills\strata\* "$env:USERPROFILE\.claude\skills\strata" -Recurse -Force
 ```
 
 Restart Claude Code. The commands appear as `/strata-save` and `/strata-load`; the skill is invocable as `Skill(name='strata')`. To update later: `git pull` in the clone, re-run the copy block.

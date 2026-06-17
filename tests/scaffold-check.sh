@@ -11,7 +11,7 @@ ok()   { echo "ok:   $1"; }
 
 T=$(mktemp -d)
 trap 'rm -rf "$T"' EXIT
-TPL=strata/templates
+TPL=skills/strata/templates
 NAME="Scaffold Test"
 DATE=$(date +%Y-%m-%d)
 

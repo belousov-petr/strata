@@ -6,9 +6,13 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 
 ### Changed
 - `/strata-save` now previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
+- The skill bundle now lives under `skills/strata/`, so the repo can also be installed as a Codex plugin while remaining copyable into Claude Code.
 
 ### Fixed
 - `strata init` now routes flat `.strata/memory/project_state.md` setups through an explicit flat → v3 migration rung. The flat source is archived as `memory/archive/source-flat-project-state-*` before hot state is rewritten, so accumulated memory and provenance are preserved.
+
+### Added
+- `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
 
 ## v3.0.0 — 2026-06-09
 

@@ -43,7 +43,7 @@ This is the flat-mode layout created by `/strata-save` before a project adopts t
 **Transform (ordered):**
 
 1. Preflight per the rules above (backup branch `pre-strata-flat-to-v3-migration`).
-2. Create the v3 skeleton from `strata/templates/`, substituting project name and date, but do **not** write `memory/project_state.md` yet. Adapters are still only written if absent.
+2. Create the v3 skeleton from `skills/strata/templates/`, substituting project name and date, but do **not** write `memory/project_state.md` yet. Adapters are still only written if absent.
 3. *(D1)* Archive the flat source: move committed files with `git mv .strata/memory/project_state.md .strata/memory/archive/source-flat-project-state-YYYY-MM-DD.md`; copy then remove if the file is untracked. The archive path is the provenance anchor.
 4. Extract obvious durable content from the archived state:
    - open items, findings, and blockers → `issues/<id>-<slug>.md`;

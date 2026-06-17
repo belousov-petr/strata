@@ -20,15 +20,18 @@ ok()   { echo "ok:   $1"; }
 # ---------------------------------------------------------------------------
 LEGACY='\.ai/|open_action_items|MEMORY-MAP|GEMINI|/save-point|/load-point|docs/parked|feedback_'
 
-if grep -rnE "$LEGACY" strata/templates/ >/dev/null 2>&1; then
+SKILL_DIR=skills/strata
+TEMPLATES_DIR="$SKILL_DIR/templates"
+
+if grep -rnE "$LEGACY" "$TEMPLATES_DIR"/ >/dev/null 2>&1; then
   fail "legacy tokens in templates/:"
-  grep -rnE "$LEGACY" strata/templates/
+  grep -rnE "$LEGACY" "$TEMPLATES_DIR"/
 else
   ok "templates/ free of legacy tokens"
 fi
 
 CONTEXT='legacy|Legacy|fingerprint|MIGRATIONS|v1|v2'
-for f in strata/SKILL.md strata-save.md strata-load.md docs/DESIGN.md; do
+for f in "$SKILL_DIR/SKILL.md" strata-save.md strata-load.md docs/DESIGN.md; do
   bad=$(grep -nE "$LEGACY" "$f" | grep -vE "$CONTEXT" || true)
   if [ -n "$bad" ]; then
     fail "legacy tokens outside guard/migration context in $f:"
@@ -43,7 +46,7 @@ stray=$(grep -rlE "$LEGACY" --include="*.md" . \
   --exclude-dir=.git --exclude-dir=.remember --exclude-dir=decisions \
   --exclude=README.md --exclude=MIGRATIONS.md --exclude=CHANGELOG.md \
   --exclude=SKILL.md --exclude=strata-save.md --exclude=strata-load.md --exclude=DESIGN.md \
-  2>/dev/null | grep -v '^./strata/templates/' || true)
+  2>/dev/null | grep -v "^./$TEMPLATES_DIR/" || true)
 if [ -n "$stray" ]; then
   fail "legacy tokens in unexpected files: $stray"
 else
@@ -53,7 +56,7 @@ fi
 # ---------------------------------------------------------------------------
 # 2. Save autosave + flat migration contracts
 # ---------------------------------------------------------------------------
-SAVE_SURFACE=(strata/SKILL.md strata-save.md README.md docs/DESIGN.md)
+SAVE_SURFACE=("$SKILL_DIR/SKILL.md" strata-save.md README.md docs/DESIGN.md)
 if grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}" >/dev/null 2>&1; then
   fail "save surface still contains Confirm? (y/n):"
   grep -nF "Confirm? (y/n)" "${SAVE_SURFACE[@]}"
@@ -68,20 +71,28 @@ else
 fi
 
 if grep -qF "## Rung 0: flat → v3" MIGRATIONS.md && \
-   grep -qF "source-flat-project-state" MIGRATIONS.md strata/SKILL.md; then
+   grep -qF "source-flat-project-state" MIGRATIONS.md "$SKILL_DIR/SKILL.md"; then
   ok "flat memory migrates with provenance archive"
 else
   fail "flat memory migration/provenance contract missing"
 fi
 
+if [ -f .codex-plugin/plugin.json ] && \
+   grep -qF '"name": "strata"' .codex-plugin/plugin.json && \
+   grep -qF '"skills": "./skills/"' .codex-plugin/plugin.json; then
+  ok "Codex plugin manifest points at ./skills/"
+else
+  fail "Codex plugin manifest missing or not pointed at ./skills/"
+fi
+
 # ---------------------------------------------------------------------------
 # 3. Size budgets
 # ---------------------------------------------------------------------------
-mem_lines=$(wc -l < strata/templates/memory/MEMORY.md)
+mem_lines=$(wc -l < "$TEMPLATES_DIR/memory/MEMORY.md")
 if [ "$mem_lines" -le 80 ]; then ok "templates/memory/MEMORY.md ${mem_lines} lines (<=80)"; else fail "templates/memory/MEMORY.md ${mem_lines} lines (>80)"; fi
 
-skill_lines=$(wc -l < strata/SKILL.md)
-if [ "$skill_lines" -le 350 ]; then ok "strata/SKILL.md ${skill_lines} lines (<=350)"; else fail "strata/SKILL.md ${skill_lines} lines (>350, bloated)"; fi
+skill_lines=$(wc -l < "$SKILL_DIR/SKILL.md")
+if [ "$skill_lines" -le 350 ]; then ok "$SKILL_DIR/SKILL.md ${skill_lines} lines (<=350)"; else fail "$SKILL_DIR/SKILL.md ${skill_lines} lines (>350, bloated)"; fi
 
 # ---------------------------------------------------------------------------
 # 4. Canonical states/types — identical strings everywhere they appear
@@ -97,15 +108,15 @@ require() { # require <string> <file...>
     if grep -qF "$s" "$f"; then ok "'$s' in $f"; else fail "'$s' missing from $f"; fi
   done
 }
-require "$TYPES"    docs/DESIGN.md strata/templates/MANIFEST.md strata/SKILL.md strata/templates/issues/README.md strata/templates/issues/_TEMPLATE.md
-require "$STATUSES" docs/DESIGN.md strata/templates/MANIFEST.md strata/SKILL.md strata/templates/issues/README.md strata/templates/issues/_TEMPLATE.md
-require "$SEVERITY" docs/DESIGN.md strata/templates/MANIFEST.md strata/SKILL.md strata/templates/issues/README.md strata/templates/issues/_TEMPLATE.md
-require "$ORIGIN"   docs/DESIGN.md strata/templates/MANIFEST.md strata/SKILL.md strata/templates/memory/learnings/_TEMPLATE.md
+require "$TYPES"    docs/DESIGN.md "$TEMPLATES_DIR/MANIFEST.md" "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR/issues/README.md" "$TEMPLATES_DIR/issues/_TEMPLATE.md"
+require "$STATUSES" docs/DESIGN.md "$TEMPLATES_DIR/MANIFEST.md" "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR/issues/README.md" "$TEMPLATES_DIR/issues/_TEMPLATE.md"
+require "$SEVERITY" docs/DESIGN.md "$TEMPLATES_DIR/MANIFEST.md" "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR/issues/README.md" "$TEMPLATES_DIR/issues/_TEMPLATE.md"
+require "$ORIGIN"   docs/DESIGN.md "$TEMPLATES_DIR/MANIFEST.md" "$SKILL_DIR/SKILL.md" "$TEMPLATES_DIR/memory/learnings/_TEMPLATE.md"
 
 # No drifted variants ("medium" used as a value, in frontmatter or tables)
-if grep -rnE 'severity:.*\bmedium\b|\|\s*medium\s*\|' strata/ docs/DESIGN.md >/dev/null 2>&1; then
+if grep -rnE 'severity:.*\bmedium\b|\|\s*medium\s*\|' "$SKILL_DIR"/ docs/DESIGN.md >/dev/null 2>&1; then
   fail "drifted severity vocabulary ('medium' as a value) found:"
-  grep -rnE 'severity:.*\bmedium\b|\|\s*medium\s*\|' strata/ docs/DESIGN.md
+  grep -rnE 'severity:.*\bmedium\b|\|\s*medium\s*\|' "$SKILL_DIR"/ docs/DESIGN.md
 else
   ok "no drifted severity vocabulary"
 fi
@@ -113,7 +124,7 @@ fi
 # ---------------------------------------------------------------------------
 # 5. Template placeholder hygiene — only {{PROJECT_NAME}} and {{INIT_DATE}}
 # ---------------------------------------------------------------------------
-unknown=$(grep -rhoE '\{\{[A-Z_]+\}\}' strata/templates/ | sort -u | grep -vE '^\{\{(PROJECT_NAME|INIT_DATE)\}\}$' || true)
+unknown=$(grep -rhoE '\{\{[A-Z_]+\}\}' "$TEMPLATES_DIR"/ | sort -u | grep -vE '^\{\{(PROJECT_NAME|INIT_DATE)\}\}$' || true)
 if [ -n "$unknown" ]; then fail "unknown placeholders in templates: $unknown"; else ok "template placeholders limited to PROJECT_NAME/INIT_DATE"; fi
 
 # ---------------------------------------------------------------------------

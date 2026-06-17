@@ -6,7 +6,7 @@ Layering (per [ADR-0005](decisions/ADR-0005-layered-self-documenting-docs.md)):
 
 | Question | Document |
 |---|---|
-| How do I run a save/load/init right now? | [`strata/SKILL.md`](../strata/SKILL.md) (operational rules, loads on invoke) |
+| How do I run a save/load/init right now? | [`skills/strata/SKILL.md`](../skills/strata/SKILL.md) (operational rules, loads on invoke) |
 | How does the system work, in full? | **this file** |
 | Why is it designed this way; what was rejected? | [`docs/decisions/`](decisions/README.md) |
 | How do I upgrade an older project? | [`MIGRATIONS.md`](../MIGRATIONS.md) |
