@@ -1,18 +1,29 @@
 # Strata
 
-A tool-neutral memory system for AI coding agents that doesn't bloat your context window. One owned namespace (`.strata/`), two session verbs (`/strata-save`, `/strata-load`), one skill (`strata`) that owns the rules. Version 3.
+Strata is a repo-owned memory system for AI coding agents. It keeps project state in plain Markdown under `.strata/`, so Claude, Codex, Gemini, and other tools can work from the same source instead of each keeping a private memory.
 
-> Routes knowledge by the question you'd ask to retrieve it: session state, behavioral lessons, work items, durable docs, and history each live in their own store, load at their own moment, and stay small where it counts. Works in flat mode too if a project hasn't adopted the pattern.
+Current layout generation: `strata_version: 3`.
 
 ![Strata](Strata.png)
 
+## Quick start
+
+1. Install the Claude Code command files and the `strata` skill. See [Installation](#installation).
+2. In a project repo, run `Skill(name='strata', args='init')`.
+3. Start work with `/strata-load`.
+4. End work with `/strata-save`.
+
+`/strata-save` previews the changes it will make, then writes them immediately. It does not ask for a separate yes/no confirmation.
+
+If the project already has flat, v1, or v2 memory, `strata init` migrates it instead of overwriting it. The migration archives source memory first, then writes the v3 layout.
+
 ## Why this exists
 
-I run multiple active projects and switch between tools. Claude, Codex, Gemini, and whatever comes next all need the same project state, but tool-owned memory creates drift. Without a habit of saving state at session end, memory files either stay empty or contradict each other. Next time I opened a project I'd either scroll through yesterday's transcript or re-explain what I did last Thursday, what I tried that didn't work, what was almost done.
+I run multiple projects and switch between tools. Claude, Codex, Gemini, and whatever comes next all need the same project state, but tool-owned memory drifts. Without a save habit, memory files either stay empty or contradict each other. The next session starts with transcript archaeology.
 
 So I started writing a `project_state.md` at the end of every session. That worked for a month. Then it grew to 1,085 lines carrying fourteen sessions of narrative, every decision, every gotcha. The file was doing too many jobs, and memory search kept returning stale bits alongside current ones. v1 and v2 of strata split it into tiers: hot state, warm docs, cold archive.
 
-v3 is what happened after I stress-tested that design against the industry. A deep-research pass over repo conventions, agent instruction files, persistent memory architectures, and decision-record practice (sources below) validated most of v2 and exposed the weak spots: the action-items file was quietly becoming a new monolith, behavioral memory captured corrections but never successful strategies and had no retrieval key, routing rules were stated in four places, and findings discovered mid-task died in context compaction before reaching disk. v3 fixes those four things and renames the namespace to the one thing that owns it.
+v3 fixes the parts that still broke: action items became another monolith, behavioral memory had no retrieval key, routing rules drifted across files, and findings discovered mid-task could disappear during context compaction. Strata now writes findings to disk immediately, stores lessons by trigger, and keeps the contract in one place.
 
 ## Why the name
 
@@ -31,17 +42,17 @@ strata/
 │   └── templates/                 # scaffolded into projects by init (mirrors .strata/)
 ├── docs/
 │   ├── DESIGN.md                  # exhaustive reference: every store, schema, lifecycle
-│   └── decisions/                 # ADR-0001..0008 — why v3 is shaped this way
+│   └── decisions/                 # ADR-0001..0008: why v3 is shaped this way
 ├── MIGRATIONS.md                  # flat/v1/v2 → v3 ladder: detect, transform, rollback
 ├── CHANGELOG.md                   # what changed per release
 └── tests/                         # scaffold check + repo lints
 ```
 
-Why a skill and two commands, not three commands: one source of truth for the rules. Commands are the verbs you type; the skill is where rules live. I tried putting rules in both command files once. They drifted within a week. The same layering applies to the docs: the skill stays lean and operational, [DESIGN.md](docs/DESIGN.md) carries the depth, the [ADRs](docs/decisions/README.md) carry the why, and none of them restate each other.
+Why a skill and two commands, not three commands: the skill owns the rules. Commands are the verbs you type. I tried putting rules in both command files once, and they drifted within a week. The same layering applies to the docs: the skill stays lean and operational, [DESIGN.md](docs/DESIGN.md) carries the depth, and the [ADRs](docs/decisions/README.md) carry the why.
 
 ## The shape of a strata project
 
-`strata init` scaffolds this:
+On a fresh project, `strata init` scaffolds this:
 
 ```
 <project>/
@@ -64,7 +75,9 @@ Why a skill and two commands, not three commands: one source of truth for the ru
         └── CHANGELOG.md · roadmap.md   (when they exist)
 ```
 
-Everything strata-owned sits under `.strata/`. The name is the point: like a lockfile, the directory announces its format and version (`strata_version: 3` in the manifest), collides with nothing, and any tool can read it ([ADR-0001](docs/decisions/ADR-0001-strata-namespace-commands-adapters.md)). The adapters stay thin pointers; `AGENTS.md` keeps room for your project's own build/test/style content, which is what that standard is for.
+Everything strata-owned sits under `.strata/`. Like a lockfile, the directory announces its format and version (`strata_version: 3` in the manifest), collides with nothing, and any tool can read it ([ADR-0001](docs/decisions/ADR-0001-strata-namespace-commands-adapters.md)). The adapters stay thin pointers; `AGENTS.md` keeps room for your project's own build/test/style content.
+
+If memory already exists, init follows [MIGRATIONS.md](MIGRATIONS.md). Flat `project_state.md` files are archived as `memory/archive/source-flat-project-state-*` before v3 hot state is written.
 
 ## The memory-type model
 
@@ -97,29 +110,29 @@ Exhaustive documentation is welcome in the warm tier. Bloat only hurts the hot p
 
 One store for findings, tasks, and initiatives: `.strata/issues/`, one file per item, frontmatter-keyed ([ADR-0002](docs/decisions/ADR-0002-unified-issues-backlog.md)).
 
-- **Capture is immediate.** The moment a finding or bug surfaces mid-task, the item file gets written with full rationale and diagnostics (Tried/Error/Hypothesis/Repro), status `open`, and work continues. Context compaction can't eat what's on disk. v2 held findings in conversation until save time; that's where they went to die.
-- **Types** `bug | improvement | debt | task | feature | initiative` and **statuses** `open | in-progress | parked | resolved | wont-fix`. Initiatives are just a type now; parked is just a status with a mandatory `revive-when:` trigger.
-- **Status changes are frontmatter edits**, not file moves. Closed items move to `issues/archive/` and stay greppable.
-- **The views are generated.** `ACTIVE.md`, `OPEN.md`, `PARKED.md` regenerate from item frontmatter at every `/strata-save`. Nobody hand-maintains a status list, so the list can't lie ([ADR-0004](docs/decisions/ADR-0004-generated-indexes-grep-router.md)).
+- Capture is immediate. The moment a finding or bug surfaces mid-task, the item file gets written with full rationale and diagnostics (Tried/Error/Hypothesis/Repro), status `open`, and work continues. Context compaction cannot eat what is already on disk.
+- Types are `bug | improvement | debt | task | feature | initiative`; statuses are `open | in-progress | parked | resolved | wont-fix`. Initiatives are just a type now. Parked work is a status with a mandatory `revive-when:` trigger.
+- Status changes are frontmatter edits, not file moves. Closed items move to `issues/archive/` and stay greppable.
+- The views are generated. `ACTIVE.md`, `OPEN.md`, and `PARKED.md` regenerate from item frontmatter at every `/strata-save` ([ADR-0004](docs/decisions/ADR-0004-generated-indexes-grep-router.md)).
 
 `action_log.md` stays separate on purpose: an append-only ledger of completed actions that left the repo (a PR, an email, a posted comment with a durable URL). An issue tracks work; the action log records that something reached the outside world.
 
 ## Learnings
 
-Behavioral memory, rebuilt on the ReasoningBank result ([ADR-0003](docs/decisions/ADR-0003-operation-keyed-learnings.md)): lessons distilled from failures as well as successes, stored small, retrieved sparingly.
+Behavioral memory stores lessons from failures and successes ([ADR-0003](docs/decisions/ADR-0003-operation-keyed-learnings.md)). Each lesson has a trigger, so an agent can read the one relevant note before doing the operation instead of loading the whole folder.
 
 ```
 ---
 trigger: before pushing to a shared branch
 origin: failure
 ---
-**Lesson:** Run the repo lint first; the hook only catches secrets, not broken
-cross-references. Cost one force-push to learn.
+**Lesson:** Run the repo lint first; the hook catches secrets, not broken
+cross-references.
 ```
 
-The routing key is the operation, not the date. A generated by-trigger table in `MEMORY.md` makes lookup a glance, and the discipline is to open the one or two matching lessons at operation time, never the whole folder. Failures with their counterfactual fix are the highest-value entries; v2's feedback files captured corrections only and had no firing condition.
+The routing key is the operation, not the date. A generated by-trigger table in `MEMORY.md` keeps lookup cheap. Failures with their counterfactual fix are usually the most useful entries.
 
-## The two commands
+## The commands and init
 
 ### `/strata-save`
 
@@ -158,22 +171,21 @@ One-shot scaffold or migration. Fresh projects get two questions (project name, 
 
 ## Research basis
 
-v3's choices trace to primary sources; each [ADR](docs/decisions/README.md) cites its own. The load-bearing ones:
+The [ADRs](docs/decisions/README.md) carry the research notes and tradeoffs. The short version:
 
-- **AGENTS.md is a real standard now** ([agents.md](https://agents.md/), [Linux Foundation / AAIF](https://www.linuxfoundation.org/press/linux-foundation-announces-the-formation-of-the-agentic-ai-foundation)), but [Claude Code doesn't read it natively](https://gist.github.com/yurukusa/d36197848911f025add142abefcde685), so the CLAUDE.md shim stays; Gemini is [config-wirable](https://github.com/google-gemini/gemini-cli/discussions/1471), so GEMINI.md is gone.
-- **Duplicated instruction files drift; auto-generated ones can be worse than none** ([DeployHQ guide](https://www.deployhq.com/blog/ai-coding-config-files-guide)). Hence one contract file and generated views.
-- **Always-loaded files must stay lean** ([Anthropic best practices](https://code.claude.com/docs/en/best-practices), [HumanLayer](https://www.humanlayer.dev/blog/writing-a-good-claude-md)); **retrieve just-in-time** ([Anthropic context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents)).
-- **Tiered file memory is the converged pattern** ([Cline Memory Bank](https://docs.cline.bot/features/memory-bank), [Letta/MemGPT](https://www.letta.com/blog/agent-memory), [Claude Code's own memory](https://code.claude.com/docs/en/memory)), and **plain files compete with heavy infra** ([Letta benchmark](https://www.letta.com/blog/benchmarking-ai-agent-memory)).
-- **ReasoningBank** ([arXiv:2509.25140](https://arxiv.org/html/2509.25140v1)): distill lessons from successes *and* failures; retrieving few (k≈1) beats retrieving more.
-- **Folder structure as agentic architecture** ([ICM, arXiv:2603.16021](https://arxiv.org/html/2603.16021v2)): contract files with load tables and explicit what-not-to-load.
-- **Decision records**: [Nygard's ADRs](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR 4.0](https://adr.github.io/madr/), [ThoughtWorks "Adopt"](https://www.thoughtworks.com/en-us/radar/techniques/lightweight-architecture-decision-records).
-- **Docs structure**: [Diátaxis](https://diataxis.fr/start-here/) for the reference/ops/decisions discriminators, [matklad](https://matklad.github.io/2021/02/06/ARCHITECTURE.md.html) for the codemap.
+- Agent instruction files need one contract, not several drifting copies. Strata keeps that contract in `MANIFEST.md` and keeps adapters thin.
+- Always-loaded memory should stay small. Hot files point to the next action and the right indexes; warm docs carry depth.
+- Lessons work best when they are tied to an operation. `learnings/` stores "before doing X, read Y" rules instead of diary entries.
+- Generated views are caches. The item files and learning files are the truth.
+- Decision records keep rationale out of hot memory. Strata uses ADRs for durable "why," with source material archived for provenance.
+
+The main external influences are [agents.md](https://agents.md/), [Anthropic's context engineering writing](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), tiered memory systems such as [Cline Memory Bank](https://docs.cline.bot/features/memory-bank) and [Letta/MemGPT](https://www.letta.com/blog/agent-memory), [ReasoningBank](https://arxiv.org/html/2509.25140v1), [Nygard-style ADRs](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR](https://adr.github.io/madr/), and [Diátaxis](https://diataxis.fr/start-here/).
 
 ## Installation
 
 ### Claude Code
 
-Clone, then copy the commands and skill into your Claude settings tree. Upgrading from v1/v2: remove the old skill copy and command files first, the names changed.
+Clone the repo, then copy the commands and skill into your Claude settings tree. If you installed an older copy, remove the old skill and old command names first.
 
 Linux/macOS:
 
@@ -201,7 +213,7 @@ Restart Claude Code. The commands appear as `/strata-save` and `/strata-load`; t
 
 ### Other tools
 
-`AGENTS.md` is the canonical entry point. Codex reads it natively. For Gemini CLI, set `settings.json` `"context": {"fileName": ["AGENTS.md", "GEMINI.md"]}` or import it with a `Please follow @./AGENTS.md` line. Every adapter ends up at `.strata/MANIFEST.md`, which is where the actual contract lives.
+`AGENTS.md` is the canonical entry point. Codex reads it natively. For Gemini CLI, configure the project context to load `AGENTS.md`, or add an instruction that imports it. Tools that do not read `AGENTS.md` can use a thin adapter that points to `.strata/MANIFEST.md`.
 
 ### Scaffold a project
 
@@ -213,7 +225,7 @@ Inside the project root: `Skill(name='strata', args='init')`. Fresh projects get
 
 ## Version
 
-**v3.0.0.** Layout generation `strata_version: 3`, stamped in every scaffolded manifest. History in [`CHANGELOG.md`](CHANGELOG.md); releases are git tags.
+Layout generation `strata_version: 3` is stamped in every scaffolded manifest. The latest tagged release is `v3.0.0`; current `main` includes the fixes listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## A few honest things
 
@@ -233,7 +245,7 @@ Inside the project root: `Skill(name='strata', args='init')`. Fresh projects get
 
 **Hand-maintained lists lie.** Every status list I maintained by hand eventually disagreed with reality. Views generated from item frontmatter can't.
 
-**Versioning was already solved.** I almost built per-folder version archives before noticing I was reinventing `git log` with worse ergonomics. Tags, a changelog, and supersede-status cover everything I actually needed ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)).
+**Git already solved versioning.** I almost built per-folder version archives before noticing I was reinventing `git log` with worse ergonomics. Tags, a changelog, and supersede-status cover everything I needed ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)).
 
 **Research validates more than it redesigns.** The deep-research pass kept ~85% of v2. The value was in the corrections it forced me to name precisely, and in being able to cite why the structure is the way it is instead of "it felt right."
 
@@ -247,9 +259,9 @@ If you've run this and found gaps, I'd like to hear about it. Open an issue or P
 
 ## Acknowledgments
 
-[Claude Code](https://claude.com/claude-code) ([@claude](https://github.com/claude)) wrote this - the skill, the commands, the templates, the docs. I designed the tier model and routing rules, decided what knowledge goes where and why, and directed the work. Division of labor: mine is judgment, Claude's is typing speed.
+The first version was drafted in [Claude Code](https://claude.com/claude-code) ([@claude](https://github.com/claude)). I designed the tier model and routing rules, decided what knowledge goes where and why, and directed the work.
 
-The pattern stands on prior art: Michael Nygard's [ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, incident-response playbook conventions, and the 2024–2026 agent-memory literature credited in [Research basis](#research-basis) and the ADRs.
+The pattern stands on prior art: Michael Nygard's [ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, incident-response playbook conventions, and the 2024-2026 agent-memory literature credited in [Research basis](#research-basis) and the ADRs.
 
 Companion skill: [`/shakedown`](https://github.com/belousov-petr/shakedown) for auditing what's broken in a project before you ship.
 
