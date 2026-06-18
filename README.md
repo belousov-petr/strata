@@ -3,20 +3,41 @@
 Strata is a repo-owned memory system for AI coding agents. It keeps project state in plain Markdown under `.strata/`, so Claude, Codex, Gemini, and other tools can work from the same source instead of each keeping a private memory.
 
 Current layout generation: `strata_version: 3`.
+Plugin package version: `3.1.0` for both Claude Code and Codex.
 
 ![Strata](Strata.png)
 
 ## Quick start
 
-1. Install the plugin: `/plugin marketplace add belousov-petr/strata` then `/plugin install strata@belousov-petr`. See [Installation](#installation).
-2. In a project repo, run `Skill(name='strata:strata', args='init')`.
-3. Start work with `/strata:load`.
-4. During work, use `/strata:capture` when a failure, retry, workaround, or sharp finding should be saved while the context is fresh.
-5. End work with `/strata:save`.
+Claude Code:
+
+```text
+/plugin marketplace add belousov-petr/strata
+/plugin install strata@belousov-petr
+```
+
+Then, inside a project repo:
+
+```text
+Skill(name='strata:strata', args='init')
+/strata:load
+/strata:capture
+/strata:save
+```
+
+Codex:
+
+Install the Codex plugin from this repo, then use the skill directly:
+
+```text
+Skill(name='strata', args='init')
+Skill(name='strata', args='capture')
+Skill(name='strata')
+```
 
 `/strata:save` previews the changes it will make, then writes them immediately. It does not ask for a separate yes/no confirmation.
 
-If the project already has flat, v1, or v2 memory, `strata init` migrates it instead of overwriting it. The migration archives source memory first, then writes the v3 layout.
+If the project already has flat, v1, or v2 memory, init migrates it instead of overwriting it. The migration archives source memory first, then writes the v3 layout.
 
 ## Why this exists
 
@@ -186,9 +207,11 @@ Invoking `/strata:save` is the confirmation; there is no second y/n gate. Safegu
 
 Loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), verifies against git (`git status`, recent commits, spot-checks), then orients in six lines: last session, next action, active items, prerequisites, fired revive-triggers, drift. State is a hint; the repo is truth.
 
-### `Skill: strata init`
+### Init
 
-One-shot scaffold or migration. Fresh projects get two questions (project name, code vs knowledge project), then the tree above, with adapters written only if absent. Existing flat memory is archived and migrated instead of overwritten; v1/v2 layouts route into the migration ladder instead of double-initializing.
+One-shot scaffold or migration. In Claude Code, run `Skill(name='strata:strata', args='init')`. In Codex, run `Skill(name='strata', args='init')`.
+
+Fresh projects get two questions (project name, code vs knowledge project), then the tree above, with adapters written only if absent. Existing flat memory is archived and migrated instead of overwritten; v1/v2 layouts route into the migration ladder instead of double-initializing.
 
 ## Research basis
 
@@ -204,41 +227,48 @@ The main external influences are [agents.md](https://agents.md/), [Anthropic's c
 
 ## Installation
 
-Strata ships as one repo that is at once a **Claude Code plugin**, a **Codex plugin**, and a copy-anywhere `AGENTS.md` source — all three read the same `skills/strata/SKILL.md`.
+Strata ships one repo with two plugin manifests. Claude Code reads `.claude-plugin/`, Codex reads `.codex-plugin/`, and both use the same `skills/strata/SKILL.md`.
 
 ### Claude Code (plugin)
 
-Strata is a Claude Code plugin: `.claude-plugin/plugin.json` is the manifest and `.claude-plugin/marketplace.json` lists it as a single-plugin marketplace (`source: "."`). Install from GitHub:
+Strata is a Claude Code plugin. `.claude-plugin/plugin.json` is the plugin manifest, and `.claude-plugin/marketplace.json` lists this repo as a single-plugin marketplace (`source: "."`).
+
+Install from GitHub:
 
 ```text
 /plugin marketplace add belousov-petr/strata
 /plugin install strata@belousov-petr
 ```
 
-Update after new commits, then start a new session so the new skill text loads:
+Update after new commits:
 
 ```text
 /plugin marketplace update belousov-petr
+/plugin update strata@belousov-petr
 ```
 
-Local development — add a clone as a marketplace, or load it for a single session without installing:
+Restart Claude Code after updating. Plugin updates do not rewrite the current session's already-loaded instructions.
+
+For local development, load a clone for one session:
 
 ```bash
 git clone https://github.com/belousov-petr/strata.git
-# in Claude Code, install the working copy:
-#   /plugin marketplace add ./strata
-#   /plugin install strata@belousov-petr
-# or load it for one session only:
 claude --plugin-dir ./strata
 ```
 
-Under the plugin, commands and the skill are namespaced by the plugin name: the commands are **`/strata:save`**, **`/strata:load`**, **`/strata:capture`**, and the skill is **`Skill(name='strata:strata')`** (with `args='init'` or `args='capture'`). Validate the manifests before publishing with `claude plugin validate . --strict`.
+Under the plugin, Claude namespaces commands and skills with the plugin name. Use `/strata:save`, `/strata:load`, `/strata:capture`, and `Skill(name='strata:strata')` with `args='init'` or `args='capture'`.
+
+Validate the manifests before publishing:
+
+```bash
+claude plugin validate . --strict
+```
 
 ### Codex plugin
 
-The Codex manifest lives at `.codex-plugin/plugin.json` and points at `skills/strata/`. For local development, clone this repo into your plugin source directory and install it through your Codex plugin marketplace; when you pull a new commit, reinstall or update so Codex refreshes its cached copy, then start a new thread.
+The Codex manifest lives at `.codex-plugin/plugin.json` and points at `skills/strata/`. For local development, clone this repo into your Codex plugin source directory and install it through your Codex plugin marketplace. After pulling from GitHub, reinstall or update the plugin so Codex refreshes its cached copy, then start a new thread.
 
-Codex uses the skill entry points directly and **un-namespaced**: `Skill(name='strata', args='init')`, `Skill(name='strata', args='capture')`, and the default rule lookup.
+Codex uses the skill entry points directly and without Claude's namespace: `Skill(name='strata', args='init')`, `Skill(name='strata', args='capture')`, and the default rule lookup.
 
 ### Other tools
 
@@ -246,7 +276,7 @@ Codex uses the skill entry points directly and **un-namespaced**: `Skill(name='s
 
 ### Scaffold a project
 
-Inside the project root, run init — `Skill(name='strata:strata', args='init')` under the Claude plugin, or `Skill(name='strata', args='init')` in Codex. Fresh projects get two questions and one tree. Projects with flat or legacy memory migrate through `MIGRATIONS.md`; source memory is archived before v3 files are written.
+Inside the project root, run init: `Skill(name='strata:strata', args='init')` under the Claude plugin, or `Skill(name='strata', args='init')` in Codex. Fresh projects get two questions and one tree. Projects with flat or legacy memory migrate through `MIGRATIONS.md`; source memory is archived before v3 files are written.
 
 ## Migrating from flat/v1/v2
 
@@ -254,29 +284,29 @@ Inside the project root, run init — `Skill(name='strata:strata', args='init')`
 
 ## Version
 
-Layout generation `strata_version: 3` is stamped in every scaffolded manifest. The latest tagged release is `v3.0.0`; current `main` includes the fixes listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
+Layout generation `strata_version: 3` is stamped in every scaffolded manifest. The Claude and Codex plugin manifests are currently version `3.1.0`. The latest tagged layout release is `v3.0.0`; current `main` includes the plugin and capture work listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## A few honest things
 
-- **If `git status` disagrees with the state file, trust git.** Load-point flags the mismatch, but the flag is just text on the screen.
-- **The save preview is an audit trail, not a shield.** `/strata:save` writes automatically after the preview; misclassified content can still move if the session inventory is wrong.
-- **Where knowledge belongs is still a judgment call.** The discriminators (rule vs procedure vs fact; issue vs learning) decide most cases; when in doubt, leave it hot and let the next save promote it.
-- **Generated views are only as fresh as the last save.** The items are the truth; the views are a cache with a regeneration contract.
-- **Strata is a convention, not a daemon.** Nothing enforces the mid-session capture rule except the skill's instructions and your habit. The structure makes the right thing cheap; it can't make the wrong thing impossible.
+- If `git status` disagrees with the state file, trust git. `/strata:load` flags the mismatch, but the flag is just text on the screen.
+- The save preview is an audit trail, not a shield. `/strata:save` writes automatically after the preview; misclassified content can still move if the session inventory is wrong.
+- Where knowledge belongs is still a judgment call. The discriminators (rule vs procedure vs fact; issue vs learning) decide most cases; when in doubt, leave it hot and let the next save promote it.
+- Generated views are only as fresh as the last save. The items are the truth; the views are a cache with a regeneration contract.
+- Strata is a convention, not a daemon. Nothing enforces the mid-session capture rule except the skill's instructions and your habit. The structure makes the right thing cheap; it can't make the wrong thing impossible.
 
 ## What building this taught me
 
-**A single file doesn't stay cheap.** Memory search pulls from it every session, and old and new come back together. Splitting by routing key fixed what splitting by size never did.
+- A single file doesn't stay cheap. Memory search pulls from it every session, and old and new come back together. Splitting by routing key fixed what splitting by size never did.
 
-**The dumping-ground instinct relocates.** I fixed `project_state.md` in v1, then watched `open_action_items.md` quietly become the same thing: one file, several jobs, drifting sections. The fix wasn't a better file; it was admitting work items are a collection, not a document.
+- The dumping-ground instinct relocates. I fixed `project_state.md` in v1, then watched `open_action_items.md` quietly become the same thing: one file, several jobs, drifting sections. The fix wasn't a better file; it was admitting work items are a collection, not a document.
 
-**Findings die in compaction.** The most expensive v2 failure was invisible: a sharp diagnosis made mid-task, held in conversation memory for the save ritual, gone when the context compacted. Write-to-disk-immediately is the single highest-value rule in v3.
+- Findings die in compaction. The most expensive v2 failure was invisible: a sharp diagnosis made mid-task, held in conversation memory for the save ritual, gone when the context compacted. Write-to-disk-immediately is the single highest-value rule in v3.
 
-**Hand-maintained lists lie.** Every status list I maintained by hand eventually disagreed with reality. Views generated from item frontmatter can't.
+- Hand-maintained lists lie. Every status list I maintained by hand eventually disagreed with reality. Views generated from item frontmatter can't.
 
-**Git already solved versioning.** I almost built per-folder version archives before noticing I was reinventing `git log` with worse ergonomics. Tags, a changelog, and supersede-status cover everything I needed ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)).
+- Git already solved versioning. I almost built per-folder version archives before noticing I was reinventing `git log` with worse ergonomics. Tags, a changelog, and supersede-status cover everything I needed ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)).
 
-**Research validates more than it redesigns.** The deep-research pass kept ~85% of v2. The value was in the corrections it forced me to name precisely, and in being able to cite why the structure is the way it is instead of "it felt right."
+- Research validates more than it redesigns. The deep-research pass kept ~85% of v2. The value was in the corrections it forced me to name precisely, and in being able to cite why the structure is the way it is instead of "it felt right."
 
 ## Contributing
 
