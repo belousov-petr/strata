@@ -178,6 +178,23 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 2c. Capture-guard hook (shared script + Claude plugin hooks.json + Codex sample)
+# ---------------------------------------------------------------------------
+if [ -f hooks/strata-capture-guard.mjs ]; then
+  ok "hooks/strata-capture-guard.mjs present"
+else
+  fail "hooks/strata-capture-guard.mjs missing"
+fi
+for j in hooks/hooks.json hooks/codex-hooks.sample.json; do
+  if [ -f "$j" ] && json_ok "$j"; then ok "$j present + valid JSON"; else fail "$j missing or invalid JSON"; fi
+done
+if grep -qF 'strata-capture-guard.mjs' hooks/hooks.json; then
+  ok "Claude hooks.json wires the guard script"
+else
+  fail "Claude hooks.json does not reference the guard script"
+fi
+
+# ---------------------------------------------------------------------------
 # 3. Size budgets
 # ---------------------------------------------------------------------------
 mem_lines=$(wc -l < "$TEMPLATES_DIR/memory/MEMORY.md")

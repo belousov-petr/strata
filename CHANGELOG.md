@@ -17,6 +17,7 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 - `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
 - `/strata:capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata:save`.
 - [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md) — Claude plugin packaging and the forced command/skill namespacing.
+- **Optional capture-guard hook** (`hooks/`) for Claude Code and Codex, cross-platform (Windows/macOS/Linux). One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, silent outside strata projects. Shipped in the Claude plugin (`hooks/hooks.json`, auto-on); for Codex (whose plugins can't ship hooks) a `~/.codex/hooks.json` or committed `.codex/hooks.json` from `hooks/codex-hooks.sample.json`. [ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md).
 
 ## v3.0.0 — 2026-06-09
 

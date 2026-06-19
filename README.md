@@ -278,6 +278,15 @@ Codex uses the skill entry points directly and without Claude's namespace: `Skil
 
 Inside the project root, run init: `Skill(name='strata:strata', args='init')` under the Claude plugin, or `Skill(name='strata', args='init')` in Codex. Fresh projects get two questions and one tree. Projects with flat or legacy memory migrate through `MIGRATIONS.md`; source memory is archived before v3 files are written.
 
+### Automatic capture (optional hook)
+
+An optional **capture-guard hook** (`hooks/`) reminds the agent to write findings to `.strata/` before context is compacted — for Claude Code and Codex, on every OS. One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, and is silent outside strata projects.
+
+- **Claude Code:** bundled in the plugin (`hooks/hooks.json`, auto-on once the plugin is enabled).
+- **Codex:** plugins can't ship hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (machine-wide) or a committed `.codex/hooks.json` (travels with the repo).
+
+It *nudges* — neither tool lets a hook force a pre-compaction save — so strata stays a convention. See [`hooks/README.md`](hooks/README.md).
+
 ## Migrating from flat/v1/v2
 
 [`MIGRATIONS.md`](MIGRATIONS.md) is the ladder. It detects the generation by fingerprint (flat: `.strata/memory/project_state.md` without a manifest; v1: `docs/PROJECT-MAP.md` or `.claude/memory/`; v2: `.ai/MEMORY-MAP.md`), then runs an ordered, gated transform with a rollback anchor. Flat memory is moved into `memory/archive/source-flat-project-state-*` before the new hot state is written. v1/v2 migrations handle namespace rename, manifest rewrite, extraction of `open_action_items.md` + `project_<slug>.md` + `docs/parked/` into the issues backlog, `feedback_*` conversion into learnings, and view regeneration. Content-bearing steps archive their sources before deleting anything. The old `/save-point` and `/load-point` command names are gone; install the Strata plugin per above.
@@ -292,7 +301,7 @@ Layout generation `strata_version: 3` is stamped in every scaffolded manifest. T
 - The save preview is an audit trail, not a shield. `/strata:save` writes automatically after the preview; misclassified content can still move if the session inventory is wrong.
 - Where knowledge belongs is still a judgment call. The discriminators (rule vs procedure vs fact; issue vs learning) decide most cases; when in doubt, leave it hot and let the next save promote it.
 - Generated views are only as fresh as the last save. The items are the truth; the views are a cache with a regeneration contract.
-- Strata is a convention, not a daemon. Nothing enforces the mid-session capture rule except the skill's instructions and your habit. The structure makes the right thing cheap; it can't make the wrong thing impossible.
+- Strata is a convention, not a daemon. Nothing enforces the mid-session capture rule except the skill's instructions and your habit. The optional capture-guard hook (`hooks/`) reinforces it at session start and before compaction, but it *nudges* — it injects a reminder, it can't force the capture. The structure makes the right thing cheap; it can't make the wrong thing impossible.
 
 ## What building this taught me
 

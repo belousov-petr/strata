@@ -1,0 +1,29 @@
+{
+  "_comment": "Codex CLI capture-guard hooks. Codex plugins cannot ship hooks, so copy this to either ~/.codex/hooks.json (every project on this machine) or <project>/.codex/hooks.json (committed, travels with the repo). Replace the ABSOLUTE path below with the real path to strata's hooks/strata-capture-guard.mjs on each OS. `command` is used on macOS/Linux; `commandWindows` on Windows. Requires `node` on PATH.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/ABSOLUTE/PATH/TO/strata/hooks/strata-capture-guard.mjs\"",
+            "commandWindows": "node \"C:\\\\ABSOLUTE\\\\PATH\\\\TO\\\\strata\\\\hooks\\\\strata-capture-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/ABSOLUTE/PATH/TO/strata/hooks/strata-capture-guard.mjs\"",
+            "commandWindows": "node \"C:\\\\ABSOLUTE\\\\PATH\\\\TO\\\\strata\\\\hooks\\\\strata-capture-guard.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
