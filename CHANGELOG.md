@@ -16,6 +16,7 @@ Layout generation **`strata_version: 0.0.3`** — breaking; see `MIGRATIONS.md` 
 - `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, packaging Strata as a Claude Code plugin installable via `/plugin marketplace add belousov-petr/strata`.
 - `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
 - `/strata:capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata:save`.
+- `/strata:init`, a command to scaffold a project's `.strata/` memory or upgrade an older layout (Codex keeps `Skill(name='strata', args='init')`).
 - [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md) — Claude plugin packaging and the forced command/skill namespacing.
 - **Optional capture-guard hook** (`hooks/`) for Claude Code and Codex, cross-platform (Windows/macOS/Linux). One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, silent outside strata projects. Shipped in the Claude plugin (`hooks/hooks.json`, auto-on); for Codex (whose plugins can't ship hooks) a `~/.codex/hooks.json` or committed `.codex/hooks.json` from `hooks/codex-hooks.sample.json`. [ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md).
 
@@ -33,15 +34,3 @@ Layout generation **`strata_version: 0.0.3`** — breaking; see `MIGRATIONS.md` 
 - Flat `feedback_*.md` behavioral memory — replaced by `learnings/` (ADR-0003).
 - `GEMINI.md` adapter — Gemini CLI reads `AGENTS.md` via `settings.json` context config or an import line (ADR-0001).
 - `references/` standalone docs — superseded by `docs/DESIGN.md`.
-
-## 0.0.2 — 2026-05-23 … 2026-06-06 (untagged)
-
-- Memory moved out of tool trees into repo-owned **`.ai/`** with an **`.ai/MEMORY-MAP.md`** contract ("universal .ai project memory").
-- `strata init` scaffolds thin tool adapters when absent: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`.
-- Save routing broadened: findings, runbooks, incidents, architecture references, config-drift notes, documentation drift.
-
-## 0.0.1 — 2026-04-05 … 2026-04-25 (untagged)
-
-- Initial release as `save-state`/`load-state` commands for Claude Code, soon renamed `/save-point` + `/load-point`.
-- Three-tier pattern introduced: hot memory + `docs/PROJECT-MAP.md` tier map, warm `docs/`, cold `archive/`; preview-confirm gate; `action_log.md`; `init` workflow; tier rules centralized in the `strata` skill.
-- Rebranded *savepoint* → **strata**; license switched to MIT.

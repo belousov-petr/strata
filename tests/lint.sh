@@ -147,7 +147,7 @@ else
 fi
 
 # the three commands resolve to /strata:save | /strata:load | /strata:capture
-for c in save load capture; do
+for c in init save load capture; do
   if [ -f "commands/$c.md" ] && grep -qiE "^name:[[:space:]]*$c[[:space:]]*$" "commands/$c.md"; then
     ok "commands/$c.md present (name: $c -> /strata:$c)"
   else

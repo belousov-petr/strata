@@ -12,7 +12,7 @@ Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata)
 
 This memory is maintained by the **strata** skill; the operations named below (**save**, **load**, **capture**, **init**) are invoked per tool:
 
-- **Claude Code (plugin):** `/strata:save` · `/strata:load` · `/strata:capture`; init via `Skill(name='strata:strata', args='init')`.
+- **Claude Code (plugin):** `/strata:init` · `/strata:save` · `/strata:load` · `/strata:capture`.
 - **Codex and other tools:** `Skill(name='strata', args='init')`, `Skill(name='strata', args='capture')`, and the skill's default rule lookup driving the same save/load flow.
 
 The `/strata:save`-style references throughout this file name those operations — a non-Claude agent performs the identical flow through the skill, not by typing a slash command.

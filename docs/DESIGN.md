@@ -30,7 +30,7 @@ Strata 0.0.3 separates project knowledge by **routing key** — the dimension yo
 
 A sixth kind of knowledge deliberately has **no store**: anything derivable from the repo itself (folder structure, code, `git log`, diffs). If reading the project answers it, memory must not duplicate it.
 
-The 0.0.2 failure this fixes: one file (`open_action_items.md`) and one flat namespace (`feedback_*.md`) were each serving multiple routing keys at once — status mixed with tasks, preferences with no firing condition. Mixed keys are why files bloat and search returns stale results. One key per store is the core invariant.
+The failure this avoids: a single file, or one flat set of notes, serving several routing keys at once — status mixed with tasks, preferences with no firing condition. Mixed keys are why files bloat and search returns stale results. One key per store is the core invariant.
 
 ### The three tiers
 
@@ -126,7 +126,7 @@ Defined once, here and in the scaffolded `MANIFEST.md`, reused verbatim everywhe
 
 Notes:
 
-- `initiative` is the 0.0.2 `project_<slug>.md` concept folded into the backlog: multi-session, strategic, still just an issue with a type.
+- `initiative` covers multi-session, strategic work: still just an issue with a type.
 - `parked` is a *status*, not a place — a parked item stays in `issues/` and must carry `revive-when:`.
 - `resolved` and `wont-fix` are terminal; the item file moves to `issues/archive/` at the next `/strata:save`.
 - `med` not `medium` — fixed spelling so grep is reliable.

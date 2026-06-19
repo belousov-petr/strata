@@ -13,7 +13,7 @@ This file is operational rules only. Depth lives elsewhere — link, don't resta
 
 Three entry points: **rule lookup** (default — commands read §§1–7 for decisions), **`capture`** (write a fresh finding/gotcha before context decays, §5), and **`init`** (scaffold or migrate a project, §8).
 
-**Invocation.** The skill's canonical name is `strata`; Codex and other tools call `Skill(name='strata', …)`. Installed as the Claude Code plugin, commands and skill are namespaced under the plugin name — the commands are `/strata:save`, `/strata:load`, `/strata:capture`, and the skill is `Skill(name='strata:strata', …)`. Slash-command references below use the plugin form.
+**Invocation.** The skill's canonical name is `strata`; Codex and other tools call `Skill(name='strata', …)`. Installed as the Claude Code plugin, commands and skill are namespaced under the plugin name — the commands are `/strata:init`, `/strata:save`, `/strata:load`, `/strata:capture`, and the skill is `Skill(name='strata:strata', …)`. Slash-command references below use the plugin form.
 
 ---
 
@@ -139,7 +139,7 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 ## 8. `init` — scaffold or migrate a project
 
-Invoked via `Skill(name='strata', args='init')` or an explicit ask to set up project memory.
+Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (Codex and other tools), or an explicit ask to set up project memory.
 
 **Preconditions:**
 

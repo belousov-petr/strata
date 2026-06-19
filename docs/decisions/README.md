@@ -41,4 +41,4 @@ Rules:
 
 ## Provenance
 
-The 0.0.3 design came out of a deep-research pass over industry practice for long-lived agentic coding projects (repo conventions, agent instruction files, persistent memory architectures, decision records, documentation frameworks, named practitioners; scope 2024–2026). The report itself stays external to this repo; each ADR cites the primary sources directly so the reasoning is verifiable without it. The README's "Research basis" section carries the short version.
+The 0.0.3 design came out of a deep-research pass over industry practice for long-lived agentic coding projects (repo conventions, agent instruction files, persistent memory architectures, decision records, documentation frameworks, named practitioners; scope 2024–2026). The report itself stays external to this repo; each ADR cites the primary sources directly so the reasoning is verifiable without it. The README summarizes the short version in its closing sections.

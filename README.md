@@ -16,7 +16,7 @@ Strata is a plugin for Claude Code and Codex. As you build, it writes down what 
 - Holds session memory in layers: recent state every session, deeper docs on demand, old history on request.
 - Writes findings to disk the moment they happen, before the context window compacts and drops them.
 - Brings all of it current on one command, `/strata:save`, when you close a session.
-- Sets up a new project, or migrates older memory, in one command.
+- Sets up a new project, or upgrades older memory, in one command.
 - Uses plain Markdown and grep. No dependencies.
 
 ## Why this exists
@@ -102,7 +102,7 @@ Long docs are welcome in the warm tier. The always-loaded files stay small becau
 
 ## The shape of a strata project
 
-When you run init on a fresh project, strata creates this:
+When you run `/strata:init` on a fresh project, strata creates this:
 
 ```
 <project>/
@@ -127,21 +127,11 @@ When you run init on a fresh project, strata creates this:
 
 Everything strata owns lives under `.strata/`. Like a lockfile, the folder states its format and version (`strata_version: 0.0.3` in the manifest), so it stays out of the way of everything else and any tool can read it. The adapters are thin pointers. `AGENTS.md` still has room for your own build, test, and style notes.
 
-If memory already exists, init follows [MIGRATIONS.md](MIGRATIONS.md). A flat `project_state.md` is archived as `memory/archive/source-flat-project-state-*` before the new layout is written.
+## The commands
 
-## The commands and init
+### `/strata:init`
 
-### `/strata:capture`
-
-Use this during a session, while the work is fresh. Save is for the end. Reach for it when a command fails, when the agent retries with a workaround, when a brittle setup rule shows up, when you settle a decision, or when a finding is too useful to leave in the chat.
-
-It writes or updates:
-
-- an issue under `.strata/issues/` when there is work to close
-- a learning under `.strata/memory/learnings/` when the value is a reusable rule
-- both when a fixable problem also teaches a future lesson
-
-It does not rebuild the generated views. `/strata:save` does that later, so `ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, and the `MEMORY.md` table stay in sync with the source files.
+Sets up strata in a project, or upgrades an older layout. In Claude Code it is `/strata:init`; in Codex, `Skill(name='strata', args='init')`. A fresh project answers two questions (the project name, and whether it is a code or knowledge project), then gets the tree above, with `AGENTS.md` and `CLAUDE.md` written only if they are missing. If memory already exists in an older layout, init runs the matching step from [MIGRATIONS.md](MIGRATIONS.md) and archives the source before writing anything new.
 
 ### `/strata:save`
 
@@ -174,11 +164,24 @@ Invoking `/strata:save` is the confirmation. There is no second yes/no gate. It 
 
 It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), checks against git (`git status`, recent commits, spot-checks), then shows a six-line summary: last session, next action, active items, prerequisites, fired triggers, and any drift. State is a hint. The repo is the truth.
 
-### Init
+### `/strata:capture`
 
-One command to scaffold or migrate. In Claude Code, run `Skill(name='strata:strata', args='init')`. In Codex, run `Skill(name='strata', args='init')`.
+Use this during a session, while the work is fresh. Save is for the end. Reach for it when a command fails, when the agent retries with a workaround, when a brittle setup rule shows up, when you settle a decision, or when a finding is too useful to leave in the chat.
 
-A fresh project answers two questions (project name, and code or knowledge project), then gets the tree above, with adapters written only if they are missing. Flat memory is archived and migrated rather than overwritten. Older layouts go through the migration ladder instead of starting a second memory.
+It writes or updates:
+
+- an issue under `.strata/issues/` when there is work to close
+- a learning under `.strata/memory/learnings/` when the value is a reusable rule
+- both when a fixable problem also teaches a future lesson
+
+It does not rebuild the generated views. `/strata:save` does that later, so `ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, and the `MEMORY.md` table stay in sync with the source files.
+
+Catching a finding before it is lost is the point of `/strata:capture`, so it helps to not depend on remembering to run it. An optional hook (`hooks/`) makes capture automatic: it reminds the agent to write findings to `.strata/` before the context is compacted. It works on Claude Code and Codex, on Windows, macOS, and Linux. One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) adds the reminder at `SessionStart` and a last-chance one at `PreCompact`. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall a session.
+
+- Claude Code: it ships in the plugin (`hooks/hooks.json`, picked up when the plugin is on). Nothing to set up. Turn it off with `/plugin disable strata`.
+- Codex: plugins cannot carry hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (every project on the machine) or to a committed `<project>/.codex/hooks.json` (travels with the repo). Set the `commandWindows` field on Windows.
+
+One limit: neither tool lets a hook force a save before compaction. `PreCompact` cannot make the agent act first. The hook reminds; the agent still does the capture. So strata stays a convention. More in [`hooks/README.md`](hooks/README.md).
 
 ## Installation
 
@@ -197,7 +200,7 @@ Install from GitHub:
 
 Under the plugin, Claude puts the plugin name in front of every command and skill:
 
-- Commands: `/strata:save`, `/strata:load`, `/strata:capture`
+- Commands: `/strata:init`, `/strata:save`, `/strata:load`, `/strata:capture`
 - Skill: `Skill(name='strata:strata')`, with `args='init'` or `args='capture'`
 
 Update after new commits, then restart Claude Code. An update does not rewrite the instructions already loaded in the running session.
@@ -250,54 +253,20 @@ That bare `strata` is why the skill keeps `name: strata`. It is the name Codex a
 
 `AGENTS.md` is the entry point. Codex reads it on its own. For Gemini CLI, point the project context at `AGENTS.md` (the `settings.json` context setting, or an import line). Any tool that does not read `AGENTS.md` can use a thin adapter that points to `.strata/MANIFEST.md`.
 
-### Automatic capture (optional hook)
-
-Strata has an optional hook (`hooks/`) that reminds the agent to write findings to `.strata/` before the context is compacted. It works on Claude Code and Codex, on Windows, macOS, and Linux. One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) adds the capture reminder at `SessionStart` and a last-chance reminder at `PreCompact`. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall a session.
-
-- Claude Code: it ships in the plugin (`hooks/hooks.json`, picked up when the plugin is on). Nothing to set up. Turn it off with `/plugin disable strata`.
-- Codex: plugins cannot carry hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (every project on the machine) or to a committed `<project>/.codex/hooks.json` (travels with the repo). Set the `commandWindows` field on Windows.
-
-One limit: neither tool lets a hook force a save before compaction. `PreCompact` cannot make the agent act first. The hook reminds; the agent still does the capture. So strata stays a convention. More in [`hooks/README.md`](hooks/README.md).
-
-### Set up a project
-
-In the project root, run init: `Skill(name='strata:strata', args='init')` in Claude Code, or `Skill(name='strata', args='init')` in Codex. A fresh project answers two questions and gets the tree above, with `AGENTS.md` and `CLAUDE.md` written only if missing. A project with flat or older memory goes through `MIGRATIONS.md`, and the source is archived before any new file is written.
-
-## Migrating older memory
-
-[`MIGRATIONS.md`](MIGRATIONS.md) is the ladder. It detects which layout you have by checking which files exist, then makes the change step by step, with a backup to roll back to. Flat memory moves into `memory/archive/source-flat-project-state-*` before the new state is written. The earlier layouts rename the namespace, rewrite the manifest, pull old action-item lists and parked work into the issues backlog, turn old feedback files into learnings, and rebuild the views. Every step that holds content archives its source before deleting anything. Install the plugin as shown above.
-
-## Versioning
-
-There are two version numbers, and they mean different things.
-
-- `strata_version: 0.0.3` is the on-disk format, stamped in every scaffolded `MANIFEST.md`. A change here is breaking and ships with a `MIGRATIONS.md` step.
-- The plugin version (`0.0.3`, in both `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`) is the release of the tool itself. It currently matches the format number, and a plugin update that leaves the format alone needs no migration.
-
-Releases are git tags plus [`CHANGELOG.md`](CHANGELOG.md) plus decision-record supersede notes. There are no per-folder version archives.
-
 ## A few honest things
 
+- Strata runs on convention. The skill's instructions and your habit are what keep the capture rule going. The optional hook reminds you at session start and before compaction, but it only reminds. It cannot force the save. The structure makes the right thing cheap, and it leaves the wrong thing possible.
 - If `git status` and the state file disagree, trust git. `/strata:load` flags the mismatch, but the flag is only text on the screen.
 - The save preview is a record of the plan. `/strata:save` writes right after it on its own, so a misclassified note can still move if the session read was wrong.
 - Where a note belongs is still a judgment call. The simple tests (rule versus procedure versus fact, issue versus learning) handle most cases. When in doubt, leave it hot and let the next save sort it.
 - The generated views are only as fresh as the last save. The items are the truth. The views are a copy with a rebuild step.
-- Strata runs on convention. The skill's instructions and your habit are what keep the capture rule going. The optional hook reminds you at session start and before compaction, but it only reminds. It cannot force the save. The structure makes the right thing cheap, and it leaves the wrong thing possible.
 
 ## What building this taught me
 
-- A single file does not stay cheap. Memory search pulls from it every session, and old and new come back together. Splitting by question fixed what splitting by size never did.
-- The dumping ground moves. I split out `project_state.md` early, then watched the action-item list become the same thing: one file, several jobs, drifting sections. The fix was to treat work items as a list instead of a document.
-- Findings die in compaction. The worst early bug was silent: a sharp diagnosis made mid-task, kept in the chat for the save step, gone when the context compacted. Writing to disk right away is the most important rule.
-- Hand-kept lists drift. Every status list I kept by hand ended up disagreeing with reality. Views built from item frontmatter cannot.
-- Git already solved versioning. I almost built per-folder version archives before I noticed I was rebuilding a worse `git log`. Tags, a changelog, and supersede notes cover it.
-- The research checked more than it changed. The deep-research pass kept most of the earlier design. The value was in the corrections it forced me to name, and in being able to cite why the structure is the way it is.
-
-## Research basis
-
-The short version: agent instruction files need one source instead of several copies that drift, so strata keeps that source in `MANIFEST.md` and keeps the adapters thin. Always-loaded memory should stay small, so the hot files point at the next action and the right indexes while the warm docs hold the depth. Lessons work best tied to an operation, so `learnings/` stores "before doing X, read Y" rules. Decision records keep reasons out of hot memory. The longer reasoning lives in [docs/DESIGN.md](docs/DESIGN.md) and the [decision records](docs/decisions/README.md).
-
-The main influences: [agents.md](https://agents.md/), [Anthropic's writing on context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), and tiered memory systems like [Cline Memory Bank](https://docs.cline.bot/features/memory-bank) and [Letta/MemGPT](https://www.letta.com/blog/agent-memory). For the structure and docs: [ReasoningBank](https://arxiv.org/html/2509.25140v1), [Nygard's decision records](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, and [Diátaxis](https://diataxis.fr/start-here/).
+- I started by saving everything into one memory file at the end of a session. It grew every session, filled the context, and confused the agent more than it helped. So I split it up by the question each piece answers: session state, issues, learnings, decisions, specs, runbooks. A small map points to each file, and the agent opens one only when the task needs it. The whole thing started from wanting to save as much as possible, the decisions and especially the gotchas and lessons, without drowning in them.
+- Do not rebuild git. Storing history in layers and seeing how the product changed over time is useful. Redoing what git already does well is wasted effort, so strata leans on git for history and adds only the layering git lacks. The hot, warm, and cold split is the idea worth keeping.
+- Findings die in compaction. The first version was a plain skill that saved everything at the end of a session. On short sessions that was fine. On long ones with several compactions, the context behind a lesson was gone by the time I went to save it. Writing findings to disk while they are fresh is why this grew into a plugin with a capture step and an optional hook.
+- Keep one source, and keep the hot path small. The rules live in one file, `MANIFEST.md`, with thin adapters pointing at it, so there is one copy to keep right. The always-loaded files stay small and point at the next action and the indexes, while the depth sits in the warm docs and loads on demand. Lessons are tied to the operation that triggers them, and the reasons behind decisions live in decision records, off the hot path. The longer write-up is in [docs/DESIGN.md](docs/DESIGN.md) and the [decision records](docs/decisions/README.md).
 
 ## Why the name
 
@@ -315,7 +284,7 @@ If you have run this and found gaps, I want to hear about it. Open an issue or P
 
 The first version was drafted in [Claude Code](https://claude.com/claude-code). I designed the layer model and the routing rules, decided what knowledge goes where and why, and directed the work.
 
-The pattern builds on prior work: Michael Nygard's [decision records](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, incident-response playbooks, and the 2024-2026 work on agent memory credited above and in the project's decision records.
+The pattern builds on prior work. For agent instructions and context: [agents.md](https://agents.md/) and [Anthropic's writing on context engineering](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents). For tiered memory: [Cline Memory Bank](https://docs.cline.bot/features/memory-bank), [Letta/MemGPT](https://www.letta.com/blog/agent-memory), and [ReasoningBank](https://arxiv.org/html/2509.25140v1). For decisions and docs: Michael Nygard's [decision records](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, incident-response playbooks, and [Diátaxis](https://diataxis.fr/start-here/).
 
 Companion tool: [`/shakedown`](https://github.com/belousov-petr/shakedown), for finding what is broken in a project before you ship.
 
