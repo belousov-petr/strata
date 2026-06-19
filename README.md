@@ -1,8 +1,8 @@
 # Strata
 
-Keep a project's documentation honest about what the project actually does.
+Keep a project's documentation honest about what the project actually does. Strata does it for you, on one command or an automatic hook, so the decisions, specs, runbooks, and memory stay current without manual upkeep. It also keeps your context lean, loading only what a task needs.
 
-Strata is a plugin for Claude Code and Codex. As you build, it writes down what you decide, what you learn, and what breaks, as plain Markdown under `.strata/`, in layers, so the written record stays in step with the work instead of falling behind it. The files live in your repo, so Claude, Codex, Gemini, and any other tool read the same record.
+Strata is a plugin for Claude Code and Codex. It writes everything to plain Markdown under `.strata/`, in layers, and the files live in your repo, so Claude, Codex, Gemini, and any other tool read the same record.
 
 ![Strata](Strata.png)
 
@@ -278,7 +278,7 @@ If you have run this and found gaps, I want to hear about it. Open an issue or P
 
 ## License
 
-[MIT](LICENSE). Use it, fork it, ship it. Credit is welcome.
+[MIT](LICENSE). Use it, fork it, ship it - credit appreciated but not required.
 
 ## Acknowledgments
 
