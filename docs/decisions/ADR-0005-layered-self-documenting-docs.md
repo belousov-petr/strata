@@ -5,11 +5,11 @@
 
 ## Context and Problem Statement
 
-`SKILL.md` loads in full every time the skill is invoked — which is every `/strata-save`, every `/strata-load`, every init. By v2 it was accreting design rationale, philosophy, and comparison notes alongside the operational rules, and v3 adds three new subsystems (issues, learnings, migrations) that all want explanation.
+`SKILL.md` loads in full every time the skill is invoked — which is every `/strata-save`, every `/strata-load`, every init. By 0.0.2 it was accreting design rationale, philosophy, and comparison notes alongside the operational rules, and 0.0.3 adds three new subsystems (issues, learnings, migrations) that all want explanation.
 
 The guidance on always-loaded files is unambiguous: "If your CLAUDE.md is too long, Claude ignores half of it… ruthlessly prune"; keep loaded-every-turn files under ~200 lines (HumanLayer runs theirs under 60); instruction-following degrades as rules pile up; skills are *designed* for progressive disclosure — a lean `SKILL.md` with deeper material in files loaded only when needed.
 
-At the same time, v3's design is research-derived and worth recording durably — the reasoning must live *somewhere* in the repo, versioned with the code it explains, without taxing the operational path. The external research report cannot be that home: it is not in the repo, and links to private files rot.
+At the same time, 0.0.3's design is research-derived and worth recording durably — the reasoning must live *somewhere* in the repo, versioned with the code it explains, without taxing the operational path. The external research report cannot be that home: it is not in the repo, and links to private files rot.
 
 ## Considered Options
 
@@ -28,7 +28,7 @@ At the same time, v3's design is research-derived and worth recording durably �
 
 ## Decision
 
-Option 3. The repo becomes self-documenting in layers, and `SKILL.md` is held to *operational content only*: tier model as rules, routing table, store contracts, command contracts, init workflow, legacy guard. Where v2's SKILL.md explained, v3's links: rationale → ADRs, exhaustive detail → DESIGN, transforms → MIGRATIONS.
+Option 3. The repo becomes self-documenting in layers, and `SKILL.md` is held to *operational content only*: tier model as rules, routing table, store contracts, command contracts, init workflow, legacy guard. Where 0.0.2's SKILL.md explained, 0.0.3's links: rationale → ADRs, exhaustive detail → DESIGN, transforms → MIGRATIONS.
 
 The same layering applies to scaffolded projects (ADR-0007 gives them the same shape under `.strata/docs/`): hot files index, warm docs explain, decisions record.
 

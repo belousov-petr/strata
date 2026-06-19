@@ -1,7 +1,7 @@
 {
   "name": "strata",
-  "version": "3.1.0",
-  "description": "Repo-owned project memory for AI coding agents: immediate capture, save/load workflows, operation-keyed learnings, and migration-safe initialization under .strata/.",
+  "version": "0.0.3",
+  "description": "Keeps a project's documentation in step with what it actually does. As agents build, Strata records decisions, specs, issues, runbooks, and layered memory as plain Markdown under .strata/, and brings all of it current on one save command.",
   "author": {
     "name": "Petr Belousov",
     "url": "https://github.com/belousov-petr"

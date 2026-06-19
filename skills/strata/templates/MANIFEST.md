@@ -1,12 +1,12 @@
 ---
-strata_version: 3
+strata_version: 0.0.3
 ---
 
 # MANIFEST — {{PROJECT_NAME}}
 
 **Open this first.** The project-owned memory contract for every AI tool working in this repo — and the *only* place structure and routing live. Other files (including `memory/MEMORY.md`) index and point; they do not restate this contract.
 
-Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) v3. Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
+Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) 0.0.3. Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
 
 ## Invocation — works the same for every tool
 

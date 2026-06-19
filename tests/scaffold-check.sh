@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scaffold validation for strata v3: simulate `strata init` (code project) into
+# Scaffold validation for strata 0.0.3: simulate `strata init` (code project) into
 # a throwaway temp dir per SKILL.md section 7, then assert the result matches the
 # DESIGN.md tree. Run from anywhere: bash tests/scaffold-check.sh
 set -uo pipefail
@@ -66,10 +66,10 @@ left=$(grep -rl "{{" "$T" 2>/dev/null || true)
 if [ -n "$left" ]; then fail "unsubstituted placeholders remain: $left"; else ok "all placeholders substituted"; fi
 
 # version stamp present and machine-checkable
-if grep -q "^strata_version: 3$" "$T/.strata/MANIFEST.md"; then
-  ok "strata_version: 3 stamped in MANIFEST.md"
+if grep -q "^strata_version: 0\.0\.3$" "$T/.strata/MANIFEST.md"; then
+  ok "strata_version: 0.0.3 stamped in MANIFEST.md"
 else
-  fail "strata_version: 3 missing from MANIFEST.md"
+  fail "strata_version: 0.0.3 missing from MANIFEST.md"
 fi
 
 # project name actually landed

@@ -5,7 +5,7 @@
 
 ## Context and Problem Statement
 
-v2 spread work-item state across three stores:
+0.0.2 spread work-item state across three stores:
 
 - `open_action_items.md` — active tasks **and** findings, mixed, in hand-maintained sections;
 - `project_<slug>.md` files — in-flight initiatives, hot until shipped;
@@ -39,7 +39,7 @@ Option 3. `.strata/issues/` is the **single backlog for findings, tasks, and ini
 - One answer to "where does work-state go", and one place to look for it.
 - `ACTIVE.md` (status `in-progress`) is small and loads at `/strata-load`; `OPEN.md` is consulted by area on demand; nothing bulk-loads the item files.
 - Resolution links back: closing an issue that produced durable knowledge points at the ADR or learning it became.
-- Cost: the v2→v3 migration is content-bearing (extraction, not just renames) — spelled out step by step in `MIGRATIONS.md`.
+- Cost: the 0.0.2→0.0.3 migration is content-bearing (extraction, not just renames) — spelled out step by step in `MIGRATIONS.md`.
 
 ## Sources
 

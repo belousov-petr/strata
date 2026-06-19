@@ -4,13 +4,13 @@
     "name": "Petr Belousov",
     "url": "https://github.com/belousov-petr"
   },
-  "description": "Petr Belousov's Claude Code plugins. Currently hosts Strata, repo-owned project memory for AI coding agents.",
+  "description": "Petr Belousov's Claude Code plugins. Currently hosts Strata, which keeps a project's documentation in step with what it actually does.",
   "plugins": [
     {
       "name": "strata",
       "source": ".",
-      "description": "Repo-owned project memory for AI coding agents, with immediate capture, save/load workflows, and migration-safe initialization.",
-      "version": "3.1.0",
+      "description": "Keeps a project's documentation in step with what it actually does: decisions, specs, issues, runbooks, and layered memory as plain Markdown under .strata/, brought current on one save command.",
+      "version": "0.0.3",
       "license": "MIT",
       "keywords": [
         "agent-memory",

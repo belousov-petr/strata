@@ -1,6 +1,6 @@
-# Strata v3 — Design Reference
+# Strata 0.0.3 — Design Reference
 
-The exhaustive description of the v3 system: every store, every schema, every lifecycle rule, and the mechanics that hold them together. This is the **warm** document — read it when you need depth, not at session start.
+The exhaustive description of the 0.0.3 system: every store, every schema, every lifecycle rule, and the mechanics that hold them together. This is the **warm** document — read it when you need depth, not at session start.
 
 Layering (per [ADR-0005](decisions/ADR-0005-layered-self-documenting-docs.md)):
 
@@ -18,7 +18,7 @@ Definitions here are canonical. The scaffolded `MANIFEST.md` template restates t
 
 ## 1. The memory-type model
 
-Strata v3 separates project knowledge by **routing key** — the dimension you'd use to look it up — not by file size or age. Each key gets its own store and its own loading moment:
+Strata 0.0.3 separates project knowledge by **routing key** — the dimension you'd use to look it up — not by file size or age. Each key gets its own store and its own loading moment:
 
 | Store | Routing key | Question it answers | Tier |
 |---|---|---|---|
@@ -30,7 +30,7 @@ Strata v3 separates project knowledge by **routing key** — the dimension you'd
 
 A sixth kind of knowledge deliberately has **no store**: anything derivable from the repo itself (folder structure, code, `git log`, diffs). If reading the project answers it, memory must not duplicate it.
 
-The v2 failure this fixes: one file (`open_action_items.md`) and one flat namespace (`feedback_*.md`) were each serving multiple routing keys at once — status mixed with tasks, preferences with no firing condition. Mixed keys are why files bloat and search returns stale results. One key per store is the core invariant.
+The 0.0.2 failure this fixes: one file (`open_action_items.md`) and one flat namespace (`feedback_*.md`) were each serving multiple routing keys at once — status mixed with tasks, preferences with no firing condition. Mixed keys are why files bloat and search returns stale results. One key per store is the core invariant.
 
 ### The three tiers
 
@@ -88,7 +88,7 @@ What `strata init` produces (full form — code project):
 
 Knowledge/ops projects (no code) skip `.strata/docs/` at init and grow it later if needed; everything else is identical.
 
-If flat or legacy memory already exists, `strata init` does not write this fresh tree over it. It enters the matching `MIGRATIONS.md` rung, archives source memory first, then writes the v3 tree with provenance links back to the archived source.
+If flat or legacy memory already exists, `strata init` does not write this fresh tree over it. It enters the matching `MIGRATIONS.md` rung, archives source memory first, then writes the 0.0.3 tree with provenance links back to the archived source.
 
 Strata's **own repo** is the one deliberate exception: its `docs/` (this file, `decisions/`) sits at the repo root, public, because these docs are its product documentation ([ADR-0007](decisions/ADR-0007-warm-docs-taxonomy.md)).
 
@@ -126,7 +126,7 @@ Defined once, here and in the scaffolded `MANIFEST.md`, reused verbatim everywhe
 
 Notes:
 
-- `initiative` is the v2 `project_<slug>.md` concept folded into the backlog: multi-session, strategic, still just an issue with a type.
+- `initiative` is the 0.0.2 `project_<slug>.md` concept folded into the backlog: multi-session, strategic, still just an issue with a type.
 - `parked` is a *status*, not a place — a parked item stays in `issues/` and must carry `revive-when:`.
 - `resolved` and `wont-fix` are terminal; the item file moves to `issues/archive/` at the next `/strata:save`.
 - `med` not `medium` — fixed spelling so grep is reliable.
@@ -182,7 +182,7 @@ Small on purpose: a learning is a distilled strategy or pitfall, not an essay. I
 
 Required content, in order:
 
-1. `strata_version: 3` (machine-checkable line — migration tooling keys off it)
+1. `strata_version: 0.0.3` (machine-checkable line — migration tooling keys off it)
 2. **What <project> is** — 1–3 sentences
 3. **Structural overview** — the `.strata/` tree with one-line roles
 4. **Where do I look for X?** — lookup table
@@ -331,7 +331,7 @@ Transition rules:
 
 ### 8.2 Session lifecycle (what updates when)
 
-- **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/v1/v2 memory, runs the matching migration rung instead; source memory is archived before v3 hot files replace it.
+- **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/0.0.1/0.0.2 memory, runs the matching migration rung instead; source memory is archived before 0.0.3 hot files replace it.
 - **`/strata:capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata:save`.
 - **`/strata:save`** (preview, then automatic execution):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
@@ -343,7 +343,7 @@ Transition rules:
   7. `MEMORY.md` and `ARCHIVE.md` indexes sync.
   Safeguards: the preview lists the plan before writes begin; git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
 - **`/strata:load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
-- **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/v1/v2 fingerprints here instead of scaffolding over them.
+- **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/0.0.1/0.0.2 fingerprints here instead of scaffolding over them.
 
 ---
 
@@ -384,7 +384,7 @@ Regeneration contract: `/strata:save` rebuilds every generated view from current
 
 ## 11. Versioning and migration
 
-- This layout is **`strata_version: 3`**, stamped in every scaffolded `MANIFEST.md`.
+- This layout is **`strata_version: 0.0.3`**, stamped in every scaffolded `MANIFEST.md`.
 - Releases of strata itself: git tags + root `CHANGELOG.md`.
-- Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for flat mode (`.strata/memory/project_state.md` without a manifest), v1 (`.claude/memory/` + `docs/PROJECT-MAP.md`), and v2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
+- Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for flat mode (`.strata/memory/project_state.md` without a manifest), 0.0.1 (`.claude/memory/` + `docs/PROJECT-MAP.md`), and 0.0.2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
 - Rationale: [ADR-0006](decisions/ADR-0006-in-repo-migrations-strata-version.md) (migrations), [ADR-0008](decisions/ADR-0008-git-native-versioning.md) (git-native versioning).

@@ -7,13 +7,13 @@
 
 strata has now shipped three incompatible layouts:
 
-- **v1** — tool-tree memory: `.claude/memory/` + `docs/PROJECT-MAP.md`;
-- **v2** — universal memory: `.ai/` + `MEMORY-MAP.md` + three adapters, `/save-point` + `/load-point`;
-- **v3** — `.strata/` + `MANIFEST.md` + `issues/` + `learnings/` + `.strata/docs/`, `/strata-save` + `/strata-load`.
+- **0.0.1** — tool-tree memory: `.claude/memory/` + `docs/PROJECT-MAP.md`;
+- **0.0.2** — universal memory: `.ai/` + `MEMORY-MAP.md` + three adapters, `/save-point` + `/load-point`;
+- **0.0.3** — `.strata/` + `MANIFEST.md` + `issues/` + `learnings/` + `.strata/docs/`, `/strata-save` + `/strata-load`.
 
-Projects scaffolded at each generation exist and keep working locally. An agent opening a v1 or v2 project must not silently initialize a second memory beside the old one, guess at renames, or — worst — lose content: the v2→v3 move is *content-bearing* (three legacy work-item stores get extracted into `issues/`, `feedback_*` files become `learnings/`), not a pure rename.
+Projects scaffolded at each generation exist and keep working locally. An agent opening a 0.0.1 or 0.0.2 project must not silently initialize a second memory beside the old one, guess at renames, or — worst — lose content: the 0.0.2→0.0.3 move is *content-bearing* (three legacy work-item stores get extracted into `issues/`, `feedback_*` files become `learnings/`), not a pure rename.
 
-Churn is also the environment's normal state: there is no cross-agent standard for context layouts; upstream mechanisms keep moving (Claude Code merged commands into skills; native `AGENTS.md` support is still an open issue). v3 will not be the last breaking change, so the migration mechanism itself needs a permanent home.
+Churn is also the environment's normal state: there is no cross-agent standard for context layouts; upstream mechanisms keep moving (Claude Code merged commands into skills; native `AGENTS.md` support is still an open issue). 0.0.3 will not be the last breaking change, so the migration mechanism itself needs a permanent home.
 
 ## Considered Options
 
@@ -28,15 +28,15 @@ Churn is also the environment's normal state: there is no cross-agent standard f
 
 Option 3.
 
-- `.strata/MANIFEST.md` carries **`strata_version: 3`**. The layout becomes self-identifying; future tooling can hard-fail on version mismatch instead of misreading structure.
-- Root **`MIGRATIONS.md`** holds the ladder: v1→v2 and v2→v3, each rung with a detection fingerprint, an ordered transform list (git-aware moves first, content extraction spelled out, index regeneration last), and a rollback note. Migrations run on a backup branch; every step is reversible until the user commits.
+- `.strata/MANIFEST.md` carries **`strata_version: 0.0.3`**. The layout becomes self-identifying; future tooling can hard-fail on version mismatch instead of misreading structure.
+- Root **`MIGRATIONS.md`** holds the ladder: 0.0.1→0.0.2 and 0.0.2→0.0.3, each rung with a detection fingerprint, an ordered transform list (git-aware moves first, content extraction spelled out, index regeneration last), and a rollback note. Migrations run on a backup branch; every step is reversible until the user commits.
 - **Destructive migration steps are explicit and gated.** Directory renames, the `open_action_items`/`project_<slug>`/`docs/parked` → `issues/` extraction, and adapter deletion are listed by name in the ladder and require a migration preview-confirm gate. `/strata-save` has since moved to preview-then-autosave.
-- The skill's **legacy guard** (init and load) detects v1/v2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/`, `open_action_items.md`, `project_<slug>` files, `docs/parked/`, old command names — refuses to double-initialize, and points at the ladder.
+- The skill's **legacy guard** (init and load) detects 0.0.1/0.0.2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/`, `open_action_items.md`, `project_<slug>` files, `docs/parked/`, old command names — refuses to double-initialize, and points at the ladder.
 - `CHANGELOG.md` records what each version changed; the ladder records *how to get there*. They reference, not duplicate, each other.
 
 ## Consequences
 
-- A v1/v2 project upgrades deterministically, reversibly, and with its content intact — or stays put, also deterministically.
+- A 0.0.1/0.0.2 project upgrades deterministically, reversibly, and with its content intact — or stays put, also deterministically.
 - Version detection costs one file read.
 - Future breaking changes inherit an obligation: no layout change ships without its rung in the ladder. That cost is accepted as the price of having users.
 - Supersession over deletion, everywhere: like ADRs, old layouts are documented and transformable, never just abandoned.

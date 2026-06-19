@@ -5,7 +5,7 @@ description: Session 0 ({{INIT_DATE}}) — strata initialized.
 
 ## WHERE WE LEFT OFF (session 0, current)
 
-**Session 0 — {{INIT_DATE}}.** Strata v3 initialized for this project.
+**Session 0 — {{INIT_DATE}}.** Strata 0.0.3 initialized for this project.
 
 ### Last completed
 - Project initialized: `.strata/` memory + issues backlog + docs homes scaffolded.

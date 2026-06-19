@@ -2,41 +2,31 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `strata_version` stamps in scaffolded manifests. When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
-## Unreleased
+## 0.0.3 — 2026-06-09 … 2026-06-19
 
-### Changed
-- `/strata:save` now previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
-- The skill bundle now lives under `skills/strata/`, so the repo installs as both a Codex plugin and a Claude Code plugin from one tree.
-- **Claude Code distribution is now a first-class plugin.** Commands moved from the repo root into `commands/`, and the slash verbs are namespaced under the plugin: `/strata:save`, `/strata:load`, `/strata:capture` (were `/strata-save`, `/strata-load`, `/strata-capture`). The skill is `Skill(name='strata:strata', …)` under the plugin; Codex and other tools keep the canonical `Skill(name='strata', …)`. Rationale and the forced-namespacing constraint: [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md).
-
-### Fixed
-- `strata init` now routes flat `.strata/memory/project_state.md` setups through an explicit flat → v3 migration rung. The flat source is archived as `memory/archive/source-flat-project-state-*` before hot state is rewritten, so accumulated memory and provenance are preserved.
-
-### Added
-- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, packaging Strata as a Claude Code plugin installable via `/plugin marketplace add belousov-petr/strata`.
-- `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
-- `/strata:capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata:save`.
-- [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md) — Claude plugin packaging and the forced command/skill namespacing.
-- **Optional capture-guard hook** (`hooks/`) for Claude Code and Codex, cross-platform (Windows/macOS/Linux). One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, silent outside strata projects. Shipped in the Claude plugin (`hooks/hooks.json`, auto-on); for Codex (whose plugins can't ship hooks) a `~/.codex/hooks.json` or committed `.codex/hooks.json` from `hooks/codex-hooks.sample.json`. [ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md).
-
-## v3.0.0 — 2026-06-09
-
-Layout generation **`strata_version: 3`** — breaking; see `MIGRATIONS.md` rung 2 (v2 → v3). Design rationale: [`docs/decisions/`](docs/decisions/README.md), full reference: [`docs/DESIGN.md`](docs/DESIGN.md).
+Layout generation **`strata_version: 0.0.3`** — breaking; see `MIGRATIONS.md` rung 2 (0.0.2 → 0.0.3). The same generation later packaged Strata as a Claude Code and Codex plugin, added the `/strata:capture` immediate-capture command, and added an optional capture-guard hook; none of those change the on-disk format. Design rationale: [`docs/decisions/`](docs/decisions/README.md), full reference: [`docs/DESIGN.md`](docs/DESIGN.md).
 
 ### Added
 - **Unified backlog `.strata/issues/`** — findings, tasks, and initiatives as one frontmatter-keyed store (`type`/`status`/`severity`/`area`), generated `ACTIVE`/`OPEN`/`PARKED` views, `archive/` for closed items, and the mid-session rule: findings are written to disk *immediately*, with full diagnostics (ADR-0002).
 - **Operation-keyed learnings `.strata/memory/learnings/`** — behavioral lessons with `trigger:`/`applies-when:`/`origin: success|failure` frontmatter, generated `INDEX.md`, and a rules-by-trigger table in `MEMORY.md`; failures captured as first-class pitfalls (ADR-0003).
 - **Warm-docs taxonomy for scaffolded projects** at `.strata/docs/` — `ARCHITECTURE.md` index, `product/`, `architecture/`, `decisions/`, `reference/`, `ops/` (+ `incidents/`, `release-rollback.md`); offered at init, grown on demand (ADR-0007).
 - **`strata_version` stamp** in `MANIFEST.md` + in-repo **`MIGRATIONS.md`** ladder with per-rung detect/transform/rollback (ADR-0006).
-- **Self-documenting repo layers:** `docs/DESIGN.md` (exhaustive reference), `docs/decisions/ADR-0001…0008`, this changelog (ADR-0005).
+- **Self-documenting repo layers:** `docs/DESIGN.md` (exhaustive reference), `docs/decisions/ADR-0001…0010`, this changelog (ADR-0005).
 - **`tests/`** — scaffold validation + repo lints (legacy tokens, size budgets, states/types consistency).
+- `.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json`, packaging Strata as a Claude Code plugin installable via `/plugin marketplace add belousov-petr/strata`.
+- `.codex-plugin/plugin.json`, which packages Strata as a Codex plugin and points Codex at `skills/strata/`.
+- `/strata:capture`, an immediate capture command for failures, gotchas, workarounds, and findings that should be written before `/strata:save`.
+- [ADR-0009](docs/decisions/ADR-0009-claude-plugin-packaging.md) — Claude plugin packaging and the forced command/skill namespacing.
+- **Optional capture-guard hook** (`hooks/`) for Claude Code and Codex, cross-platform (Windows/macOS/Linux). One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, silent outside strata projects. Shipped in the Claude plugin (`hooks/hooks.json`, auto-on); for Codex (whose plugins can't ship hooks) a `~/.codex/hooks.json` or committed `.codex/hooks.json` from `hooks/codex-hooks.sample.json`. [ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md).
 
-### Changed — breaking
+### Changed
 - Namespace **`.ai/` → `.strata/`**; contract file **`MEMORY-MAP.md` → `MANIFEST.md`** (ADR-0001, ADR-0004).
-- Commands renamed: **`/save-point` → `/strata-save`**, **`/load-point` → `/strata-load`** (files `strata-save.md`, `strata-load.md`).
+- Commands renamed across two steps: **`/save-point` → `/strata-save` → `/strata:save`**, **`/load-point` → `/strata-load` → `/strata:load`**. Under the plugin the slash verbs are namespaced and the skill is `Skill(name='strata:strata', …)`, while Codex keeps the canonical `Skill(name='strata', …)` (ADR-0001, ADR-0009).
 - `MEMORY.md` is now a **pure hot index** (≤80 lines): live pointers + generated by-trigger table; all routing/structure lives in `MANIFEST.md` only (ADR-0004).
-- Status-dependent lists are **generated from frontmatter** at `/strata-save`, never hand-maintained (ADR-0004).
-- Versioning is **git-native**: tags + changelog + ADR supersede-status + ops rollback runbook; the v2 per-folder `docs/**/archive/` convention is retired in favor of one optional `docs/_archive/` (ADR-0008).
+- Status-dependent lists are **generated from frontmatter** at `/strata:save`, never hand-maintained (ADR-0004).
+- `/strata:save` previews its proposed changes and then writes automatically; invoking the command is the confirmation, with no trailing `Confirm? (y/n)` prompt.
+- The skill bundle lives under `skills/strata/`, so the repo installs as both a Codex plugin and a Claude Code plugin from one tree.
+- Versioning is **git-native**: tags + changelog + ADR supersede-status + ops rollback runbook; the 0.0.2 per-folder `docs/**/archive/` convention is retired in favor of one optional `docs/_archive/` (ADR-0008).
 
 ### Removed
 - `open_action_items.md`, `project_<slug>.md` files, and `docs/parked/` — folded into `issues/` as types and statuses (ADR-0002).
@@ -44,13 +34,13 @@ Layout generation **`strata_version: 3`** — breaking; see `MIGRATIONS.md` rung
 - `GEMINI.md` adapter — Gemini CLI reads `AGENTS.md` via `settings.json` context config or an import line (ADR-0001).
 - `references/` standalone docs — superseded by `docs/DESIGN.md`.
 
-## v2 — 2026-05-23 … 2026-06-06 (untagged)
+## 0.0.2 — 2026-05-23 … 2026-06-06 (untagged)
 
 - Memory moved out of tool trees into repo-owned **`.ai/`** with an **`.ai/MEMORY-MAP.md`** contract ("universal .ai project memory").
 - `strata init` scaffolds thin tool adapters when absent: `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`.
 - Save routing broadened: findings, runbooks, incidents, architecture references, config-drift notes, documentation drift.
 
-## v1 — 2026-04-05 … 2026-04-25 (untagged)
+## 0.0.1 — 2026-04-05 … 2026-04-25 (untagged)
 
 - Initial release as `save-state`/`load-state` commands for Claude Code, soon renamed `/save-point` + `/load-point`.
 - Three-tier pattern introduced: hot memory + `docs/PROJECT-MAP.md` tier map, warm `docs/`, cold `archive/`; preview-confirm gate; `action_log.md`; `init` workflow; tier rules centralized in the `strata` skill.

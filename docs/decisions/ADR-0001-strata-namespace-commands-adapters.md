@@ -6,7 +6,7 @@
 
 ## Context and Problem Statement
 
-v2 stored project memory under `.ai/` with a `MEMORY-MAP.md` contract, scaffolded three tool adapters (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), and shipped two commands named `/save-point` and `/load-point`.
+0.0.2 stored project memory under `.ai/` with a `MEMORY-MAP.md` contract, scaffolded three tool adapters (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`), and shipped two commands named `/save-point` and `/load-point`.
 
 Four problems surfaced:
 
@@ -24,7 +24,7 @@ Four problems surfaced:
 3. **Per-tool directories** (`.claude/`, `.kiro/steering/`, `.specify/` style).
    Pros: native discovery in that one tool. Cons: tool lock-in and cross-tool drift — exactly what strata exists to prevent.
 4. **`.strata/` namespace + thin `AGENTS.md`/`CLAUDE.md` adapters + namespaced commands.** *(chosen)*
-   Pros: owned and self-describing — "strata-format, any tool can read it", like a lockfile names its tool; one namespace holds everything strata-owned (memory, issues, scaffolded docs); a `strata_version` stamp has an unambiguous home; commands `/strata-save` and `/strata-load` collide with nothing. Cons: breaking change for v1/v2 projects (needs a migration ladder); one more dotdir at project root.
+   Pros: owned and self-describing — "strata-format, any tool can read it", like a lockfile names its tool; one namespace holds everything strata-owned (memory, issues, scaffolded docs); a `strata_version` stamp has an unambiguous home; commands `/strata-save` and `/strata-load` collide with nothing. Cons: breaking change for 0.0.1/0.0.2 projects (needs a migration ladder); one more dotdir at project root.
 
 ## Decision
 
@@ -35,12 +35,12 @@ Option 4.
 - Adapters are **`AGENTS.md` + `CLAUDE.md` only**, scaffolded only when absent, and kept thin: a pointer to `.strata/MANIFEST.md` plus the rule that memory is repo-owned. `AGENTS.md` remains the right place for a project to grow its *own* operational content (build/test commands, style) per the standard — strata doesn't own that, so the template leaves room rather than content. `GEMINI.md` is dropped; Gemini users point the CLI at `AGENTS.md` via settings or an import line.
 - Commands are renamed **`/save-point` → `/strata-save`** and **`/load-point` → `/strata-load`** (files `strata-save.md`, `strata-load.md`).
 
-Because no tool auto-discovers `.strata/`, the adapters must keep an explicit "read `.strata/MANIFEST.md` first" instruction — the manifest is inert unless always-loaded context points at it. That was equally true of `.ai/`; v3 just stops pretending otherwise.
+Because no tool auto-discovers `.strata/`, the adapters must keep an explicit "read `.strata/MANIFEST.md` first" instruction — the manifest is inert unless always-loaded context points at it. That was equally true of `.ai/`; 0.0.3 just stops pretending otherwise.
 
 ## Consequences
 
 - Collision-proof, versionable, self-describing namespace; "is this project on strata, and which version" is answerable from one path.
-- Breaking change: v1/v2 projects need the explicit migration ladder (ADR-0006, `MIGRATIONS.md`); users must re-install commands under the new names.
+- Breaking change: 0.0.1/0.0.2 projects need the explicit migration ladder (ADR-0006, `MIGRATIONS.md`); users must re-install commands under the new names.
 - One fewer template to keep in sync; Gemini wiring moves to documentation.
 - If Claude Code ever ships native `AGENTS.md` support (#6235), the CLAUDE.md adapter can shrink to nothing — revisit then.
 

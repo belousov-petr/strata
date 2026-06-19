@@ -5,7 +5,7 @@
 
 ## Context and Problem Statement
 
-v2's warm tier (`docs/`) had grown by accretion: `ARCHITECTURE.md`, `OPS.md`, `decisions/`, `ops/`, `reference/`, `parked/`, `roadmap.md`. Two problems:
+0.0.2's warm tier (`docs/`) had grown by accretion: `ARCHITECTURE.md`, `OPS.md`, `decisions/`, `ops/`, `reference/`, `parked/`, `roadmap.md`. Two problems:
 
 1. **Ambiguous boundaries.** "Is this `reference/` or `ops/`?" had no discriminator; `OPS.md` vs `ops/` was a size accident; `parked/` mixed a *work status* into the *docs* tree (fixed by ADR-0002).
 2. **No home for whole document classes.** PRDs/product requirements had nowhere; full architecture specs (solution overview, data flow, tool surfaces, prompt design, observability — the things an agentic project actually needs specified) had no slot between a one-page codemap and an ADR.
@@ -16,7 +16,7 @@ Diátaxis supplies the discriminator the tree lacked: reference is *facts you lo
 
 ## Considered Options
 
-1. **Keep v2's accreted tree.** Pros: no change. Cons: both problems stay.
+1. **Keep 0.0.2's accreted tree.** Pros: no change. Cons: both problems stay.
 2. **Full Diátaxis tree, prescribed upfront** (`tutorials/`, `how-to/`, `reference/`, `explanation/`).
    Pros: textbook-clean. Cons: empty-folder sprawl on day one; tutorials are mostly irrelevant for project memory; prescribing structure people don't need is how conventions get ignored.
 3. **Curated taxonomy, offered at init, grown on demand.** *(chosen)*
@@ -39,7 +39,7 @@ Option 3. The warm tier for scaffolded projects lives at **`.strata/docs/`** and
 - **Offered, not prescribed:** init scaffolds the folder homes and the `ARCHITECTURE.md` index; files appear when content does. No empty placeholder documents.
 - **Grow-on-demand, exhaustive allowed:** warm docs may be as detailed as they like; they load only when a task needs them.
 - strata's **own repo keeps a public root `docs/`** (DESIGN, decisions) because its docs are its product documentation, for humans on GitHub — recorded here so the asymmetry is deliberate, not drift.
-- v2's `OPS.md`/`ops/` split collapses into `ops/`; `parked/` is gone (status lives in `issues/`, per ADR-0002).
+- 0.0.2's `OPS.md`/`ops/` split collapses into `ops/`; `parked/` is gone (status lives in `issues/`, per ADR-0002).
 
 ## Consequences
 

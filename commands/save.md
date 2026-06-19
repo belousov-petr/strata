@@ -18,9 +18,9 @@ Capture what happened in this session so the next one starts hot. In strata mode
 
 ### 1. Detect the mode
 
-- `.strata/MANIFEST.md` present → **strata mode**. Check its `strata_version` — if it isn't `3`, stop and point at `MIGRATIONS.md`.
+- `.strata/MANIFEST.md` present → **strata mode**. Check its `strata_version` — if it isn't `0.0.3`, stop and point at `MIGRATIONS.md`.
 - Legacy fingerprints present (`.ai/MEMORY-MAP.md`, `docs/PROJECT-MAP.md`, `.claude/memory/`) → **legacy layout**. Do not save into it and do not scaffold a second memory; offer the migration ladder in `MIGRATIONS.md`.
-- Neither → **flat mode**: capture a single `.strata/memory/project_state.md`; later `strata init` migrates that file into v3, archiving the original first.
+- Neither → **flat mode**: capture a single `.strata/memory/project_state.md`; later `strata init` migrates that file into 0.0.3, archiving the original first.
 
 State the detected mode before proceeding.
 
@@ -30,7 +30,7 @@ State the detected mode before proceeding.
 
 ### 3. Inventory the session
 
-Sort what actually happened into the v3 buckets:
+Sort what actually happened into the 0.0.3 buckets:
 
 - **Resumption point** — last completed, immediate next action (point at an issue id when one exists), prerequisites, uncommitted scope, background processes. The single most important capture; write it so a fresh session starts without questions.
 - **Issue events** — findings/bugs captured mid-session with `/strata:capture` or direct issue writes (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired.
@@ -95,7 +95,7 @@ Immediately after the preview, run in this order: **writes → appends → updat
 ### 8. Report
 
 ```
-Mode: strata (v3).
+Mode: strata (0.0.3).
 Saved: project_state.md (session N appended; sessions N-2..N-3 archived).
 Issues: +2 captured (20260609-03, -04) · 1 resolved → archive · ACTIVE/OPEN/PARKED regenerated.
 Learnings: +1 failure ("before bulk renames…") · INDEX + trigger table regenerated.

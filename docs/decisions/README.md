@@ -1,6 +1,6 @@
 # Decisions — strata's own ADRs
 
-Architecture Decision Records for the strata skill itself. These ten records lock the v3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
+Architecture Decision Records for the strata skill itself. These ten records lock the 0.0.3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
 
 Scaffolded projects get their own decision log at `.strata/docs/decisions/` — this folder is about strata, not about your project.
 
@@ -41,4 +41,4 @@ Rules:
 
 ## Provenance
 
-The v3 design came out of a deep-research pass over industry practice for long-lived agentic coding projects (repo conventions, agent instruction files, persistent memory architectures, decision records, documentation frameworks, named practitioners; scope 2024–2026). The report itself stays external to this repo; each ADR cites the primary sources directly so the reasoning is verifiable without it. The README's "Research basis" section carries the short version.
+The 0.0.3 design came out of a deep-research pass over industry practice for long-lived agentic coding projects (repo conventions, agent instruction files, persistent memory architectures, decision records, documentation frameworks, named practitioners; scope 2024–2026). The report itself stays external to this repo; each ADR cites the primary sources directly so the reasoning is verifiable without it. The README's "Research basis" section carries the short version.

@@ -12,7 +12,7 @@ Cold storage. **Not surfaced via `MEMORY.md`.** Files here are preserved for his
 
 - `project_state.md` sessions older than "current + last completed" → rolled into a dated `YYYY-MM-sessions-*.md` file at `/strata:save`.
 - Memory whose rationale was promoted to an ADR → archived here as `source-adr-NNNN-*` for provenance.
-- Content extracted during migration (e.g. v2 → v3 issues extraction) → `source-issues-extraction-*`.
+- Content extracted during migration (e.g. 0.0.2 → 0.0.3 issues extraction) → `source-issues-extraction-*`.
 - Completed actions with external artifacts → appended to `action_log.md` (never deleted, never auto-loaded).
 
 ## Files

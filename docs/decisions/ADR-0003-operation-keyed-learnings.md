@@ -5,7 +5,7 @@
 
 ## Context and Problem Statement
 
-v2's behavioral memory was flat `feedback_<slug>.md` files: 10–25 lines each, with **Why** and **How to apply** sections. Three weaknesses showed up in practice:
+0.0.2's behavioral memory was flat `feedback_<slug>.md` files: 10–25 lines each, with **Why** and **How to apply** sections. Three weaknesses showed up in practice:
 
 1. **Preference-shaped.** The files mostly captured corrections ("don't do X again") and almost never captured *successful strategies worth repeating* — half the value of experience.
 2. **No retrieval key.** Nothing said *when* a rule fires. The agent either re-read all of them (context bloat) or relied on remembering they exist (they don't).
@@ -38,7 +38,7 @@ origin: success|failure
 - The routing key is the **operation**, not the date: "before pushing", "when editing templates", "when a test fails twice the same way".
 - `origin:` records whether the lesson came from something that worked or something that burned us — capture both, per ReasoningBank.
 - `learnings/INDEX.md` and the rules-by-trigger table in `MEMORY.md` are **generated from frontmatter** at `/strata-save` (ADR-0004). Retrieval discipline follows the k≈1 finding: consult the trigger table, open the one or two matching lessons, not the folder.
-- `/strata-load` does not bulk-read learnings — same rule as v2's feedback files, now with a real index making the on-demand path actually work.
+- `/strata-load` does not bulk-read learnings — same rule as 0.0.2's feedback files, now with a real index making the on-demand path actually work.
 
 ## Consequences
 

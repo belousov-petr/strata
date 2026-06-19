@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repo lints for strata v3. Run from anywhere: bash tests/lint.sh
+# Repo lints for strata 0.0.3. Run from anywhere: bash tests/lint.sh
 # Checks: legacy tokens, size budgets, canonical states/types consistency,
 # template placeholder hygiene, internal link integrity.
 set -uo pipefail
@@ -42,7 +42,7 @@ else
   ok "templates/ free of legacy tokens"
 fi
 
-CONTEXT='legacy|Legacy|fingerprint|MIGRATIONS|v1|v2'
+CONTEXT='legacy|Legacy|fingerprint|MIGRATIONS|0\.0\.1|0\.0\.2'
 for f in "$SKILL_DIR/SKILL.md" commands/save.md commands/load.md docs/DESIGN.md; do
   bad=$(grep -nE "$LEGACY" "$f" | grep -vE "$CONTEXT" || true)
   if [ -n "$bad" ]; then
@@ -102,7 +102,7 @@ else
   fail "Codex capture entry point missing"
 fi
 
-if grep -qF "## Rung 0: flat → v3" MIGRATIONS.md && \
+if grep -qF "## Rung 0: flat → 0.0.3" MIGRATIONS.md && \
    grep -qF "source-flat-project-state" MIGRATIONS.md "$SKILL_DIR/SKILL.md"; then
   ok "flat memory migrates with provenance archive"
 else

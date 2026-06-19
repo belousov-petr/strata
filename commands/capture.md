@@ -20,7 +20,7 @@ Write the memory now, then continue. Prefer spending a few tokens on the spot ov
 
 ### 1. Detect the mode
 
-- `.strata/MANIFEST.md` present -> **strata mode**. Check `strata_version: 3`; if it differs, stop and point at `MIGRATIONS.md`.
+- `.strata/MANIFEST.md` present -> **strata mode**. Check `strata_version: 0.0.3`; if it differs, stop and point at `MIGRATIONS.md`.
 - `.strata/memory/project_state.md` present without a manifest -> **flat mode**. Append a concise fresh capture there; later `strata init` migrates and archives the flat source.
 - Nothing present -> create `.strata/memory/project_state.md` as flat mode with the capture. Mention that `strata init` can upgrade it later.
 
@@ -41,7 +41,7 @@ Do not bulk-read `learnings/`, `archive/`, ADRs, or every issue.
 - **Issue** if there is closeable work: bug, improvement, debt, task, feature, initiative.
 - **Learning** if the value is a reusable behavior rule: "before doing X, know Y."
 - **Both** if a fixable issue also taught a future rule.
-- **Flat mode** if no v3 structure exists: append under Findings/Gotchas/Open Items in `project_state.md`.
+- **Flat mode** if no 0.0.3 structure exists: append under Findings/Gotchas/Open Items in `project_state.md`.
 
 Dedup before writing. If a matching issue or learning exists, update it with the new evidence instead of creating a near-duplicate.
 
@@ -64,7 +64,7 @@ Do not hand-edit generated views (`ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learning
 Report the file(s) written or updated:
 
 ```
-Mode: strata (v3).
+Mode: strata (0.0.3).
 Captured: .strata/issues/20260617-01-plugin-cache-stale.md
 Learning: .strata/memory/learnings/before-updating-codex-plugin.md
 Continuing: <original task>
