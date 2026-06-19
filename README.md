@@ -1,43 +1,53 @@
 # Strata
 
-Strata is a repo-owned memory system for AI coding agents. It keeps project state in plain Markdown under `.strata/`, so Claude, Codex, Gemini, and other tools can work from the same source instead of each keeping a private memory.
+Repo-owned project memory for AI coding agents. Strata keeps durable project state in plain Markdown under `.strata/`, so Claude Code, Codex, Gemini, and whatever you use next all work from one source of truth instead of each keeping a private, drifting memory.
 
-Current layout generation: `strata_version: 3`.
-Plugin package version: `3.1.0` for both Claude Code and Codex.
+It ships from a single repository as **both a Claude Code plugin and a Codex plugin**, sharing one skill.
+
+- Layout generation: `strata_version: 3`
+- Plugin package: `3.1.0` (Claude Code + Codex)
 
 ![Strata](Strata.png)
 
+## What you get
+
+- **One repo-owned namespace, `.strata/`** — like a lockfile: it announces its format and version, collides with nothing, and any tool can read it.
+- **Three tiers** — hot memory loaded every session, warm docs on demand, cold archive on grep — defended by size budgets and routing, not by writing less down.
+- **A unified backlog** (`issues/`) — findings, bugs, tasks, and initiatives as one frontmatter-keyed store with generated `ACTIVE` / `OPEN` / `PARKED` views.
+- **Operation-keyed learnings** — behavioral lessons fired by trigger, so the agent reads the one relevant note before an operation, not the whole folder.
+- **Immediate capture** — findings hit disk the moment they surface, before context compaction can erase them.
+- **One-shot init and safe migration** — scaffold a fresh project, or migrate flat/v1/v2 memory with the source archived first.
+- **Two plugins, one tree** — Claude Code (`.claude-plugin/`) and Codex (`.codex-plugin/`) load the same `skills/strata/SKILL.md`; nothing is duplicated.
+- **An optional cross-tool capture-guard hook** — a gentle reminder on Claude Code and Codex, Windows/macOS/Linux, that reinforces immediate capture before compaction.
+- **Plain Markdown + grep, zero dependencies.**
+
 ## Quick start
 
-Claude Code:
+**Claude Code** — install the plugin, then work inside a project:
 
 ```text
 /plugin marketplace add belousov-petr/strata
 /plugin install strata@belousov-petr
 ```
 
-Then, inside a project repo:
-
 ```text
-Skill(name='strata:strata', args='init')
-/strata:load
-/strata:capture
-/strata:save
+Skill(name='strata:strata', args='init')   # scaffold or migrate this project
+/strata:load                                # session start — orient from saved state
+/strata:capture                             # mid-session — save a finding/gotcha now
+/strata:save                                # session end — route everything to its store
 ```
 
-Codex:
-
-Install the Codex plugin from this repo, then use the skill directly:
+**Codex** — install the Codex plugin from this repo, then drive the skill directly:
 
 ```text
 Skill(name='strata', args='init')
 Skill(name='strata', args='capture')
-Skill(name='strata')
+Skill(name='strata')                        # rule lookup driving the load/save flow
 ```
 
-`/strata:save` previews the changes it will make, then writes them immediately. It does not ask for a separate yes/no confirmation.
+`/strata:save` previews the changes it will make, then writes them immediately — invoking it is the confirmation, with no second yes/no gate. If the project already has flat, v1, or v2 memory, `init` migrates it (archiving the source first) instead of overwriting it.
 
-If the project already has flat, v1, or v2 memory, init migrates it instead of overwriting it. The migration archives source memory first, then writes the v3 layout.
+> Why the two invocation styles? Claude namespaces everything under the plugin (`/strata:save`, `Skill(name='strata:strata')`); Codex uses the bare skill name (`Skill(name='strata')`). Both read the same rules. Full detail in [Installation](#installation).
 
 ## Why this exists
 
@@ -61,17 +71,22 @@ strata/
 │   ├── plugin.json                # Claude Code plugin manifest
 │   └── marketplace.json           # single-plugin marketplace (source ".")
 ├── .codex-plugin/plugin.json      # Codex plugin manifest
-├── commands/
-│   ├── save.md                    # /strata:save command
-│   ├── load.md                    # /strata:load command
-│   └── capture.md                 # /strata:capture command
+├── commands/                      # Claude slash commands
+│   ├── save.md                    #   → /strata:save
+│   ├── load.md                    #   → /strata:load
+│   └── capture.md                 #   → /strata:capture
 ├── skills/
 │   └── strata/
-│       ├── SKILL.md               # authoritative rules (Claude + Codex skill)
+│       ├── SKILL.md               # authoritative rules (the Claude + Codex skill)
 │       └── templates/             # scaffolded into projects by init (mirrors .strata/)
+├── hooks/                         # optional capture-guard hook (Claude + Codex, cross-platform)
+│   ├── strata-capture-guard.mjs   #   shared Node script
+│   ├── hooks.json                 #   Claude plugin hook config
+│   ├── codex-hooks.sample.json    #   Codex hook template
+│   └── README.md
 ├── docs/
 │   ├── DESIGN.md                  # exhaustive reference: every store, schema, lifecycle
-│   └── decisions/                 # ADR-0001..0009: why v3 is shaped this way
+│   └── decisions/                 # ADR-0001..0010: why strata is shaped this way
 ├── MIGRATIONS.md                  # flat/v1/v2 → v3 ladder: detect, transform, rollback
 ├── CHANGELOG.md                   # what changed per release
 └── tests/                         # scaffold check + repo lints
@@ -213,6 +228,102 @@ One-shot scaffold or migration. In Claude Code, run `Skill(name='strata:strata',
 
 Fresh projects get two questions (project name, code vs knowledge project), then the tree above, with adapters written only if absent. Existing flat memory is archived and migrated instead of overwritten; v1/v2 layouts route into the migration ladder instead of double-initializing.
 
+## Installation
+
+Strata is one repository with two plugin manifests. Claude Code reads `.claude-plugin/`, Codex reads `.codex-plugin/`, and both load the same `skills/strata/SKILL.md`. Nothing is duplicated.
+
+### Claude Code (plugin)
+
+`.claude-plugin/plugin.json` is the plugin manifest; `.claude-plugin/marketplace.json` lists this repo as a single-plugin marketplace (`source: "."`).
+
+Install from GitHub:
+
+```text
+/plugin marketplace add belousov-petr/strata
+/plugin install strata@belousov-petr
+```
+
+Under the plugin, Claude namespaces every command and skill with the plugin name:
+
+- Commands — `/strata:save`, `/strata:load`, `/strata:capture`
+- Skill — `Skill(name='strata:strata')`, with `args='init'` or `args='capture'`
+
+Update after new commits, then restart Claude Code (plugin updates do not rewrite the current session's already-loaded instructions):
+
+```text
+/plugin marketplace update belousov-petr
+/plugin update strata@belousov-petr
+```
+
+Disable or remove:
+
+```text
+/plugin disable strata
+/plugin uninstall strata
+```
+
+Local development — load a clone for one session, or add it as a local marketplace:
+
+```bash
+git clone https://github.com/belousov-petr/strata.git
+claude --plugin-dir ./strata            # this session only
+# or, inside Claude Code:
+#   /plugin marketplace add ./strata
+#   /plugin install strata@belousov-petr
+```
+
+A directory-source install caches the plugin per version, so after editing a local clone, reinstall (`/plugin uninstall strata` then `/plugin install …`) to refresh — `update` is a no-op for it.
+
+Validate the manifests before publishing:
+
+```bash
+claude plugin validate . --strict
+```
+
+### Codex (plugin)
+
+The Codex manifest is `.codex-plugin/plugin.json`, pointing at `skills/strata/`. Clone this repo into your Codex plugin source directory and install it through your Codex plugin marketplace; after pulling new commits, reinstall or update so Codex refreshes its cached copy, then start a new thread.
+
+Codex uses the skill entry points directly and **without Claude's namespace**:
+
+```text
+Skill(name='strata', args='init')
+Skill(name='strata', args='capture')
+Skill(name='strata')                    # rule lookup driving the load/save flow
+```
+
+That bare `strata` is why the skill keeps `name: strata` — it's the contract Codex and other tools depend on.
+
+### Other tools
+
+`AGENTS.md` is the canonical entry point. Codex reads it natively. For Gemini CLI, point the project context at `AGENTS.md` (`settings.json` context config or an import line). Any tool that doesn't read `AGENTS.md` can use a thin adapter that points to `.strata/MANIFEST.md`.
+
+### Automatic capture (optional hook)
+
+Strata ships an optional **capture-guard hook** (`hooks/`) that reminds the agent to write findings to `.strata/` before context is compacted — on Claude Code and Codex, on Windows, macOS, and Linux. One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`. It is **silent outside strata projects** and fail-safe — any error exits cleanly, never stalling a session.
+
+- **Claude Code** — bundled in the plugin (`hooks/hooks.json`, auto-discovered when the plugin is enabled). Nothing to configure; turn it off with `/plugin disable strata`.
+- **Codex** — plugins can't ship hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (every project on the machine) or a committed `<project>/.codex/hooks.json` (travels with the repo). Set the `commandWindows` field for Windows.
+
+Honest limit: neither tool lets a hook *force* a pre-compaction save — `PreCompact` can't make the agent act first. The hook **nudges**; the agent still performs the capture, so strata stays a convention. Full detail: [`hooks/README.md`](hooks/README.md).
+
+### Scaffold a project
+
+Inside the project root, run init — `Skill(name='strata:strata', args='init')` under the Claude plugin, or `Skill(name='strata', args='init')` in Codex. Fresh projects answer two questions (project name; code vs knowledge project) and get the tree above, with `AGENTS.md`/`CLAUDE.md` adapters written only if absent. Projects with flat or legacy memory migrate through `MIGRATIONS.md`; source memory is archived before any v3 file is written.
+
+## Migrating from flat/v1/v2
+
+[`MIGRATIONS.md`](MIGRATIONS.md) is the ladder. It detects the generation by fingerprint (flat: `.strata/memory/project_state.md` without a manifest; v1: `docs/PROJECT-MAP.md` or `.claude/memory/`; v2: `.ai/MEMORY-MAP.md`), then runs an ordered, gated transform with a rollback anchor. Flat memory is moved into `memory/archive/source-flat-project-state-*` before the new hot state is written. v1/v2 migrations handle namespace rename, manifest rewrite, extraction of `open_action_items.md` + `project_<slug>.md` + `docs/parked/` into the issues backlog, `feedback_*` conversion into learnings, and view regeneration. Content-bearing steps archive their sources before deleting anything. The old `/save-point` and `/load-point` command names are gone; install the Strata plugin per above.
+
+## Versioning
+
+Two version numbers, on purpose:
+
+- **Layout generation `strata_version: 3`** — stamped in every scaffolded `MANIFEST.md`. It governs the on-disk `.strata/` format. A bump here is breaking and ships with a `MIGRATIONS.md` rung. The plugin packaging (v3.1.0) did **not** change it, so projects already on v3 need no migration when you move to the plugin.
+- **Plugin package `3.1.0`** — the version in `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`; the release of the tool itself.
+
+Releases are git tags + `CHANGELOG.md` + ADR supersede-status — no per-folder version archives ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)). The latest tagged layout release is `v3.0.0`; current `main` includes the plugin, capture, and hook work listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
+
 ## Research basis
 
 The [ADRs](docs/decisions/README.md) carry the research notes and tradeoffs. The short version:
@@ -224,76 +335,6 @@ The [ADRs](docs/decisions/README.md) carry the research notes and tradeoffs. The
 - Decision records keep rationale out of hot memory. Strata uses ADRs for durable "why," with source material archived for provenance.
 
 The main external influences are [agents.md](https://agents.md/), [Anthropic's context engineering writing](https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents), tiered memory systems such as [Cline Memory Bank](https://docs.cline.bot/features/memory-bank) and [Letta/MemGPT](https://www.letta.com/blog/agent-memory), [ReasoningBank](https://arxiv.org/html/2509.25140v1), [Nygard-style ADRs](https://www.cognitect.com/blog/2011/11/15/documenting-architecture-decisions), [MADR](https://adr.github.io/madr/), and [Diátaxis](https://diataxis.fr/start-here/).
-
-## Installation
-
-Strata ships one repo with two plugin manifests. Claude Code reads `.claude-plugin/`, Codex reads `.codex-plugin/`, and both use the same `skills/strata/SKILL.md`.
-
-### Claude Code (plugin)
-
-Strata is a Claude Code plugin. `.claude-plugin/plugin.json` is the plugin manifest, and `.claude-plugin/marketplace.json` lists this repo as a single-plugin marketplace (`source: "."`).
-
-Install from GitHub:
-
-```text
-/plugin marketplace add belousov-petr/strata
-/plugin install strata@belousov-petr
-```
-
-Update after new commits:
-
-```text
-/plugin marketplace update belousov-petr
-/plugin update strata@belousov-petr
-```
-
-Restart Claude Code after updating. Plugin updates do not rewrite the current session's already-loaded instructions.
-
-For local development, load a clone for one session:
-
-```bash
-git clone https://github.com/belousov-petr/strata.git
-claude --plugin-dir ./strata
-```
-
-Under the plugin, Claude namespaces commands and skills with the plugin name. Use `/strata:save`, `/strata:load`, `/strata:capture`, and `Skill(name='strata:strata')` with `args='init'` or `args='capture'`.
-
-Validate the manifests before publishing:
-
-```bash
-claude plugin validate . --strict
-```
-
-### Codex plugin
-
-The Codex manifest lives at `.codex-plugin/plugin.json` and points at `skills/strata/`. For local development, clone this repo into your Codex plugin source directory and install it through your Codex plugin marketplace. After pulling from GitHub, reinstall or update the plugin so Codex refreshes its cached copy, then start a new thread.
-
-Codex uses the skill entry points directly and without Claude's namespace: `Skill(name='strata', args='init')`, `Skill(name='strata', args='capture')`, and the default rule lookup.
-
-### Other tools
-
-`AGENTS.md` is the canonical entry point. Codex reads it natively. For Gemini CLI, configure the project context to load `AGENTS.md`, or add an instruction that imports it. Tools that do not read `AGENTS.md` can use a thin adapter that points to `.strata/MANIFEST.md`.
-
-### Scaffold a project
-
-Inside the project root, run init: `Skill(name='strata:strata', args='init')` under the Claude plugin, or `Skill(name='strata', args='init')` in Codex. Fresh projects get two questions and one tree. Projects with flat or legacy memory migrate through `MIGRATIONS.md`; source memory is archived before v3 files are written.
-
-### Automatic capture (optional hook)
-
-An optional **capture-guard hook** (`hooks/`) reminds the agent to write findings to `.strata/` before context is compacted — for Claude Code and Codex, on every OS. One shared Node script injects the immediate-capture rule at `SessionStart` and a last-chance reminder at `PreCompact`, and is silent outside strata projects.
-
-- **Claude Code:** bundled in the plugin (`hooks/hooks.json`, auto-on once the plugin is enabled).
-- **Codex:** plugins can't ship hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (machine-wide) or a committed `.codex/hooks.json` (travels with the repo).
-
-It *nudges* — neither tool lets a hook force a pre-compaction save — so strata stays a convention. See [`hooks/README.md`](hooks/README.md).
-
-## Migrating from flat/v1/v2
-
-[`MIGRATIONS.md`](MIGRATIONS.md) is the ladder. It detects the generation by fingerprint (flat: `.strata/memory/project_state.md` without a manifest; v1: `docs/PROJECT-MAP.md` or `.claude/memory/`; v2: `.ai/MEMORY-MAP.md`), then runs an ordered, gated transform with a rollback anchor. Flat memory is moved into `memory/archive/source-flat-project-state-*` before the new hot state is written. v1/v2 migrations handle namespace rename, manifest rewrite, extraction of `open_action_items.md` + `project_<slug>.md` + `docs/parked/` into the issues backlog, `feedback_*` conversion into learnings, and view regeneration. Content-bearing steps archive their sources before deleting anything. The old `/save-point` and `/load-point` command names are gone; install the Strata plugin per above.
-
-## Version
-
-Layout generation `strata_version: 3` is stamped in every scaffolded manifest. The Claude and Codex plugin manifests are currently version `3.1.0`. The latest tagged layout release is `v3.0.0`; current `main` includes the plugin and capture work listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## A few honest things
 
