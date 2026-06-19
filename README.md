@@ -1,40 +1,38 @@
 # Strata
 
-Strata is project memory for AI coding agents, kept in your repo. It saves what you learn about a project in plain Markdown files under `.strata/`. Claude Code, Codex, Gemini, and other tools all read the same files, so they share one memory instead of each keeping their own.
+Layered, per-project memory for AI coding agents.
 
-It installs as a plugin for both Claude Code and Codex from this one repo.
-
-- On-disk format: `strata_version: 3`
-- Plugin version: `3.1.0` (Claude Code and Codex)
+Strata is a plugin for Claude Code and Codex. It saves what you learn about a project as plain Markdown under `.strata/`, in layers, so your agents stop losing findings to context compaction and stop solving the same problem twice. The files live in your repo, so Claude, Codex, Gemini, and any other tool read the same memory.
 
 ![Strata](Strata.png)
 
 ## What it does
 
+- Installs as one plugin for Claude Code and Codex.
 - Keeps project memory in one place, `.strata/`, that any tool can read.
 - Splits that memory into three layers: recent state loaded every session, deeper docs loaded when a task needs them, old history searched only when you ask.
-- Tracks findings, bugs, tasks, and ideas in one backlog, with views that regenerate themselves.
+- Tracks findings, bugs, tasks, and ideas in one backlog, with views that rebuild themselves.
 - Saves lessons by trigger, so the agent reads the one note it needs before an action, not the whole folder.
 - Writes findings to disk the moment they happen, before compaction can lose them.
-- Sets up a new project, or migrates old memory, in one command.
 - Adds an optional hook that reminds the agent to save findings before compaction, on both tools and all three operating systems.
+- Sets up a new project, or migrates old memory, in one command.
 - Uses plain Markdown and grep. No dependencies.
 
 ## Why this exists
 
-An agent learns a lot in one session that never reaches the code. A build fails and it finds a fix. A flaky dependency needs a workaround. A test fails at random and it figures out why. These are small facts, and most of them only live in the chat. Then the context window fills up, the session compacts, and those facts are gone. A week later you solve the same problem again.
+When you build, you pick up small bits of knowledge as you go: findings, gotchas, workarounds, the reason a thing is done a certain way. These are what save you time next week.
 
-Strata stops that. While you work, it writes what you learn to disk right away: findings, gotchas, workarounds, decisions, and the reasons behind them. The files go under `.strata/`, as plain Markdown, before compaction can drop them.
+Agents now work faster than you can keep up with. They try things, hit errors, find fixes, and move on, all in minutes. Most of that detail never makes it into the code. It lives in the chat. Then the context window fills up, the session compacts, and it is gone. So you discover the same fix again later, and lose an insight you already had.
 
-Writing everything down causes a new problem: too many notes. A big pile of notes hides the one you need, and it costs tokens every time a session loads it. So strata keeps notes in layers. Recent state and the indexes stay small and load every session (the main index is capped at 80 lines). Deeper notes, like how a part of the system works or why a decision was made, load only when the task needs them. Old history sits at the bottom and stays out of the way until you search for it. You get the detail back when you need it, without paying for all of it every time.
+Strata is a plugin that keeps those details for you. As you work, it writes what you learn to disk right away, in plain Markdown under `.strata/`, before compaction can drop it. You do not have to remember to do it: an optional hook reminds the agent at the right moments.
 
-This does not replace git. Git already saves the files and their history. What git does not do is tell the agent which file to read, or when, or keep the always-loaded set small. That is what strata adds: where each note belongs, when it loads, and when it moves down a layer. The files stay plain Markdown, so any tool can read them. If you want graph or vector search on top, point an engine like [Graphiti](https://help.getzep.com/graphiti/getting-started/overview) at the same files. Strata owns the structure; the engine owns search.
+Writing everything down has a catch. Too many notes drown the one you need, and they cost tokens every session. So strata keeps knowledge in layers. Recent state and the indexes stay small and load every session. Deeper notes load only when a task needs them. Old history sits in the archive, out of the way, and you pull it back when you ask. The result is structured, under your control, and layered so it never floods the context.
+
+This is not a new git. Git already stores your files and their history. Strata adds the layer git does not: which note belongs where, when it loads, and when it moves down. The files stay plain Markdown, so other tools can use them too. For example, [graphify](https://github.com/safishamsi/graphify) can index your code and your `.strata/` notes into a knowledge graph you can query.
 
 ## Why the name
 
-Strata, like rock. Sediment settles in layers over time, and later you can read the whole history in a cliff or a core sample. The name fits: your notes build up in layers too, recent on top and older underneath.
-
-The first name was "Savepoint," because that was the verb I typed. But the verb is not the point. The point is underneath: which layer a note belongs to, and when it loads.
+Strata means layers of rock. Your knowledge stacks up in layers as you work, recent on top and older underneath, and you can dig down to an old layer when you need it. That is the whole idea in one word.
 
 ## What's in this repo
 
@@ -65,7 +63,7 @@ strata/
 └── tests/                         # scaffold check + repo lints
 ```
 
-The skill holds the rules. The commands are the verbs you type. I once put the rules in the command files, and within a week they drifted out of sync, so now they live in one place. The docs work the same way: the skill stays short and practical, [DESIGN.md](docs/DESIGN.md) holds the detail, and the [ADRs](docs/decisions/README.md) hold the reasons.
+Strata ships as one plugin. The skill holds the rules, the commands are the verbs you type, and the hook nudges the agent to save. I once put the rules in the command files, and within a week they drifted out of sync, so now they live in one place. The docs work the same way: the skill stays short and practical, [DESIGN.md](docs/DESIGN.md) holds the detail, and the [ADRs](docs/decisions/README.md) hold the reasons.
 
 ## The shape of a strata project
 
@@ -92,7 +90,7 @@ When you run init on a fresh project, strata creates this:
         └── CHANGELOG.md · roadmap.md   (when they exist)
 ```
 
-Everything strata owns lives under `.strata/`. Like a lockfile, the folder states its format and version (`strata_version: 3` in the manifest), so it won't clash with anything and any tool can read it ([ADR-0001](docs/decisions/ADR-0001-strata-namespace-commands-adapters.md)). The adapters are thin pointers. `AGENTS.md` still has room for your own build, test, and style notes.
+Everything strata owns lives under `.strata/`. Like a lockfile, the folder states its format and version (`strata_version: 3` in the manifest), so it will not clash with anything and any tool can read it ([ADR-0001](docs/decisions/ADR-0001-strata-namespace-commands-adapters.md)). The adapters are thin pointers. `AGENTS.md` still has room for your own build, test, and style notes.
 
 If memory already exists, init follows [MIGRATIONS.md](MIGRATIONS.md). A flat `project_state.md` is archived as `memory/archive/source-flat-project-state-*` before the new layout is written.
 
@@ -122,7 +120,7 @@ Anything you can get from the repo itself (the code, `git log`, the folder layou
 | A question about history | `archive/`, by grep |
 | Never on its own | learnings in bulk, ADRs in bulk, items in bulk, anything in archive |
 
-Long docs are fine in the warm tier. Bloat only hurts the always-loaded files, and those are held small by budgets and routing, not by writing less.
+Long docs are fine in the warm tier. Bloat only hurts the always-loaded files, and those stay small because of size limits and routing, not because you wrote less.
 
 ## The backlog
 
@@ -137,7 +135,7 @@ One store holds findings, tasks, and ideas: `.strata/issues/`, one file per item
 
 ## Learnings
 
-A learning is a lesson from a success or a failure ([ADR-0003](docs/decisions/ADR-0003-operation-keyed-learnings.md)). Each one has a trigger, so the agent can read the one relevant note before it acts, instead of loading the whole folder.
+A learning is a lesson from a win or a failure ([ADR-0003](docs/decisions/ADR-0003-operation-keyed-learnings.md)). Each one has a trigger, so the agent can read the one relevant note before it acts, instead of loading the whole folder.
 
 ```
 ---
@@ -193,7 +191,7 @@ Invoking `/strata:save` is the confirmation. There is no second yes/no gate. It 
 
 ### `/strata:load`
 
-It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), checks against git (`git status`, recent commits, spot-checks), then sums up in six lines: last session, next action, active items, prerequisites, fired triggers, and any drift. State is a hint. The repo is the truth.
+It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), checks against git (`git status`, recent commits, spot-checks), then shows a six-line summary: last session, next action, active items, prerequisites, fired triggers, and any drift. State is a hint. The repo is the truth.
 
 ### Init
 
@@ -292,8 +290,8 @@ In the project root, run init: `Skill(name='strata:strata', args='init')` in Cla
 
 There are two version numbers, and they mean different things.
 
-- `strata_version: 3` is the on-disk format, stamped in every scaffolded `MANIFEST.md`. A change here is breaking and ships with a `MIGRATIONS.md` step. The plugin packaging (3.1.0) did not change it, so a project already on v3 needs no migration when you move to the plugin.
-- `3.1.0` is the plugin version in `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`. It is the release of the tool itself.
+- `strata_version: 3` is the on-disk format, stamped in every scaffolded `MANIFEST.md`. A change here is breaking and ships with a `MIGRATIONS.md` step. The plugin packaging did not change it, so a project already on v3 needs no migration when you move to the plugin.
+- The plugin version (`3.1.0`, in both `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`) is the release of the tool itself.
 
 Releases are git tags plus `CHANGELOG.md` plus ADR supersede notes. There are no per-folder version archives ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)). The last tagged format release is `v3.0.0`. Current `main` has the plugin, capture, and hook work listed under Unreleased in [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -315,13 +313,13 @@ The main influences: [agents.md](https://agents.md/), [Anthropic's writing on co
 - The save preview is a record, not a gate. `/strata:save` writes after the preview on its own, so a misclassified note can still move if the session read was wrong.
 - Where a note belongs is still a judgment call. The simple tests (rule vs procedure vs fact, issue vs learning) handle most cases. When in doubt, leave it hot and let the next save sort it.
 - The generated views are only as fresh as the last save. The items are the truth. The views are a copy with a rebuild step.
-- Strata is a convention, not a daemon. Nothing forces the capture rule except the skill's instructions and your habit. The optional hook (`hooks/`) reminds you at session start and before compaction, but it only reminds. It can't force the save. The structure makes the right thing cheap. It can't make the wrong thing impossible.
+- Strata is a convention, not a daemon. Nothing forces the capture rule except the skill's instructions and your habit. The optional hook reminds you at session start and before compaction, but it only reminds. It can't force the save. The structure makes the right thing cheap. It can't make the wrong thing impossible.
 
 ## What building this taught me
 
 - A single file does not stay cheap. Memory search pulls from it every session, and old and new come back together. Splitting by key fixed what splitting by size never did.
-- The dumping ground moves. I fixed `project_state.md` in v1, then watched `open_action_items.md` quietly become the same thing: one file, several jobs, drifting sections. The fix was not a better file. It was admitting that work items are a list, not a document.
-- Findings die in compaction. The worst v2 failure was invisible: a sharp diagnosis made mid-task, kept in the chat for the save ritual, gone when the context compacted. Writing to disk right away is the most important rule in v3.
+- The dumping ground moves. I fixed `project_state.md` in v1, then watched `open_action_items.md` become the same thing: one file, several jobs, drifting sections. The fix was not a better file. It was admitting that work items are a list, not a document.
+- Findings die in compaction. The worst v2 bug was silent: a sharp diagnosis made mid-task, kept in the chat for the save step, gone when the context compacted. Writing to disk right away is the most important rule in v3.
 - Hand-kept lists lie. Every status list I kept by hand ended up disagreeing with reality. Views built from item frontmatter can't.
 - Git already solved versioning. I almost built per-folder version archives before I noticed I was building a worse version of `git log`. Tags, a changelog, and supersede notes cover what I needed ([ADR-0008](docs/decisions/ADR-0008-git-native-versioning.md)).
 - The research checked more than it changed. The deep-research pass kept about 85% of v2. The value was in the corrections it forced me to name, and in being able to cite why the structure is the way it is instead of "it felt right."
@@ -336,11 +334,11 @@ If you have run this and found gaps, I want to hear about it. Open an issue or P
 
 ## Acknowledgments
 
-The first version was drafted in [Claude Code](https://claude.com/claude-code) ([@claude](https://github.com/claude)). I designed the tier model and the routing rules, decided what knowledge goes where and why, and directed the work.
+The first version was drafted in [Claude Code](https://claude.com/claude-code). I designed the layer model and the routing rules, decided what knowledge goes where and why, and directed the work.
 
 The pattern builds on prior work: Michael Nygard's [ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions), the [MADR](https://adr.github.io/madr/) format, incident-response playbooks, and the 2024-2026 work on agent memory credited above and in the ADRs.
 
-Companion skill: [`/shakedown`](https://github.com/belousov-petr/shakedown), for finding what is broken in a project before you ship.
+Companion tool: [`/shakedown`](https://github.com/belousov-petr/shakedown), for finding what is broken in a project before you ship.
 
 ## Author
 
