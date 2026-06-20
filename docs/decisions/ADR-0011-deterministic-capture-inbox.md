@@ -1,6 +1,6 @@
 # ADR-0011: Deterministic capture inbox + per-agent distillation (extends ADR-0010)
 
-- **Status:** implemented (extends ADR-0010) — P1 core shipped 2026-06-20 (deterministic inbox, read-side promote-and-clear wired in SKILL §5a + commands, secret boundary, both cursor data-loss fixes); P2 (non-blocking SessionEnd scan, signature correlation + Windows signatures) and P3 (Codex PostToolUse adapter + verify-on-target) remain per Consequences
+- **Status:** implemented (extends ADR-0010) — P1+P2 shipped 2026-06-20 (deterministic inbox, read-side promote-and-clear wired in SKILL §5a + commands, secret boundary, cursor data-loss fixes; non-blocking SessionEnd drain, Bash-scoped signature correlation + Windows signatures, github_pat_ redaction); only P3 (Codex PostToolUse adapter + verify-on-target) remains per Consequences
 - **Date:** 2026-06-20
 
 ## Context and Problem Statement
@@ -35,7 +35,7 @@ Adopt **option 2**. A deterministic raw-evidence inbox is the compaction-proof b
 
 - **The deterministic writer must not ship default-on, and `hooks/README.md` must stop describing the read-side loop and the Codex field names as live, until the prerequisites land.** Phased (full detail in `docs/deterministic-capture-design.md`):
   - **P1 (blocking):** wire the read-side promote-and-clear + count in `/strata:{load,capture,save}`, with the contract defined once in `SKILL.md`; gitignore `.strata/inbox/` + redact-at-write + triage-at-promote; fix the two cursor data-loss bugs (the 512 KB skip-ahead that marks unscanned bytes consumed, and the UTF-8 boundary forward-drift) and make writes multi-agent-safe (per-transcript cursor + atomic rename).
-  - **P2:** `stubHash` collision fix; the non-blocking `SessionEnd` scan (P2, not P1, because it depends on first confirming Claude emits a usable `SessionEnd`/`Stop` event that won't loop — see design §13); signature precision (correlate `tool_result` back to a Bash `tool_use`; add Windows cmd/PowerShell signatures).
+  - **P2 (shipped 2026-06-20):** `stubHash` collision fix; the non-blocking `SessionEnd` scan (Claude `SessionEnd` confirmed — silent/fire-and-forget, shares the per-transcript cursor so PreCompact+SessionEnd never double-log); signature precision (correlate `tool_result` back to a Bash `tool_use`; Windows cmd/PowerShell signatures); plus `github_pat_` redaction.
   - **P3:** the Codex `PostToolUse` adapter + verify-on-target before promoting Codex from honest-partial to full deterministic.
 - The two-stage memory model (inbox → promoted) is new surface across capture/save/load plus dedup; the cost is bounded by defining it once in `SKILL.md` rather than per command.
 - Installing the plugin now writes evidence to disk on tool failures — a further step from "pure convention" than ADR-0010, bounded by: gitignored transient scratch, redaction, action only inside strata projects, and one command to disable.
