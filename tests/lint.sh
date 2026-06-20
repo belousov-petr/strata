@@ -194,6 +194,14 @@ else
   fail "Claude hooks.json does not reference the guard script"
 fi
 
+if command -v node >/dev/null 2>&1 && [ -f tests/capture-guard.test.mjs ]; then
+  if node --test tests/capture-guard.test.mjs >/dev/null 2>&1; then
+    ok "capture-guard unit tests pass"
+  else
+    fail "capture-guard unit tests failed (run: node --test tests/capture-guard.test.mjs)"
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # 3. Size budgets
 # ---------------------------------------------------------------------------

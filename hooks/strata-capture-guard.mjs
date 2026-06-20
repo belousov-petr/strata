@@ -35,6 +35,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 
 const MAX_SNIPPET = 600           // per-stub output snippet cap (chars)
 const SIG_SCAN_TAIL = 64 * 1024   // only test the last N chars of output for signatures
@@ -87,7 +88,7 @@ const FAIL_SIGNATURES = [
   /\bpanic:/,
 ]
 
-function failureSignal(text, isError) {
+export function failureSignal(text, isError) {
   if (isError === true) return 'is_error'
   if (typeof text !== 'string' || !text) return null
   const tail = text.length > SIG_SCAN_TAIL ? text.slice(-SIG_SCAN_TAIL) : text
@@ -99,7 +100,7 @@ function failureSignal(text, isError) {
 }
 
 // Normalise a tool result (string OR {stdout,stderr,...} OR content blocks) to text.
-function resultText(r) {
+export function resultText(r) {
   if (r == null) return ''
   if (typeof r === 'string') return r
   if (Array.isArray(r)) return r.map((x) => (typeof x === 'string' ? x : x?.text || '')).join('\n')
@@ -113,13 +114,20 @@ function resultText(r) {
   return String(r)
 }
 
+// Redact tokens/secrets from a string before writing to disk. Placeholder —
+// extended by later tasks. Returns the string unchanged at this stage.
+export function redact(s) {
+  if (typeof s !== 'string') return String(s == null ? '' : s)
+  return s
+}
+
 // --- inbox ------------------------------------------------------------------
 function inboxPaths(root) {
   const dir = path.join(root, '.strata', 'inbox')
   return { dir, file: path.join(dir, 'captures.jsonl'), cursor: path.join(dir, '.cursor.json') }
 }
 
-function stubHash(stub) {
+export function stubHash(stub) {
   const tail = (stub.snippet || '').slice(-200) || stub.command || stub.signal || ''
   return crypto.createHash('sha1').update((stub.signal || '') + '|' + tail).digest('hex').slice(0, 12)
 }
@@ -276,7 +284,7 @@ function messageFor(event, root, logged) {
   }
 }
 
-;(async () => {
+async function main() {
   try {
     let payload = {}
     try { payload = JSON.parse(await readStdin()) } catch { payload = {} }
@@ -303,4 +311,7 @@ function messageFor(event, root, logged) {
   } catch {
     process.exit(0) // never break the host session
   }
-})()
+}
+
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href
+if (isMain) main()
