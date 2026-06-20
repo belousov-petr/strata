@@ -1,6 +1,6 @@
 # ADR-0003: Operation-keyed `learnings/` (ReasoningBank-style)
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

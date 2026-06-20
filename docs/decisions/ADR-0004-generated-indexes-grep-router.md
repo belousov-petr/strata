@@ -1,6 +1,6 @@
 # ADR-0004: Generated-from-frontmatter indexes; grep as router; MANIFEST owns routing
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

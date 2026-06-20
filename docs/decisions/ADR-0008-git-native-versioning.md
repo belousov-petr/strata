@@ -1,6 +1,6 @@
 # ADR-0008: Git-native versioning; no version-archive folders
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

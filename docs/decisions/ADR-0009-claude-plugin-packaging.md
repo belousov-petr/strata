@@ -1,6 +1,6 @@
 # ADR-0009: Claude Code plugin packaging and forced command/skill namespacing
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-18
 - **Revises:** the command-naming decision in [ADR-0001](ADR-0001-strata-namespace-commands-adapters.md) (the manual-copy `/strata-save` / `/strata-load` names) for the Claude Code distribution.
 

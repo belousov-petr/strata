@@ -1,6 +1,6 @@
 # ADR-0005: Layered self-documenting docs; lean SKILL.md
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

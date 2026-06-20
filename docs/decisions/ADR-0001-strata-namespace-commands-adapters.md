@@ -1,6 +1,6 @@
 # ADR-0001: `.strata/` namespace, renamed commands, AGENTS.md + CLAUDE.md adapters
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 - **Note:** the command-naming decision below (`/strata-save`, `/strata-load`) is revised by [ADR-0009](ADR-0009-claude-plugin-packaging.md) for the Claude Code plugin (`/strata:save`, `/strata:load`, `/strata:capture`); the `.strata/` namespace and adapter decisions stand.
 

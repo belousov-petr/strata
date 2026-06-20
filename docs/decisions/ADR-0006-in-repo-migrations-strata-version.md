@@ -1,6 +1,6 @@
 # ADR-0006: In-repo migrations keyed off `strata_version`
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

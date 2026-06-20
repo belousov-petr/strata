@@ -1,6 +1,6 @@
 # ADR-0007: Warm-docs taxonomy (Diátaxis + arc42-informed), offered not prescribed
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

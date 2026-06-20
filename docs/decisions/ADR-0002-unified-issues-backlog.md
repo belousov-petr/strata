@@ -1,6 +1,6 @@
 # ADR-0002: Single unified `issues/` backlog
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

@@ -1,6 +1,6 @@
 # ADR-0010: Optional capture-guard hook for Claude Code and Codex
 
-- **Status:** accepted
+- **Status:** implemented
 - **Date:** 2026-06-19
 
 ## Context and Problem Statement
