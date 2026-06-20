@@ -105,9 +105,28 @@ Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any mo
 
 **Report and resume:** say which file(s) were written or updated, then continue the original task unless the capture reveals a blocker.
 
+The hook may have pre-logged failures to the inbox; promote them per §5a.
+
+### 5a. Inbox — deterministic capture backstop
+
+The capture-guard hook (ADR-0011) auto-logs failed tool results to
+`.strata/inbox/captures.jsonl` the moment they happen, so evidence survives
+compaction without the agent acting. Each line is one redacted raw stub
+`{ts, event, tool, signal, command, snippet, h}` — **raw evidence, not finished
+memory.** The inbox is git-ignored transient scratch.
+
+**Promote-and-clear (the read side, deterministic — no extra agent turn):**
+- `/strata:capture` and `/strata:save`: read `.strata/inbox/captures.jsonl`,
+  fold each real failure into an issue/learning (dedup against the backlog,
+  drop secrets/stack-traces per §2), then **truncate** `captures.jsonl` and
+  delete `.strata/inbox/.cursor.*.json`.
+- `/strata:load`: report the un-promoted count in the orientation.
+- A typo or already-known failure is dropped, not promoted. Promotion is the
+  authoritative dedup; the hook's append-time window is only a first pass.
+
 ## 6. `/strata:save` — preview-execute contract
 
-**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
+**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions; promote un-promoted inbox stubs (§5a) and clear the inbox) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
 
 **B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
 
@@ -118,7 +137,7 @@ Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any mo
 - **Section-only deletions** — never remove whole files without explicit instruction.
 - **Idempotent** — re-run with no new work proposes nothing.
 
-**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
+**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → clear inbox (truncate captures.jsonl + drop cursor files) → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
 
 **E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
 
@@ -135,7 +154,7 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Verify against git** before presenting: `git status` (do listed uncommitted changes exist?), `git log --oneline -5` (commits since last session?), spot-check referenced paths and issue ids. State is a hint; the repo is truth; report conflicts, never silently absorb them.
 
-**Present** ≤6 lines: last session · next up (issue id) · active count · prerequisites · fired parked-triggers · drift. Then ask: continue or something else?
+**Present** ≤6 lines: last session · next up (issue id) · active count · prerequisites · fired parked-triggers · inbox un-promoted count · drift. Then ask: continue or something else?
 
 ## 8. `init` — scaffold or migrate a project
 
