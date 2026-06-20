@@ -39,7 +39,7 @@ Rules:
 | [ADR-0008](ADR-0008-git-native-versioning.md) | Git-native versioning; no version-archive folders | implemented |
 | [ADR-0009](ADR-0009-claude-plugin-packaging.md) | Claude Code plugin packaging; forced command/skill namespacing (`/strata:save`) | implemented |
 | [ADR-0010](ADR-0010-capture-guard-hook.md) | Optional capture-guard hook (Claude + Codex), nudge-not-enforce | implemented (extended by ADR-0011) |
-| [ADR-0011](ADR-0011-deterministic-capture-inbox.md) | Deterministic capture inbox + per-agent distillation; promote-at-read default, B2 distiller opt-in | accepted — not yet built (rollout gated on P1 prerequisites) |
+| [ADR-0011](ADR-0011-deterministic-capture-inbox.md) | Deterministic capture inbox + per-agent distillation; promote-at-read default, B2 distiller opt-in | implemented (P1 core shipped; P2/P3 remain) |
 
 ## Provenance
 

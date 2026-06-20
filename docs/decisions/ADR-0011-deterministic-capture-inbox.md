@@ -1,6 +1,6 @@
 # ADR-0011: Deterministic capture inbox + per-agent distillation (extends ADR-0010)
 
-- **Status:** accepted (extends ADR-0010) — *accepted* = decided but not yet built; advances to **implemented** when the P1 prerequisites in Consequences ship
+- **Status:** implemented (extends ADR-0010) — P1 core shipped 2026-06-20 (deterministic inbox, read-side promote-and-clear wired in SKILL §5a + commands, secret boundary, both cursor data-loss fixes); P2 (non-blocking SessionEnd scan, signature correlation + Windows signatures) and P3 (Codex PostToolUse adapter + verify-on-target) remain per Consequences
 - **Date:** 2026-06-20
 
 ## Context and Problem Statement
