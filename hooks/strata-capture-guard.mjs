@@ -251,6 +251,7 @@ export function scanTranscript(root, tp, event) {
 
   const { text: scanned, newOffset } = scanChunk(windowBuf, start)
 
+  const toolNameById = new Map()
   let logged = 0
   for (const line of scanned.split('\n')) {
     if (!line.trim()) continue
@@ -258,9 +259,19 @@ export function scanTranscript(root, tp, event) {
     try { o = JSON.parse(line) } catch { continue }
     const blocks = Array.isArray(o.message?.content) ? o.message.content : []
     for (const blk of blocks) {
+      if (blk?.type === 'tool_use' && blk.id) toolNameById.set(blk.id, blk.name)
+    }
+    for (const blk of blocks) {
       if (blk?.type !== 'tool_result') continue
+      const originTool = toolNameById.get(blk.tool_use_id)
       const t = typeof blk.content === 'string' ? blk.content : resultText(blk.content) || resultText(o.toolUseResult)
-      const sig = failureSignal(t, blk.is_error === true)
+      // A text signature is only trusted from a Bash (or unknown-origin) result;
+      // a known non-Bash tool that merely PRINTED a signature (e.g. a Read/grep
+      // showing "Traceback") needs an explicit is_error to count.
+      const allowText = originTool === undefined || originTool === 'Bash'
+      const sig = allowText
+        ? failureSignal(t, blk.is_error === true)
+        : (blk.is_error === true ? 'is_error' : null)
       if (!sig) continue
       if (appendStub(root, {
         ts: o.timestamp || nowIso(), event, tool: 'tool_result', signal: sig,

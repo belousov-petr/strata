@@ -108,3 +108,33 @@ test('PreCompact then SessionEnd on the same transcript do not double-log (share
   assert.equal(inboxLines(root).length, 1)
   fs.rmSync(root, { recursive: true, force: true })
 })
+
+test('scanTranscript ignores a text signature from a successful NON-Bash tool_result', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_use', id: 'u1', name: 'Read' }] } },
+    { message: { content: [{ type: 'tool_result', tool_use_id: 'u1', is_error: false, content: 'Traceback (most recent call last): printed by a file we read' }] } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 0)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('scanTranscript still logs a Bash failure detected only by signature (is_error false)', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_use', id: 'u2', name: 'Bash' }] } },
+    { message: { content: [{ type: 'tool_result', tool_use_id: 'u2', is_error: false, content: 'ELIFECYCLE could not complete' }] } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 1)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('scanTranscript logs an explicit is_error result regardless of tool', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_use', id: 'u3', name: 'Read' }] } },
+    { message: { content: [{ type: 'tool_result', tool_use_id: 'u3', is_error: true, content: 'nope' }] } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 1)
+  fs.rmSync(root, { recursive: true, force: true })
+})
