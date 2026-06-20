@@ -43,7 +43,8 @@ one JSON line (`{ts, event, tool, signal, command, snippet, h}`); duplicates are
 suppressed by a content hash, and `PreCompact` tracks a byte cursor (`.cursor.json`) so
 it never re-scans. This is **raw evidence, not a finished memory** — `/strata:capture`
 and `/strata:save` read the inbox, promote the real findings into issues/learnings, and
-clear it; `/strata:load` surfaces the count. Projects may gitignore `.strata/inbox/`
+clear it; `/strata:load` surfaces the count (wired in /strata:capture, /strata:save,
+/strata:load — see SKILL.md §5a). Projects may gitignore `.strata/inbox/`
 (treat it as transient scratch) or commit it (so an un-promoted finding survives a
 machine switch) — your call.
 
@@ -84,13 +85,12 @@ the real path to `strata-capture-guard.mjs` on each OS, then place it at either:
 
 Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 
-> **Tool-support note — deterministic capture is Claude-Code-only for now.** The
-> `SessionStart` / `PreCompact` **nudges** work on Codex. The new **auto-logging of tool
-> failures** to `.strata/inbox/` parses Claude Code's tool-result + transcript schema, so
-> on Codex the hook **safely degrades to nudge-only** (unrecognised payloads → 0 stubs →
-> the nudge still fires; no errors, no inbox). Wiring deterministic capture on Codex needs
-> a small adapter keyed on Codex's per-tool event name + payload and its rollout/transcript
-> format — tracked as follow-up.
+> **Tool-support note.** The `SessionStart` / `PreCompact` **nudges** work on Codex.
+> For deterministic capture: the PostToolUse auto-log ports to Codex (Claude-compatible
+> hook schema); the PreCompact transcript scan needs a Codex rollout parser — tracked as
+> P3 in docs/deterministic-capture-design.md. Until P3 ships, Codex **safely degrades to
+> nudge-only** for PreCompact (unrecognised payloads → 0 stubs → nudge still fires; no
+> errors, no inbox).
 
 ## Cross-platform notes
 
@@ -98,8 +98,9 @@ Codex also accepts the same events inline in `config.toml` under `[hooks]`.
   the shell that launched it). If `node` isn't on PATH for a Codex session, use an
   absolute path to the node binary in `command` / `commandWindows`.
 - Claude's `${CLAUDE_PLUGIN_ROOT}` always returns forward slashes, even on Windows.
-- Codex uses `command` on macOS/Linux and `commandWindows` on Windows — set both.
+- Codex uses `command` on macOS/Linux and `commandWindows` on Windows — set both (verify the field name against current Codex docs before relying on it).
 - `.gitattributes` keeps this script and the JSON LF on every OS.
+- The inbox is git-ignored by default and stubs are redacted at write; do not commit raw inbox files.
 
 ## Disabling it
 
