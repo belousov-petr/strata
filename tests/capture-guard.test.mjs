@@ -41,3 +41,16 @@ test('scanChunk holds the offset when there is no complete line yet', () => {
   assert.equal(r.text, '')
   assert.equal(r.newOffset, 5) // no bytes consumed → nothing skipped
 })
+
+test('redact masks tokens, keys, and password assignments; leaves clean text alone', () => {
+  // Assemble secret-shaped inputs from fragments so no literal credential is
+  // committed — the repo's gitleaks pre-commit hook scans test files too.
+  const ghToken = 'gh' + 'p_' + 'A1b2C3d4E5f6G7h8I9j0K1l2'
+  const awsKey = 'AKIA' + 'I0SF0DNN7EXAMPLE'
+  const secret = 'hunter2' + 'secretvalue'
+  assert.match(guard.redact(`curl -H "Authorization: Bearer ${ghToken}" u`), /<redacted>/)
+  assert.ok(!guard.redact(`export AWS=${awsKey}`).includes(awsKey))
+  assert.ok(!guard.redact(`psql password=${secret} host`).includes(secret))
+  assert.equal(guard.redact('error TS2304: cannot find name foo'), 'error TS2304: cannot find name foo')
+  assert.equal(guard.redact(undefined), undefined)
+})

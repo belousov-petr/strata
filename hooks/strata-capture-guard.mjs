@@ -114,11 +114,16 @@ export function resultText(r) {
   return String(r)
 }
 
-// Redact tokens/secrets from a string before writing to disk. Placeholder —
-// extended by later tasks. Returns the string unchanged at this stage.
+// Best-effort masking of common secret shapes before a stub is written.
+// Defense in depth on top of gitignoring the inbox; never blocks on a miss.
 export function redact(s) {
-  if (typeof s !== 'string') return String(s == null ? '' : s)
+  if (typeof s !== 'string' || !s) return s
   return s
+    .replace(/\b(AKIA|ASIA)[A-Z0-9]{16}\b/g, '$1<redacted>')                                  // AWS access key id
+    .replace(/\bgh[posru]_[A-Za-z0-9]{20,}\b/g, 'gh<redacted>')                               // GitHub tokens
+    .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '<redacted-jwt>') // JWT
+    .replace(/((?:authorization|bearer|api[_-]?key|secret|token|password|passwd|pwd)\s*[:=]\s*)(\S{6,})/gi, '$1<redacted>')
+    .replace(/(Bearer\s+)([A-Za-z0-9._-]{12,})/g, '$1<redacted>')
 }
 
 // Scan a raw byte window for whole lines. `start` is a byte offset that is
@@ -209,9 +214,10 @@ function handlePostToolUse(root, payload) {
   const text = resultText(resp)
   const sig = failureSignal(text, isError)
   if (!sig) return 0
-  const command = String(input.command || '').replace(/\s+/g, ' ').slice(0, 300)
+  const command = redact(String(input.command || '').replace(/\s+/g, ' ').slice(0, 300))
   return appendStub(root, {
-    ts: nowIso(), event: 'PostToolUse', tool: 'Bash', signal: sig, command, snippet: text.slice(-MAX_SNIPPET),
+    ts: nowIso(), event: 'PostToolUse', tool: 'Bash', signal: sig,
+    command, snippet: redact(text.slice(-MAX_SNIPPET)),
   }) ? 1 : 0
 }
 
