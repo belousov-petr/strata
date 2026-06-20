@@ -126,7 +126,7 @@ memory.** The inbox is git-ignored transient scratch.
 
 ## 6. `/strata:save` — preview-execute contract
 
-**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions; promote un-promoted inbox stubs (§5a) and clear the inbox) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed).
+**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed) — also promote any un-promoted `.strata/inbox/` stubs (§5a) and clear the inbox.
 
 **B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
 
@@ -137,7 +137,7 @@ memory.** The inbox is git-ignored transient scratch.
 - **Section-only deletions** — never remove whole files without explicit instruction.
 - **Idempotent** — re-run with no new work proposes nothing.
 
-**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → clear inbox (truncate captures.jsonl + drop cursor files) → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
+**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → clear inbox (truncate captures.jsonl + drop cursor files — the physical clear; promotion happens in step A) → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
 
 **E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
 
