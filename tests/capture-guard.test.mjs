@@ -138,3 +138,14 @@ test('scanTranscript logs an explicit is_error result regardless of tool', () =>
   assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 1)
   fs.rmSync(root, { recursive: true, force: true })
 })
+
+test('failureSignal catches Windows cmd/PowerShell not-recognized errors but not benign prose', () => {
+  assert.ok(guard.failureSignal("'foo' is not recognized as an internal or external command", false))
+  assert.ok(guard.failureSignal("The term 'foo' is not recognized as the name of a cmdlet", false))
+  assert.equal(guard.failureSignal('the file format is not recognized here', false), null)
+})
+
+test('redact masks a GitHub fine-grained PAT (github_pat_)', () => {
+  const pat = 'github' + '_pat_' + 'A1b2C3d4E5f6G7h8I9j0K1'
+  assert.ok(!guard.redact('git clone https://' + pat + '@github.com/x').includes(pat))
+})
