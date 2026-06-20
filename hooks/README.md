@@ -44,9 +44,9 @@ suppressed by a content hash, and `PreCompact` tracks a byte cursor (`.cursor.js
 it never re-scans. This is **raw evidence, not a finished memory** — `/strata:capture`
 and `/strata:save` read the inbox, promote the real findings into issues/learnings, and
 clear it; `/strata:load` surfaces the count (wired in /strata:capture, /strata:save,
-/strata:load — see SKILL.md §5a). Projects may gitignore `.strata/inbox/`
-(treat it as transient scratch) or commit it (so an un-promoted finding survives a
-machine switch) — your call.
+/strata:load — see SKILL.md §5a). The inbox is git-ignored transient scratch by default;
+`/strata:capture` and `/strata:save` promote the real findings then clear it. Do not
+commit raw inbox files — redaction is best-effort and raw stubs can still contain secrets.
 
 ### Honest limitation
 
@@ -86,11 +86,13 @@ the real path to `strata-capture-guard.mjs` on each OS, then place it at either:
 Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 
 > **Tool-support note.** The `SessionStart` / `PreCompact` **nudges** work on Codex.
-> For deterministic capture: the PostToolUse auto-log ports to Codex (Claude-compatible
-> hook schema); the PreCompact transcript scan needs a Codex rollout parser — tracked as
-> P3 in docs/deterministic-capture-design.md. Until P3 ships, Codex **safely degrades to
-> nudge-only** for PreCompact (unrecognised payloads → 0 stubs → nudge still fires; no
-> errors, no inbox).
+> The shipped sample config is **nudge-only today** — it wires `SessionStart` and
+> `PreCompact` only; there is no `PostToolUse` block. The hook schema is
+> Claude-compatible, so the PostToolUse auto-log is expected to port with no logic change,
+> but that is unverified on a live Codex build and is tracked as P3 in
+> docs/deterministic-capture-design.md. The PreCompact transcript scan also needs a Codex
+> rollout parser (P3). Until P3 ships, Codex safely degrades to nudge-only (unrecognised
+> payloads → 0 stubs → nudge still fires; no errors, no inbox).
 
 ## Cross-platform notes
 
