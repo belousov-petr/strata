@@ -2,6 +2,14 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `strata_version` stamps in scaffolded manifests. When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## Unreleased
+
+**Immediate capture now covers every important moment, not just failures.** No layout change (`strata_version` stays `0.0.3`, no migration) — a capture-contract change, recorded in [ADR-0012](docs/decisions/ADR-0012-immediate-capture-all-moments.md).
+
+### Changed
+- `/strata:capture`, the agent's immediate-capture rule ([`SKILL.md §5`](skills/strata/SKILL.md)), and the hook's `SessionStart` nudge now prompt capture of the full range of important moments to their durable homes the instant they are clear: a settled decision (→ `docs/decisions/ADR-NNNN`, using the §6 collision scan), a change of direction (supersedes the old ADR), how an outside system works or a procedure (→ `docs/ops/` / `docs/architecture/`), and a requirement or its reasoning (→ `docs/product/`) — alongside the issues, learnings, and failure capture already covered. `/strata:save` becomes the safety net that files anything missed, finalizes drafts, and still owns view and `ARCHITECTURE.md` regeneration.
+- The deterministic floor is unchanged: the hook still detects only failures (a machine cannot detect that a decision was made); the richer moments are the agent's to write, primed by the nudge ([ADR-0011](docs/decisions/ADR-0011-deterministic-capture-inbox.md) stands).
+
 ## 0.0.4 — 2026-06-20
 
 Plugin release — **deterministic capture-guard**. No layout change (`strata_version` stays `0.0.3`, no migration). Extends the nudge-only hook ([ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md)) into deterministic, compaction-proof capture across Claude Code and Codex. Decided by a Claude + Codex council; design in [ADR-0011](docs/decisions/ADR-0011-deterministic-capture-inbox.md) + [`docs/deterministic-capture-design.md`](docs/deterministic-capture-design.md).

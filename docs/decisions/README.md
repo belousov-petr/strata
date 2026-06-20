@@ -1,6 +1,6 @@
 # Decisions — strata's own ADRs
 
-Architecture Decision Records for the strata skill itself. These eleven records lock the 0.0.3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
+Architecture Decision Records for the strata skill itself. These twelve records lock the 0.0.3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
 
 Scaffolded projects get their own decision log at `.strata/docs/decisions/` — this folder is about strata, not about your project.
 
@@ -40,6 +40,7 @@ Rules:
 | [ADR-0009](ADR-0009-claude-plugin-packaging.md) | Claude Code plugin packaging; forced command/skill namespacing (`/strata:save`) | implemented |
 | [ADR-0010](ADR-0010-capture-guard-hook.md) | Optional capture-guard hook (Claude + Codex), nudge-not-enforce | implemented (extended by ADR-0011) |
 | [ADR-0011](ADR-0011-deterministic-capture-inbox.md) | Deterministic capture inbox + per-agent distillation; promote-at-read default, B2 distiller opt-in | implemented (P1 core shipped; P2/P3 remain) |
+| [ADR-0012](ADR-0012-immediate-capture-all-moments.md) | Immediate capture covers every important moment (docs-as-you-go), not just issues/learnings | implemented |
 
 ## Provenance
 

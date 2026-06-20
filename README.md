@@ -169,11 +169,13 @@ It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), check
 
 Use this during a session, while the work is fresh. Save is for the end. Reach for it the moment something worth keeping appears: a workaround you do not want to rediscover, a rule about how an operation has to be done, a brittle setup step, a bug, or a finding too useful to leave in the chat. Getting it on disk while you have it is the whole point, so the project's record grows as you work instead of waiting on a write-up later.
 
-It writes or updates:
+It writes or updates the right file for what you captured:
 
-- an issue under `.strata/issues/` when there is work to close
-- a learning under `.strata/memory/learnings/` when the value is a reusable rule
-- both when a fixable problem also teaches a future lesson
+- an issue under `.strata/issues/` for work to close
+- a learning under `.strata/memory/learnings/` for a reusable rule
+- a decision record under `.strata/docs/decisions/` for something you settled and want explained later
+- a runbook or spec under `.strata/docs/` for how a system behaves or what a feature needs
+- more than one of these when a single moment is several at once
 
 It does not rebuild the generated views. `/strata:save` does that later, so `ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, and the `MEMORY.md` table stay in sync with the source files.
 

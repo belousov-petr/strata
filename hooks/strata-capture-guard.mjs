@@ -349,15 +349,20 @@ function messageFor(event, root, logged) {
     case 'SessionStart':
       return (
         'This project uses strata for repo-owned memory (`.strata/`). Follow the ' +
-        'immediate-capture rule: the moment a command/tool/test fails, you retry or ' +
-        'use a workaround, or you hit a bug, gotcha, or a reusable lesson, ' + HOW +
-        '. Do not defer to session end — context compaction can erase findings that ' +
-        'live only in the conversation.' + inboxNote(root)
+        'immediate-capture rule: the moment something worth keeping appears — a ' +
+        'failure, retry, or workaround; a bug, gotcha, or reusable lesson; a decision ' +
+        'you settled and why; a change of direction; how an outside system actually ' +
+        'works; or the reasoning behind a requirement — ' + HOW +
+        ', routed to its home (an issue, a learning, a decision record under ' +
+        '`docs/decisions/`, or a runbook/spec/PRD under `docs/`). Do not defer to ' +
+        'session end — compaction can erase what lives only in the conversation.' +
+        inboxNote(root)
       )
     case 'PreCompact':
       return (
-        'Context is about to be compacted. If any findings, failures, gotchas, or ' +
-        'durable lessons from this session are not yet written to `.strata/`, ' + HOW +
+        'Context is about to be compacted. If any findings, failures, gotchas, ' +
+        'durable lessons, decisions, or doc-worthy context from this session are not ' +
+        'yet written to `.strata/`, ' + HOW +
         ' BEFORE the compaction runs — otherwise they may be lost.' +
         (logged > 0
           ? ` (Backstop: ${logged} raw failure stub${logged === 1 ? '' : 's'} were just auto-saved to ` +
@@ -372,8 +377,9 @@ function messageFor(event, root, logged) {
       )
     default:
       return (
-        'If there are unsaved findings, gotchas, or lessons from this session, ' + HOW +
-        ' so they reach `.strata/` before context is lost.' + inboxNote(root)
+        'If there are unsaved findings, gotchas, lessons, or decisions from this ' +
+        'session, ' + HOW + ' so they reach `.strata/` before context is lost.' +
+        inboxNote(root)
       )
   }
 }

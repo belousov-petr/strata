@@ -40,7 +40,7 @@ One routing key per store: `project_state.md` = recency ("what was I doing"), `l
 | Finding, bug, improvement, debt, task, feature, initiative | `issues/<id>-<slug>.md`, status `open`, full rationale + diagnostics | **Immediately, mid-session** |
 | Deferred work | same file, status `parked` + `revive-when:` | at capture or triage |
 | Behavioral lesson (worked or burned you) | `memory/learnings/<slug>.md` | at `/strata:save`, `/strata:capture`, or immediately if hard-won |
-| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` + source → `memory/archive/source-adr-NNNN-*` | at `/strata:save` |
+| Shipped decision with non-obvious rationale | `docs/decisions/ADR-NNNN-<slug>.md` + source → `memory/archive/source-adr-NNNN-*` | **immediately when settled** (§5), or at `/strata:save` |
 | Product requirement / PRD | `docs/product/<slug>.md` | when it exists |
 | How a subsystem works | `docs/architecture/<slug>.md` + row in `docs/ARCHITECTURE.md` | when it stabilizes |
 | Stable fact (paths, schemas, APIs, conventions) | `docs/reference/<slug>.md` | on second lookup |
@@ -90,18 +90,20 @@ origin: success | failure
 
 ## 5. Immediate capture — before context decays
 
-Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any moment a failure/gotcha/finding appears mid-task. Spend tokens now; a compacted-away diagnosis is more expensive than a small file write.
+Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any moment something worth keeping appears mid-task. Write every important moment to its home the instant it is clear, so the docs grow as you build instead of waiting on session end. Spend tokens now; a compacted-away diagnosis or rationale is more expensive than a small file write.
 
-**Trigger:** failed command/tool/API; retry loop; workaround; surprising repo behavior; brittle environment step; bug/finding; doc drift; or a rule future agents should know before repeating an operation.
+**Trigger:** a failed command/tool/API, retry loop, or workaround; surprising repo behavior or a brittle environment step; a bug, finding, or doc drift; a rule future agents should know before an operation; **a decision you settled** (with the rationale and the options you rejected); **a change of direction** that overturns a prior decision or spec; **how an outside system actually works**; or **a requirement, or the reasoning behind it**, worth a spec or PRD.
 
-**Route:**
+**Route** (write the home for what you captured; `/strata:save` is the safety net that files anything you miss):
 
 - Closeable work -> `issues/<id>-<slug>.md` from `_TEMPLATE.md`, with `status: open` or `in-progress`, severity/area, What/Why, Tried/Error/Hypothesis/Repro, evidence, and next action.
 - Reusable behavior -> `memory/learnings/<slug>.md`, with operation-keyed `trigger:`, optional `applies-when:`, `origin: success | failure`, and a 1-3 sentence lesson.
-- Both when needed: issue for the fixable work, learning for the reusable pitfall or counterfactual rule.
+- Settled decision with non-obvious rationale -> `docs/decisions/ADR-NNNN-<slug>.md` (NNNN = highest existing + 1, the §6 collision scan), status `proposed`/`accepted`, with the considered options. A change of direction supersedes the old ADR per `docs/decisions/README.md` — new ADR, old one marked superseded, never an in-place rewrite.
+- Durable knowledge -> the warm docs: a runbook or how-a-system-works under `docs/ops/` or `docs/architecture/`; a requirement or its reasoning under `docs/product/`.
+- Several at once when one moment is more than one of these: e.g. a fixable bug (issue) that also taught a rule (learning).
 - Flat mode -> append a concise "Fresh capture" entry to `.strata/memory/project_state.md` under Findings/Gotchas/Open Items.
 
-**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing issue/learning when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Do not hand-edit generated views during capture; `/strata:save` regenerates them from source files.
+**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing file when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Capture writes the source file only — do not regenerate the views or the `ARCHITECTURE.md` index; `/strata:save` does that and finalizes anything left as a draft.
 
 **Report and resume:** say which file(s) were written or updated, then continue the original task unless the capture reveals a blocker.
 
@@ -126,7 +128,7 @@ memory.** The inbox is git-ignored transient scratch.
 
 ## 6. `/strata:save` — preview-execute contract
 
-**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates · durable-doc impact · external completions · rollover (state beyond current + last completed) — also promote any un-promoted `.strata/inbox/` stubs (§5a) and clear the inbox.
+**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates (file any not already written mid-session) · durable-doc impact · external completions · rollover (state beyond current + last completed) — also promote any un-promoted `.strata/inbox/` stubs (§5a) and clear the inbox.
 
 **B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
 

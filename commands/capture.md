@@ -11,10 +11,15 @@ Write the memory now, then continue. Prefer spending a few tokens on the spot ov
 
 ## When to use
 
+Capture any important moment the instant it is clear, so the project's docs grow as you build:
+
 - A command, tool, API, install, test, or deploy step failed and you retried or changed approach
 - You found a bug, weakness, TODO, brittle assumption, config drift, or doc gap
 - You learned a rule future agents should know before doing the same operation
 - You used a workaround that should not be rediscovered later
+- You settled a decision worth explaining later, or changed direction on an earlier one
+- You worked out how an outside system actually behaves (runbook material)
+- You pinned down a requirement, or the reasoning behind it, that belongs in a spec or PRD
 
 ## Process
 
@@ -39,12 +44,16 @@ Do not bulk-read `learnings/`, `archive/`, ADRs, or every issue.
 
 ### 3. Route the capture
 
+Write to the home for what you captured (full table in `Skill: strata:strata` §2/§5). `/strata:save` is the safety net that files anything you miss.
+
 - **Issue** if there is closeable work: bug, improvement, debt, task, feature, initiative.
 - **Learning** if the value is a reusable behavior rule: "before doing X, know Y."
-- **Both** if a fixable issue also taught a future rule.
+- **Decision record** under `docs/decisions/ADR-NNNN-<slug>.md` if you settled something with non-obvious rationale (number = highest existing + 1); a change of direction supersedes the old ADR, never edits it.
+- **Durable doc** if it is lasting knowledge: a runbook or how-a-system-works under `docs/ops/` or `docs/architecture/`, a requirement or its reasoning under `docs/product/`.
+- **Several** if one moment is more than one of these.
 - **Flat mode** if no 0.0.3 structure exists: append under Findings/Gotchas/Open Items in `project_state.md`.
 
-Dedup before writing. If a matching issue or learning exists, update it with the new evidence instead of creating a near-duplicate.
+Dedup before writing. If a matching file exists, update it with the new evidence instead of creating a near-duplicate. Capture writes the source file only; `/strata:save` regenerates the views and the `ARCHITECTURE.md` index.
 
 ### 4. Write immediately
 
@@ -57,6 +66,8 @@ For an issue, use `.strata/issues/_TEMPLATE.md` and include:
 - Next action or acceptance criteria
 
 For a learning, use `.strata/memory/learnings/_TEMPLATE.md` and keep the lesson to 1-3 sentences with `origin: success | failure`.
+
+For a decision, write an ADR (Context / Considered Options / Decision / Consequences) under `.strata/docs/decisions/`; for a runbook, spec, or PRD, write the durable doc under the matching `.strata/docs/` folder. See `Skill: strata:strata` §5 for the routing.
 
 Do not hand-edit generated views (`ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, or the `MEMORY.md` trigger table). `/strata:save` regenerates them from source files.
 
