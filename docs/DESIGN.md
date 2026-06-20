@@ -67,6 +67,7 @@ What `strata init` produces (full form — code project):
     │       ├── action_log.md       # append-only external-completions ledger
     │       ├── YYYY-MM-sessions-*.md   # rolled-over session narratives
     │       └── source-*.md         # provenance behind promoted ADRs/reference
+    ├── inbox/                      # git-ignored capture scratch, auto-logged failures (§12)
     ├── issues/                     # single backlog: findings + tasks + initiatives
     │   ├── README.md               # how the backlog works (for tools without the skill)
     │   ├── _TEMPLATE.md            # copy-me blank
@@ -332,17 +333,17 @@ Transition rules:
 ### 8.2 Session lifecycle (what updates when)
 
 - **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/0.0.1/0.0.2 memory, runs the matching migration rung instead; source memory is archived before 0.0.3 hot files replace it.
-- **`/strata:capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata:save`.
+- **`/strata:capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata:save`. The capture-guard hook (§12) may have already logged failed commands to `.strata/inbox/`; those are promoted into issues/learnings at the next capture or save.
 - **`/strata:save`** (preview, then automatic execution):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
-  2. issue triage — new captures get id/severity/area, dedup, status updates; resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;
+  2. issue triage — new captures get id/severity/area, dedup, status updates; promote any un-promoted `.strata/inbox/` stubs into issues/learnings and clear the inbox (§12); resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;
   3. learnings written/updated; **regenerate `learnings/INDEX.md` + the MEMORY.md by-trigger table**;
   4. shipped decisions promote to ADRs (number = highest existing + 1); sources archive as `source-adr-*`;
   5. durable-doc sync — fix docs the session made wrong, in place;
   6. external completions append to `action_log.md`;
   7. `MEMORY.md` and `ARCHIVE.md` indexes sync.
   Safeguards: the preview lists the plan before writes begin; git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
-- **`/strata:load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
+- **`/strata:load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. It also reports the count of un-promoted inbox captures in its orientation (§12). Surface OPEN by area only on request.
 - **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/0.0.1/0.0.2 fingerprints here instead of scaffolding over them.
 
 ---
@@ -388,3 +389,35 @@ Regeneration contract: `/strata:save` rebuilds every generated view from current
 - Releases of strata itself: git tags + root `CHANGELOG.md`.
 - Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for flat mode (`.strata/memory/project_state.md` without a manifest), 0.0.1 (`.claude/memory/` + `docs/PROJECT-MAP.md`), and 0.0.2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
 - Rationale: [ADR-0006](decisions/ADR-0006-in-repo-migrations-strata-version.md) (migrations), [ADR-0008](decisions/ADR-0008-git-native-versioning.md) (git-native versioning).
+
+---
+
+## 12. Capture-guard hook and the deterministic inbox
+
+Strata's core rule is immediate capture: write a finding to `.strata/` the moment it appears, before compaction drops it. A skill can teach that rule, but nothing makes an agent follow it, and on a long session a reminder decays. The capture-guard hook closes that gap for the one case a hook can handle on its own: a failed command. ADR-0010 chose the reminder; [ADR-0011](decisions/ADR-0011-deterministic-capture-inbox.md) made it deterministic.
+
+### 12.1 Write side (the deterministic hook)
+
+One shared Node script, `hooks/strata-capture-guard.mjs`, reads the hook event on stdin and acts only inside a strata project. On a failed tool result it appends a raw stub to `.strata/inbox/captures.jsonl`: `{ts, event, tool, signal, command, snippet, h}`, one JSON line, content-hash deduped. The agent does nothing; the evidence lands on disk. That is the part that survives compaction. It also injects the immediate-capture reminder into context.
+
+It fires on:
+
+- `SessionStart`: injects the immediate-capture rule (re-injecting it after a compaction), plus the count of un-promoted inbox stubs.
+- `PostToolUse`: a failing Bash command, logged the moment it returns.
+- `PreCompact`, a non-blocking `SessionEnd` (Claude), and a per-turn `Stop` (Codex): each scans the session transcript tail for failures not already caught, on a per-transcript byte cursor so nothing is double-logged or skipped.
+
+Outside a strata project it is silent. Any error exits 0 with no output, so it can never block or stall the host. Failure detection trusts an explicit error flag plus a small set of output signatures (`Exit code N`, `ELIFECYCLE`, `npm ERR!`, `fatal:`, `Traceback`, `command not found`, the Windows `is not recognized` forms, Codex's `Process exited with code N`, and a few more), because a non-zero exit is recorded inconsistently across tools.
+
+### 12.2 The inbox (raw evidence, not memory)
+
+`.strata/inbox/captures.jsonl` is git-ignored transient scratch, scaffolded by `strata init`. Stubs are redacted on the way in (tokens, keys, `password=`, GitHub PATs), because raw output can carry secrets and §6 forbids those in durable memory. The inbox is the one two-stage store: raw stub, then promoted memory.
+
+### 12.3 Read side (promote and clear)
+
+`/strata:capture` and `/strata:save` read the inbox, fold the real failures into issues or learnings (the §6 routing), then truncate the file and drop the cursors. `/strata:load` reports the un-promoted count in its orientation. The contract lives once in `SKILL.md §5a`; the commands point at it. A lint check (`tests/lint.sh §2d`) fails the build if the hook or README ever claim this loop without the commands backing it.
+
+### 12.4 Both agents
+
+The stub schema is shared. Claude reads its transcript's `tool_result` blocks. Codex's hook payload is Claude-compatible (`tool_name` normalised to `Bash`, `tool_input.command`, `tool_response`), and its rollout file (`~/.codex/sessions/**/rollout-*.jsonl`) is parsed for `function_call_output` entries keyed on `Process exited with code N`, verified on a live build, 2026-06-20. Codex plugins cannot ship hooks (`plugin_hooks` is removed), so Codex uses a config file copied from `hooks/codex-hooks.sample.json`.
+
+The honest scope: a hook can write the evidence but cannot reason. Distilling a raw stub into a finished lesson is still the agent's job, at the next capture or save. The evidence is deterministic; the distillation stays a convention.

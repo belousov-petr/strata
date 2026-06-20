@@ -14,7 +14,7 @@ Strata is a plugin for Claude Code and Codex. It writes everything to plain Mark
 - Tracks findings, bugs, tasks, and ideas in one backlog that opens, updates, closes, and archives items as the work moves.
 - Saves runbooks and lessons the moment you learn them, so the next session does not rediscover how a system behaves.
 - Holds session memory in layers: recent state every session, deeper docs on demand, old history on request.
-- Writes findings to disk the moment they happen, before the context window compacts and drops them.
+- Writes failures to disk the moment they happen, through a hook, before the context window compacts and drops them.
 - Brings all of it current on one command, `/strata:save`, when you close a session.
 - Sets up a new project, or upgrades older memory, in one command.
 - Uses plain Markdown and grep. No dependencies.
@@ -37,7 +37,7 @@ Git already stores your files and their history. Strata adds the layer git leave
 
 Three moves, and the middle one is the only thing you have to remember.
 
-- **Capture as you go.** The moment a finding, bug, decision, or gotcha appears, `/strata:capture` writes it to disk, mid-task, before compaction can lose it. You can also let the agent write it directly. An optional hook reminds the agent to do this at the right moments.
+- **Capture as you go.** The moment a finding, bug, decision, or gotcha appears, `/strata:capture` writes it to disk, mid-task, before compaction can lose it. You can also let the agent write it directly. An optional hook does part of it for you: when a command fails it writes the failure to disk on its own, then reminds the agent to turn it into a lesson.
 - **Close with one command.** At the end of a session, `/strata:save` reads what happened, sorts each piece to its store, rebuilds the generated views and indexes, and shows a preview of every change first. Invoking `/strata:save` is the confirmation, so it writes right after the preview without a second prompt. This is the one thing to run before you stop, and nothing you learned is left behind.
 - **Start with orientation.** Next session, `/strata:load` reads the recent state shallow to deep, checks it against git, and gives a short summary of where things stand.
 
@@ -115,6 +115,7 @@ When you run `/strata:init` on a fresh project, strata creates this:
     │   ├── project_state.md       # current + last session (≤200 lines)
     │   ├── learnings/             # lessons keyed by trigger + a generated INDEX.md
     │   └── archive/               # COLD: old sessions, decision sources, action_log.md
+    ├── inbox/                     # git-ignored capture scratch: auto-logged failures
     ├── issues/                    # the one backlog
     │   ├── ACTIVE.md · OPEN.md · PARKED.md    # generated views
     │   ├── <id>-<slug>.md         # one item per file
@@ -162,7 +163,7 @@ Invoking `/strata:save` is the confirmation. There is no second yes/no gate. It 
 
 ### `/strata:load`
 
-It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), checks against git (`git status`, recent commits, spot-checks), then shows a six-line summary: last session, next action, active items, prerequisites, fired triggers, and any drift. State is a hint. The repo is the truth.
+It loads shallow to deep (`MANIFEST` → `MEMORY` → `ACTIVE` → state), checks against git (`git status`, recent commits, spot-checks), then shows a short summary: last session, next action, active items, prerequisites, fired triggers, any waiting inbox captures, and any drift. State is a hint. The repo is the truth.
 
 ### `/strata:capture`
 
@@ -176,12 +177,14 @@ It writes or updates:
 
 It does not rebuild the generated views. `/strata:save` does that later, so `ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, and the `MEMORY.md` table stay in sync with the source files.
 
-Catching a finding before it is lost is the point of `/strata:capture`, so it helps to not depend on remembering to run it. An optional hook (`hooks/`) makes capture automatic: it reminds the agent to write findings to `.strata/` before the context is compacted. It works on Claude Code and Codex, on Windows, macOS, and Linux. One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) adds the reminder at `SessionStart` and a last-chance one at `PreCompact`. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall a session.
+`/strata:capture` only helps if you run it, and on a long session that is easy to forget. An optional hook (`hooks/`) handles the part you would otherwise have to remember. When a command fails, the hook writes the failure straight to a holding file, `.strata/inbox/captures.jsonl`, the instant it happens. No agent turn, nothing to remember. It runs the same check before a compaction, at the end of a session, and on Codex after each turn, scanning the transcript for failures it has not caught yet. The holding file is raw evidence, not finished memory: it is git-ignored scratch, and secrets are masked on the way in. Your next `/strata:capture` or `/strata:save` reads it, turns the real failures into issues or learnings, and clears it; `/strata:load` tells you how many are waiting.
+
+One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) does all of this, on Claude Code and Codex, on Windows, macOS, and Linux. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall or block a session.
 
 - Claude Code: it ships in the plugin (`hooks/hooks.json`, picked up when the plugin is on). Nothing to set up. Turn it off with `/plugin disable strata`.
 - Codex: plugins cannot carry hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (every project on the machine) or to a committed `<project>/.codex/hooks.json` (travels with the repo). Set the `commandWindows` field on Windows.
 
-One limit: neither tool lets a hook force a save before compaction. `PreCompact` cannot make the agent act first. The hook reminds; the agent still does the capture. So strata stays a convention. More in [`hooks/README.md`](hooks/README.md).
+The honest limit: a hook can write the evidence, but it cannot reason. Turning a raw failure into a finished lesson is still the agent's job, at the next capture or save. So the evidence no longer waits on anyone remembering, but the distilling still does. More in [`hooks/README.md`](hooks/README.md).
 
 ## Installation
 
@@ -255,7 +258,7 @@ That bare `strata` is why the skill keeps `name: strata`. It is the name Codex a
 
 ## A few honest things
 
-- Strata runs on convention. The skill's instructions and your habit are what keep the capture rule going. The optional hook reminds you at session start and before compaction, but it only reminds. It cannot force the save. The structure makes the right thing cheap, and it leaves the wrong thing possible.
+- Strata runs on convention, with one exception. The skill's instructions and your habit keep most of the capture rule going. The hook is the part that does not: when a command fails it writes the failure to disk on its own, so that evidence does not depend on habit. What it still cannot do is turn that evidence into a finished lesson, or force the end-of-session save. The structure makes the right thing cheap, and it leaves the wrong thing possible.
 - If `git status` and the state file disagree, trust git. `/strata:load` flags the mismatch, but the flag is only text on the screen.
 - The save preview is a record of the plan. `/strata:save` writes right after it on its own, so a misclassified note can still move if the session read was wrong.
 - Where a note belongs is still a judgment call. The simple tests (rule versus procedure versus fact, issue versus learning) handle most cases. When in doubt, leave it hot and let the next save sort it.
@@ -266,7 +269,7 @@ That bare `strata` is why the skill keeps `name: strata`. It is the name Codex a
 - I started by saving everything into one memory file at the end of a session. It grew every session, filled the context, and confused the agent more than it helped. So I split it up by the question each piece answers: session state, issues, learnings, decisions, specs, runbooks. A small map points to each file, and the agent opens one only when the task needs it. The whole thing started from wanting to save as much as possible, the decisions and especially the gotchas and lessons, without drowning in them.
 - Keep one source, and keep the hot path small. The rules live in one file, `MANIFEST.md`, with thin adapters pointing at it, so there is one copy to keep right. The always-loaded files stay small and point at the next action and the indexes, while the depth sits in the warm docs and loads on demand. Lessons are tied to the operation that triggers them, and the reasons behind decisions live in decision records, off the hot path. The longer write-up is in [docs/DESIGN.md](docs/DESIGN.md) and the [decision records](docs/decisions/README.md).
 - Do not rebuild git. Storing history in layers and seeing how the product changed over time is useful. Redoing what git already does well is wasted effort, so strata leans on git for history and adds only the layering git lacks. The hot, warm, and cold split is the idea worth keeping.
-- Findings die in compaction. The first version was a plain skill that saved everything at the end of a session. On short sessions that was fine. On long ones with several compactions, the context behind a lesson was gone by the time I went to save it. Writing findings to disk while they are fresh is why this grew into a plugin with a capture step and an optional hook.
+- Findings die in compaction. The first version was a plain skill that saved everything at the end of a session. On short sessions that was fine. On long ones with several compactions, the context behind a lesson was gone by the time I went to save it. Writing findings to disk while they are fresh is why this grew into a plugin with a capture step. Then a reminder hook, and even that was not enough: a reminder decays over a long session, and if the context never compacts it never fires. So the hook stopped asking and started writing. When a command fails it now puts the failure on disk itself, and the next save promotes the real ones. A round of cross-checking between Claude and Codex settled that shape: write the evidence on a hook, distill it on a command.
 
 ## Why the name
 
