@@ -1,6 +1,6 @@
 {
   "name": "strata",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Keeps a project's documentation in step with what it actually does. As agents build, Strata records decisions, specs, issues, runbooks, and layered memory as plain Markdown under .strata/, and brings all of it current on one save command.",
   "author": {
     "name": "Petr Belousov",
