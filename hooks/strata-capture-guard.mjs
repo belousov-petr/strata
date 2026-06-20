@@ -7,15 +7,21 @@
 // does two things:
 //
 //   1) DETERMINISTIC CAPTURE (survives compaction without the agent acting) —
-//      on PostToolUse (Bash failures), PreCompact, and SessionEnd, it appends raw
-//      failure stubs to `.strata/inbox/captures.jsonl`. The agent does NOT have to do
-//      anything for the evidence to land on disk. `/strata:capture` and `/strata:save`
-//      promote these stubs into proper issues/learnings, then clear the inbox.
+//      on PostToolUse (Bash/exec_command failures), PreCompact, SessionEnd, and Stop,
+//      it appends raw failure stubs to `.strata/inbox/captures.jsonl`. The agent does
+//      NOT have to do anything for the evidence to land on disk. `/strata:capture` and
+//      `/strata:save` promote these stubs into proper issues/learnings, then clear the
+//      inbox. Codex is fully covered: PostToolUse captures per-call exec_command
+//      failures; Stop is the per-turn drain (Codex has no SessionEnd) and scans the
+//      rollout tail via the same cursor-based rollout parser used by PreCompact.
 //
 //   2) NUDGE — it injects an immediate-capture reminder via
 //      `hookSpecificOutput.additionalContext` (the field both tools read):
 //      SessionStart primes the discipline; PreCompact is a last-chance flush;
 //      PostToolUse pings only on the calls where it actually logged a failure.
+//      Stop and SessionEnd are SILENT (no additionalContext) — Stop fires every
+//      Codex turn so a nudge would be noisy; the shared per-transcript cursor makes
+//      per-turn scans incremental and cheap.
 //
 // Outside a strata project it is a SILENT no-op (no output). Any error => exit 0 with
 // no output, so the hook can never break or stall the host session.
@@ -24,13 +30,8 @@
 // discipline; the deterministic inbox is the part that does not depend on the agent
 // taking a turn — it is what actually defeats compaction loss.
 //
-// Tool support: the NUDGE is tool-agnostic (any tool that sends SessionStart/PreCompact
-// — Claude Code + Codex). The DETERMINISTIC inbox capture parses Claude Code's
-// tool-result + transcript schema; on Codex it safely degrades to nudge-only —
-// unrecognised payloads yield 0 stubs (no crash, no regression) and the nudge still
-// fires — until a Codex adapter (keyed on Codex's per-tool event + rollout format) is
-// added. Cross-platform: pure Node + path.join + whitespace-tolerant parsing + a
-// byte-offset cursor, so it is identical on Windows / macOS / Linux.
+// Cross-platform: pure Node + path.join + whitespace-tolerant parsing + a byte-offset
+// cursor, so it is identical on Windows / macOS / Linux.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -320,6 +321,14 @@ function handleSessionEnd(root, payload) {
   return scanTranscript(root, tp, 'SessionEnd')
 }
 
+// Stop: Codex has no SessionEnd; its per-turn Stop is the drain (carries
+// transcript_path). Silent, non-blocking — scans the rollout tail, never blocks.
+function handleStop(root, payload) {
+  const tp = payload.transcript_path || payload.transcriptPath
+  if (!tp || !fs.existsSync(tp)) return 0
+  return scanTranscript(root, tp, 'Stop')
+}
+
 // --- nudge text -------------------------------------------------------------
 const HOW =
   'capture it now — Claude Code: `/strata:capture` · Codex / other tools: ' +
@@ -379,10 +388,11 @@ async function main() {
     if (event === 'PostToolUse') logged = handlePostToolUse(root, payload)
     else if (event === 'PreCompact') logged = handlePreCompact(root, payload)
     else if (event === 'SessionEnd') logged = handleSessionEnd(root, payload)
+    else if (event === 'Stop') logged = handleStop(root, payload)
 
-    // SessionEnd is a silent drain (Claude's SessionEnd does not support
-    // additionalContext); PostToolUse speaks only when it logged a failure.
-    if (event === 'SessionEnd') process.exit(0)
+    // SessionEnd and Stop are silent drains (no additionalContext path);
+    // PostToolUse speaks only when it logged a failure.
+    if (event === 'SessionEnd' || event === 'Stop') process.exit(0)
     if (event === 'PostToolUse' && logged === 0) process.exit(0)
 
     const out = {

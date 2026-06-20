@@ -178,3 +178,14 @@ test('failureSignal matches the Codex Process-exited marker for non-zero only', 
   assert.match(guard.failureSignal('blah\nProcess exited with code 1', false), /Process exited with code 1/)
   assert.equal(guard.failureSignal('ok\nProcess exited with code 0', false), null)
 })
+
+test('scanTranscript stamps the Stop event (Codex per-turn drain)', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 's1', arguments: JSON.stringify({ cmd: 'false' }) } },
+    { type: 'response_item', payload: { type: 'function_call_output', call_id: 's1', output: 'Process exited with code 1\n' } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'Stop'), 1)
+  assert.equal(inboxLines(root)[0].event, 'Stop')
+  fs.rmSync(root, { recursive: true, force: true })
+})
