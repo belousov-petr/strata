@@ -88,6 +88,7 @@ const FAIL_SIGNATURES = [
   /\bpanic:/,
   /\bis not recognized as (?:an internal or external command|the name of a cmdlet)/i,
   /\bThe term '[^'\n]*' is not recognized\b/,
+  /Process exited with code [1-9]\d*/,
 ]
 
 export function failureSignal(text, isError) {
@@ -209,7 +210,7 @@ function nowIso() {
 // PostToolUse: log a stub when a Bash result shows a failure signal.
 function handlePostToolUse(root, payload) {
   const tool = payload.tool_name || payload.toolName
-  if (tool && tool !== 'Bash') return 0
+  if (tool && tool !== 'Bash' && tool !== 'exec_command') return 0
   const input = payload.tool_input || payload.toolInput || {}
   const resp = payload.tool_response ?? payload.toolResponse
   const isError =
@@ -220,7 +221,7 @@ function handlePostToolUse(root, payload) {
   if (!sig) return 0
   const command = redact(String(input.command || '').replace(/\s+/g, ' ').slice(0, 300))
   return appendStub(root, {
-    ts: nowIso(), event: 'PostToolUse', tool: 'Bash', signal: sig,
+    ts: nowIso(), event: 'PostToolUse', tool: tool || 'Bash', signal: sig,
     command, snippet: redact(text.slice(-MAX_SNIPPET)),
   }) ? 1 : 0
 }
@@ -255,6 +256,7 @@ export function scanTranscript(root, tp, event) {
   const { text: scanned, newOffset } = scanChunk(windowBuf, start)
 
   const toolNameById = new Map()
+  const callCmdById = new Map()
   let logged = 0
   for (const line of scanned.split('\n')) {
     if (!line.trim()) continue
@@ -279,6 +281,22 @@ export function scanTranscript(root, tp, event) {
       if (appendStub(root, {
         ts: o.timestamp || nowIso(), event, tool: 'tool_result', signal: sig,
         command: '', snippet: redact(String(t).slice(-MAX_SNIPPET)),
+      })) logged++
+    }
+
+    // Codex rollout line: {type:'response_item', payload:{type:'function_call'|'function_call_output', …}}
+    const cp = o.type === 'response_item' && o.payload && typeof o.payload === 'object' ? o.payload : null
+    if (cp && cp.type === 'function_call' && cp.call_id) {
+      let cmd = ''
+      try { cmd = JSON.parse(cp.arguments).cmd || '' } catch { cmd = '' }
+      callCmdById.set(cp.call_id, cmd)
+    } else if (cp && cp.type === 'function_call_output') {
+      const t = typeof cp.output === 'string' ? cp.output : resultText(cp.output)
+      const sig = failureSignal(t, false) // Codex rollout has no is_error; signatures incl. the exit-code marker
+      if (sig && appendStub(root, {
+        ts: o.timestamp || nowIso(), event, tool: 'exec_command', signal: sig,
+        command: redact(String(callCmdById.get(cp.call_id) || '').replace(/\s+/g, ' ').slice(0, 300)),
+        snippet: redact(String(t).slice(-MAX_SNIPPET)),
       })) logged++
     }
   }

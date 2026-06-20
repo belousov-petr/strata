@@ -148,3 +148,33 @@ test('redact masks a GitHub fine-grained PAT (github_pat_)', () => {
   const pat = 'github' + '_pat_' + 'A1b2C3d4E5f6G7h8I9j0K1'
   assert.ok(!guard.redact('git clone https://' + pat + '@github.com/x').includes(pat))
 })
+
+test('scanTranscript detects a failed Codex exec_command via the rollout exit-code marker', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 'c1', arguments: JSON.stringify({ cmd: 'ls /nope', workdir: '/x' }) } },
+    { type: 'response_item', payload: { type: 'function_call_output', call_id: 'c1', output: "ls: cannot access '/nope'\nProcess exited with code 2\n" } },
+  ])
+  const n = guard.scanTranscript(root, tp, 'PreCompact')
+  const got = inboxLines(root)
+  assert.equal(n, 1)
+  assert.equal(got[0].tool, 'exec_command')
+  assert.match(got[0].command, /ls \/nope/)        // correlated by call_id
+  assert.match(got[0].signal, /Process exited with code 2/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('scanTranscript does not log a successful Codex exec_command (exit 0)', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { type: 'response_item', payload: { type: 'function_call', name: 'exec_command', call_id: 'c2', arguments: JSON.stringify({ cmd: 'ls /tmp' }) } },
+    { type: 'response_item', payload: { type: 'function_call_output', call_id: 'c2', output: 'tmp listing…\nProcess exited with code 0\n' } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 0)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('failureSignal matches the Codex Process-exited marker for non-zero only', () => {
+  assert.match(guard.failureSignal('blah\nProcess exited with code 1', false), /Process exited with code 1/)
+  assert.equal(guard.failureSignal('ok\nProcess exited with code 0', false), null)
+})
