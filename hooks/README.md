@@ -13,7 +13,7 @@ the agent's context via `hookSpecificOutput.additionalContext` — the field bot
 read. Outside a strata project it is a **silent no-op**. Any error exits 0 with no
 output, so it can never break or stall a session.
 
-It fires on three events:
+It fires on four events:
 
 - **`SessionStart`** — injects the immediate-capture rule so the agent captures findings
   *as it works*. Re-fires after a compaction, re-priming the rule. If the inbox holds
@@ -24,6 +24,11 @@ It fires on three events:
 - **`PreCompact`** — scans the transcript tail (cursor-based) for failed tool results,
   **writes any not-yet-captured ones to the inbox**, then injects the last-chance
   "save unsaved findings now" reminder.
+- **`SessionEnd`** — a non-blocking, silent end-of-session drain: runs the same
+  cursor-based transcript scan so a session that ends without compaction still captures
+  failures. No nudge — `SessionEnd` cannot inject context into the agent. Skipped only on
+  a hard kill. The shared per-transcript cursor means `PreCompact` + `SessionEnd` on one
+  session never double-log.
 
 ### Failure detection
 

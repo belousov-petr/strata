@@ -61,3 +61,50 @@ test('stubHash distinguishes failures that share a trailing tail', () => {
   const b = guard.stubHash({ signal: 'Exit code 1', command: 'b', snippet: 'rootCauseB' + tail })
   assert.notEqual(a, b)
 })
+
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+function tmpRoot() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'strata-test-'))
+  fs.mkdirSync(path.join(root, '.strata'), { recursive: true })
+  return root
+}
+function writeTranscript(root, lines) {
+  const tp = path.join(root, 'transcript.jsonl')
+  fs.writeFileSync(tp, lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
+  return tp
+}
+function inboxLines(root) {
+  try {
+    return fs.readFileSync(path.join(root, '.strata', 'inbox', 'captures.jsonl'), 'utf8')
+      .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l))
+  } catch { return [] }
+}
+
+test('scanTranscript (SessionEnd) logs a failed tool_result and stamps the event', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_result', is_error: true, content: 'ELIFECYCLE build failed' }] } },
+  ])
+  const n = guard.scanTranscript(root, tp, 'SessionEnd')
+  const got = inboxLines(root)
+  assert.equal(n, 1)
+  assert.equal(got.length, 1)
+  assert.equal(got[0].event, 'SessionEnd')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('PreCompact then SessionEnd on the same transcript do not double-log (shared cursor)', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_result', is_error: true, content: 'npm ERR! boom' }] } },
+  ])
+  const a = guard.scanTranscript(root, tp, 'PreCompact')
+  const b = guard.scanTranscript(root, tp, 'SessionEnd')
+  assert.equal(a, 1)
+  assert.equal(b, 0)
+  assert.equal(inboxLines(root).length, 1)
+  fs.rmSync(root, { recursive: true, force: true })
+})

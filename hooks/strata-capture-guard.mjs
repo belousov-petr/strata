@@ -7,10 +7,10 @@
 // does two things:
 //
 //   1) DETERMINISTIC CAPTURE (survives compaction without the agent acting) —
-//      on PostToolUse (Bash failures) and PreCompact, it appends raw failure stubs
-//      to `.strata/inbox/captures.jsonl`. The agent does NOT have to do anything for
-//      the evidence to land on disk. `/strata:capture` and `/strata:save` promote
-//      these stubs into proper issues/learnings, then clear the inbox.
+//      on PostToolUse (Bash failures), PreCompact, and SessionEnd, it appends raw
+//      failure stubs to `.strata/inbox/captures.jsonl`. The agent does NOT have to do
+//      anything for the evidence to land on disk. `/strata:capture` and `/strata:save`
+//      promote these stubs into proper issues/learnings, then clear the inbox.
 //
 //   2) NUDGE — it injects an immediate-capture reminder via
 //      `hookSpecificOutput.additionalContext` (the field both tools read):
@@ -222,13 +222,12 @@ function handlePostToolUse(root, payload) {
   }) ? 1 : 0
 }
 
-// PreCompact: scan the transcript tail (cursor-based) for failed tool_results and
-// log stubs, so anything not already captured survives the compaction.
-function handlePreCompact(root, payload) {
-  const tp = payload.transcript_path || payload.transcriptPath
-  if (!tp || !fs.existsSync(tp)) return 0
+// Shared transcript-tail scan used by PreCompact and SessionEnd: cursor-based,
+// chunk-bounded, per-transcript. Logs stubs for failed tool_results not yet
+// captured; `event` is stamped on each stub. The shared per-transcript cursor
+// means PreCompact + SessionEnd on one session never double-log.
+export function scanTranscript(root, tp, event) {
   const cursorFile = cursorPath(root, tp)
-
   let size = 0
   try { size = fs.statSync(tp).size } catch { return 0 }
 
@@ -264,7 +263,7 @@ function handlePreCompact(root, payload) {
       const sig = failureSignal(t, blk.is_error === true)
       if (!sig) continue
       if (appendStub(root, {
-        ts: o.timestamp || nowIso(), event: 'PreCompact', tool: 'tool_result', signal: sig,
+        ts: o.timestamp || nowIso(), event, tool: 'tool_result', signal: sig,
         command: '', snippet: redact(String(t).slice(-MAX_SNIPPET)),
       })) logged++
     }
@@ -272,6 +271,21 @@ function handlePreCompact(root, payload) {
 
   try { writeCursorAtomic(cursorFile, { transcriptPath: tp, offset: newOffset, headHash: curHead }) } catch { /* best effort */ }
   return logged
+}
+
+// PreCompact: drain the transcript tail before compaction.
+function handlePreCompact(root, payload) {
+  const tp = payload.transcript_path || payload.transcriptPath
+  if (!tp || !fs.existsSync(tp)) return 0
+  return scanTranscript(root, tp, 'PreCompact')
+}
+
+// SessionEnd: the UNCONDITIONAL end-of-session drain — catches the "real work,
+// no compaction, then quit" case PreCompact misses. Fire-and-forget (no nudge).
+function handleSessionEnd(root, payload) {
+  const tp = payload.transcript_path || payload.transcriptPath
+  if (!tp || !fs.existsSync(tp)) return 0
+  return scanTranscript(root, tp, 'SessionEnd')
 }
 
 // --- nudge text -------------------------------------------------------------
@@ -332,8 +346,11 @@ async function main() {
     let logged = 0
     if (event === 'PostToolUse') logged = handlePostToolUse(root, payload)
     else if (event === 'PreCompact') logged = handlePreCompact(root, payload)
+    else if (event === 'SessionEnd') logged = handleSessionEnd(root, payload)
 
-    // PostToolUse only speaks on the calls where it logged a failure — no noise on success.
+    // SessionEnd is a silent drain (Claude's SessionEnd does not support
+    // additionalContext); PostToolUse speaks only when it logged a failure.
+    if (event === 'SessionEnd') process.exit(0)
     if (event === 'PostToolUse' && logged === 0) process.exit(0)
 
     const out = {
