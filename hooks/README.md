@@ -13,20 +13,47 @@ the agent's context via `hookSpecificOutput.additionalContext` — the field bot
 read. Outside a strata project it is a **silent no-op**. Any error exits 0 with no
 output, so it can never break or stall a session.
 
-It fires on two events:
+It fires on three events:
 
 - **`SessionStart`** — injects the immediate-capture rule so the agent captures findings
-  *as it works* (this is the real fix — the agent forgetting the discipline). Re-fires
-  after a compaction, re-priming the rule.
-- **`PreCompact`** — a last-chance "save unsaved findings now" reminder right before
-  context is compacted.
+  *as it works*. Re-fires after a compaction, re-priming the rule. If the inbox holds
+  un-promoted stubs (e.g. from a prior session), it reports the count so they get triaged.
+- **`PostToolUse`** (matcher `Bash`) — when a Bash result shows a failure signal it
+  **writes a raw stub to the inbox immediately** and pings the agent to distill the
+  lesson. Silent on success, so there is no per-command noise.
+- **`PreCompact`** — scans the transcript tail (cursor-based) for failed tool results,
+  **writes any not-yet-captured ones to the inbox**, then injects the last-chance
+  "save unsaved findings now" reminder.
+
+### Failure detection
+
+Grounded in the real Claude Code transcript schema: a non-zero Bash exit is recorded
+inconsistently — sometimes `is_error: true`, sometimes `is_error: false` with **no
+exit-code field** (e.g. an eslint/pnpm exit 1, where the only signal is `ELIFECYCLE` /
+"exit code 1" in the output text). So the guard trusts an explicit error flag **and** a
+small set of high-precision output signatures (`Exit code N`, `ELIFECYCLE`, `npm ERR!`,
+`fatal:`, `Traceback`, `error TS####`, `command not found`, …). Bare "error"/"FAIL" in
+otherwise-successful output does **not** trigger it, so noisy-but-passing commands stay
+silent.
+
+### The inbox — `.strata/inbox/captures.jsonl`
+
+The deterministic half, and the part that actually defeats compaction loss. Each stub is
+one JSON line (`{ts, event, tool, signal, command, snippet, h}`); duplicates are
+suppressed by a content hash, and `PreCompact` tracks a byte cursor (`.cursor.json`) so
+it never re-scans. This is **raw evidence, not a finished memory** — `/strata:capture`
+and `/strata:save` read the inbox, promote the real findings into issues/learnings, and
+clear it; `/strata:load` surfaces the count. Projects may gitignore `.strata/inbox/`
+(treat it as transient scratch) or commit it (so an un-promoted finding survives a
+machine switch) — your call.
 
 ### Honest limitation
 
-A hook **cannot force** the agent to flush before compaction on either tool —
-`PreCompact` can't make the agent take an action first. So this is a reliable *nudge*
-(prime + remind), not a guaranteed pre-compaction save. The agent still performs the
-capture. Strata stays a convention; this just makes the right thing far more likely.
+A hook still **cannot make the agent reason**. The nudges prime the discipline; the
+*inbox* is the part that does not depend on the agent taking a turn — it captures the
+raw failure evidence deterministically, so even if compaction lands before the agent
+distills a lesson, the evidence is already on disk to promote later. The agent still
+writes the *distilled* learning; the hook guarantees the *evidence* is never lost.
 
 ## Enabling it
 
@@ -56,6 +83,14 @@ the real path to `strata-capture-guard.mjs` on each OS, then place it at either:
   project and every Codex user gets it (most "repo-owned").
 
 Codex also accepts the same events inline in `config.toml` under `[hooks]`.
+
+> **Tool-support note — deterministic capture is Claude-Code-only for now.** The
+> `SessionStart` / `PreCompact` **nudges** work on Codex. The new **auto-logging of tool
+> failures** to `.strata/inbox/` parses Claude Code's tool-result + transcript schema, so
+> on Codex the hook **safely degrades to nudge-only** (unrecognised payloads → 0 stubs →
+> the nudge still fires; no errors, no inbox). Wiring deterministic capture on Codex needs
+> a small adapter keyed on Codex's per-tool event name + payload and its rollout/transcript
+> format — tracked as follow-up.
 
 ## Cross-platform notes
 
