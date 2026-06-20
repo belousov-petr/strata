@@ -126,7 +126,7 @@ When you run `/strata:init` on a fresh project, strata creates this:
         └── CHANGELOG.md · roadmap.md   (when they exist)
 ```
 
-Everything strata owns lives under `.strata/`. Like a lockfile, the folder states its format and version (`strata_version: 0.0.3` in the manifest), so it stays out of the way of everything else and any tool can read it. The adapters are thin pointers. `AGENTS.md` still has room for your own build, test, and style notes.
+Everything strata owns lives under `.strata/`. Like a lockfile, the folder names its own format and version in the manifest, so any tool can read it and it stays in one place, clear of the rest of your repo. The adapters, `AGENTS.md` and `CLAUDE.md`, are thin pointers into it. `AGENTS.md` still has room for your own build, test, and style notes.
 
 ## The commands
 
@@ -177,7 +177,11 @@ It writes or updates:
 
 It does not rebuild the generated views. `/strata:save` does that later, so `ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, and the `MEMORY.md` table stay in sync with the source files.
 
-`/strata:capture` only helps if you run it, and on a long session that is easy to forget. An optional hook (`hooks/`) handles the part you would otherwise have to remember. When a command fails, the hook writes the failure straight to a holding file, `.strata/inbox/captures.jsonl`, the instant it happens. No agent turn, nothing to remember. It runs the same check before a compaction, at the end of a session, and on Codex after each turn, scanning the transcript for failures it has not caught yet. The holding file is raw evidence, not finished memory: it is git-ignored scratch, and secrets are masked on the way in. Your next `/strata:capture` or `/strata:save` reads it, turns the real failures into issues or learnings, and clears it; `/strata:load` tells you how many are waiting.
+`/strata:capture` only helps if you run it, and on a long session that is easy to forget. The hook handles the part you would otherwise have to remember. In Claude Code it ships turned on, so most of the time you never think about it. When a command fails, it writes that failure to a holding file, `.strata/inbox/captures.jsonl`, the moment it happens, on its own, while you keep working.
+
+The hook writes at a few moments. The instant a command fails, it logs it. Before the context window compacts, it reads back through the recent transcript and saves any failures it has not logged yet, so the compaction cannot drop them. When a session ends without compacting, it runs that same scan one last time. On Codex it scans after every turn instead, the way Codex works. All of these passes share one cursor, so the same failure is never logged twice.
+
+Each line in the holding file is one failure: the command that failed and a short piece of its output. Git ignores the file, and the hook masks anything shaped like a secret before it writes. Your next `/strata:capture` or `/strata:save` reads those lines, turns the failures worth keeping into issues or learnings, and clears the file. `/strata:load` tells you how many are still waiting.
 
 One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) does all of this, on Claude Code and Codex, on Windows, macOS, and Linux. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall or block a session.
 
@@ -263,6 +267,7 @@ That bare `strata` is why the skill keeps `name: strata`. It is the name Codex a
 - The save preview is a record of the plan. `/strata:save` writes right after it on its own, so a misclassified note can still move if the session read was wrong.
 - Where a note belongs is still a judgment call. The simple tests (rule versus procedure versus fact, issue versus learning) handle most cases. When in doubt, leave it hot and let the next save sort it.
 - The generated views are only as fresh as the last save. The items are the truth. The views are a copy with a rebuild step.
+- I wanted strata to run anywhere: Claude Code and Codex, on Windows, macOS, and Linux. That reach was the hard part. The two agents fire hooks differently and install plugins differently, and each OS has its own quirks, so chasing wide compatibility turned up a lot of bugs along the way. It now works on Windows and Linux for both Claude Code and Codex. I do not own a Mac, so the macOS path is written but untested. If something breaks on your setup, open an issue or a PR and tell me what went wrong.
 
 ## What building this taught me
 
