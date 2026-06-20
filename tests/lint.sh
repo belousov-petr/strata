@@ -203,6 +203,17 @@ if command -v node >/dev/null 2>&1 && [ -f tests/capture-guard.test.mjs ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# 2d. Read-side coherence: if the hook/README advertise the inbox promote-and-clear
+# loop, the commands + skill that execute it must actually mention the inbox.
+for f in "$SKILL_DIR/SKILL.md" commands/load.md commands/capture.md commands/save.md; do
+  if grep -qiF "inbox" "$f"; then
+    ok "$f references the capture inbox"
+  else
+    fail "$f does not wire the inbox read-side (hook/README claim it does)"
+  fi
+done
+
+# ---------------------------------------------------------------------------
 # 3. Size budgets
 # ---------------------------------------------------------------------------
 mem_lines=$(wc -l < "$TEMPLATES_DIR/memory/MEMORY.md")

@@ -33,7 +33,7 @@ State the detected mode before proceeding.
 Sort what actually happened into the 0.0.3 buckets:
 
 - **Resumption point** — last completed, immediate next action (point at an issue id when one exists), prerequisites, uncommitted scope, background processes. The single most important capture; write it so a fresh session starts without questions.
-- **Issue events** — findings/bugs captured mid-session with `/strata:capture` or direct issue writes (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired.
+- **Issue events** — findings/bugs captured mid-session with `/strata:capture` or direct issue writes (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired; promote un-promoted `.strata/inbox/` stubs and clear the inbox (skill §5a).
 - **Learnings** — strategies that worked (`origin: success`) and pitfalls that burned (`origin: failure`), distilled to trigger + 1–3 sentence lesson.
 - **Shipped decisions** with non-obvious rationale → ADR candidates.
 - **Durable-doc impact** — architecture/reference/ops/product files this session made wrong or incomplete.
@@ -69,6 +69,9 @@ DELETIONS (section-only):
 REGENERATED:
 - issues/ACTIVE.md · issues/OPEN.md · issues/PARKED.md
 - memory/learnings/INDEX.md · MEMORY.md rules-by-trigger table
+
+PROMOTED (from inbox):
+- .strata/issues/<id>-<slug>.md  ← from inbox stub (failure: <signal>)
 
 SKIP (uncommitted edits — commit or stash first):
 - <path>

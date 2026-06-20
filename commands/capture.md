@@ -32,6 +32,7 @@ Use targeted reads only:
 
 - `MANIFEST.md`, `MEMORY.md`, and `issues/ACTIVE.md` in strata mode
 - `issues/OPEN.md` only if the capture looks like an existing area of work
+- `.strata/inbox/captures.jsonl` — fold any matching auto-logged failure into this capture, then clear it (skill §5a)
 - `rg` for a distinctive error phrase, file path, command name, or learning trigger before creating a new file
 
 Do not bulk-read `learnings/`, `archive/`, ADRs, or every issue.

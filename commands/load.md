@@ -31,6 +31,7 @@ State the detected mode.
 2. `.strata/memory/MEMORY.md` — live pointers + rules-by-trigger table.
 3. `.strata/issues/ACTIVE.md` — what's in flight.
 4. `.strata/memory/project_state.md` — current + last completed session only.
+5. `.strata/inbox/captures.jsonl` — count only (do not bulk-read); promote per the skill §5a.
 
 Stop early if the user's task is already clear. On demand only: `issues/OPEN.md` filtered by the task's area; the specific issue file being resumed; warm docs the task touches.
 
@@ -59,6 +60,7 @@ Conflicts → tell the user ("state says X, repo shows Y"), trust git, never sil
 **Prerequisites:** <env/services, or "none">
 **Parked triggers:** <any revive-when that looks fired, or "none">
 **Drift:** <state-vs-git mismatches, or "none">
+**Inbox:** <n> un-promoted (auto-logged failures), or "none"
 ```
 
 Then: "Ready to continue, or work on something else?"
