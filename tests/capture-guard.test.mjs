@@ -1,6 +1,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import * as guard from '../hooks/strata-capture-guard.mjs'
+import { Buffer } from 'node:buffer'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 
 test('module exports the pure helpers and does not run main on import', () => {
   assert.equal(typeof guard.failureSignal, 'function')
@@ -9,8 +13,6 @@ test('module exports the pure helpers and does not run main on import', () => {
   assert.equal(guard.failureSignal('npm ERR! boom', false), 'npm ERR!')
   assert.equal(guard.failureSignal('all good', false), null)
 })
-
-import { Buffer } from 'node:buffer'
 
 test('scanChunk computes the next offset from raw bytes, not the decoded string', () => {
   // "xé\nabc\n" is 8 bytes (é = 2 bytes); the old code overshot to 10.
@@ -61,10 +63,6 @@ test('stubHash distinguishes failures that share a trailing tail', () => {
   const b = guard.stubHash({ signal: 'Exit code 1', command: 'b', snippet: 'rootCauseB' + tail })
   assert.notEqual(a, b)
 })
-
-import fs from 'node:fs'
-import os from 'node:os'
-import path from 'node:path'
 
 function tmpRoot() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'strata-test-'))
@@ -143,6 +141,7 @@ test('failureSignal catches Windows cmd/PowerShell not-recognized errors but not
   assert.ok(guard.failureSignal("'foo' is not recognized as an internal or external command", false))
   assert.ok(guard.failureSignal("The term 'foo' is not recognized as the name of a cmdlet", false))
   assert.equal(guard.failureSignal('the file format is not recognized here', false), null)
+  assert.ok(guard.failureSignal("The term 'foo' is not recognized", false)) // second regex only (no cmdlet suffix)
 })
 
 test('redact masks a GitHub fine-grained PAT (github_pat_)', () => {

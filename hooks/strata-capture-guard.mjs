@@ -87,7 +87,7 @@ const FAIL_SIGNATURES = [
   /\bsegmentation fault\b/i,
   /\bpanic:/,
   /\bis not recognized as (?:an internal or external command|the name of a cmdlet)/i,
-  /\bThe term '[^']*' is not recognized\b/,
+  /\bThe term '[^'\n]*' is not recognized\b/,
 ]
 
 export function failureSignal(text, isError) {
@@ -123,7 +123,7 @@ export function redact(s) {
   return s
     .replace(/\b(AKIA|ASIA)[A-Z0-9]{16}\b/g, '$1<redacted>')                                  // AWS access key id
     .replace(/\bgh[posru]_[A-Za-z0-9]{20,}\b/g, 'gh<redacted>')                               // GitHub tokens
-    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, 'github_pat_<redacted>')
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, 'github_pat_<redacted>')                    // GitHub fine-grained PAT
     .replace(/\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/g, '<redacted-jwt>') // JWT
     .replace(/((?:authorization|bearer|api[_-]?key|secret|token|password|passwd|pwd)\s*[:=]\s*)(\S{6,})/gi, '$1<redacted>')
     .replace(/(Bearer\s+)([A-Za-z0-9._-]{12,})/g, '$1<redacted>')
