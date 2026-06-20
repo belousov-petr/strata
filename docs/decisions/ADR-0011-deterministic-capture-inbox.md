@@ -1,6 +1,6 @@
 # ADR-0011: Deterministic capture inbox + per-agent distillation (extends ADR-0010)
 
-- **Status:** implemented (extends ADR-0010) — P1+P2 shipped 2026-06-20 (deterministic inbox, read-side promote-and-clear wired in SKILL §5a + commands, secret boundary, cursor data-loss fixes; non-blocking SessionEnd drain, Bash-scoped signature correlation + Windows signatures, github_pat_ redaction); only P3 (Codex PostToolUse adapter + verify-on-target) remains per Consequences
+- **Status:** implemented (extends ADR-0010) — P1+P2+P3 all shipped 2026-06-20; ADR-0011 fully implemented
 - **Date:** 2026-06-20
 
 ## Context and Problem Statement
@@ -25,7 +25,7 @@ Decision criteria (the council's): (1) both agents, or degrade honestly; (2) cro
 Adopt **option 2**. A deterministic raw-evidence inbox is the compaction-proof backbone — shared stub schema `{ts,event,tool,signal,command,snippet,h}`, content-hash dedupe, and a **per-transcript** byte cursor — with per-agent capture adapters:
 
 - **Claude:** `PostToolUse(Bash)` auto-log + `PreCompact` transcript scan + a **new non-blocking `SessionEnd`/`Stop` scan** (the salvaged half of B1) so capture is end-proof, not only compaction-proof.
-- **Codex:** the `PostToolUse` auto-log **now** (honest-partial); the `PreCompact` scan **once three facts verify on a live build** — `tool_response` carries the failure output, `transcript_path` is non-null at `PreCompact`, and the rollout line schema is known. Codex now also documents **plugin-bundled hooks** (with trust review), which supersedes ADR-0010's constraint 2 ("Codex plugins cannot ship hooks").
+- **Codex:** `PostToolUse(Bash)` auto-log + `PreCompact`/`Stop` rollout scan (parser for `function_call_output` entries; `Process exited with code N` signature); verified on a live build 2026-06-20. Live verification shows `plugin_hooks` is **removed** in current Codex (`codex features list` → `plugin_hooks: removed`), so ADR-0010 constraint 2 stands — Codex hooks are **config-file only** (`~/.codex/hooks.json` or `<repo>/.codex/hooks.json`); the manual `codex-hooks.sample.json` is the supported path.
 
 **Distillation:** the default is **deterministic promote-and-clear** at `/strata:capture` and `/strata:save`, with `/strata:load` surfacing the un-promoted count. **B2** background distiller is an **opt-in**; **B1** is rejected as a default; **B3** is an advanced opt-in.
 
@@ -36,7 +36,7 @@ Adopt **option 2**. A deterministic raw-evidence inbox is the compaction-proof b
 - **The deterministic writer must not ship default-on, and `hooks/README.md` must stop describing the read-side loop and the Codex field names as live, until the prerequisites land.** Phased (full detail in `docs/deterministic-capture-design.md`):
   - **P1 (blocking):** wire the read-side promote-and-clear + count in `/strata:{load,capture,save}`, with the contract defined once in `SKILL.md`; gitignore `.strata/inbox/` + redact-at-write + triage-at-promote; fix the two cursor data-loss bugs (the 512 KB skip-ahead that marks unscanned bytes consumed, and the UTF-8 boundary forward-drift) and make writes multi-agent-safe (per-transcript cursor + atomic rename).
   - **P2 (shipped 2026-06-20):** `stubHash` collision fix; the non-blocking `SessionEnd` scan (Claude `SessionEnd` confirmed — silent/fire-and-forget, shares the per-transcript cursor so PreCompact+SessionEnd never double-log); signature precision (correlate `tool_result` back to a Bash `tool_use`; Windows cmd/PowerShell signatures); plus `github_pat_` redaction.
-  - **P3:** the Codex `PostToolUse` adapter + verify-on-target before promoting Codex from honest-partial to full deterministic.
+  - **P3 (shipped 2026-06-20):** the Codex adapter is done — rollout `function_call_output` parser, `Process exited with code N` signature, and silent `Stop` drain (shares the per-transcript cursor with `PreCompact`). `PostToolUse(Bash)` works unchanged (Codex normalises `tool_name` to `Bash`). Verify-on-target complete. Codex is now full deterministic, not honest-partial.
 - The two-stage memory model (inbox → promoted) is new surface across capture/save/load plus dedup; the cost is bounded by defining it once in `SKILL.md` rather than per command.
 - Installing the plugin now writes evidence to disk on tool failures — a further step from "pure convention" than ADR-0010, bounded by: gitignored transient scratch, redaction, action only inside strata projects, and one command to disable.
 - ADR-0010 stays accepted and is **extended, not superseded** — its nudge remains the honest floor on any tool where the deterministic path is unavailable.
@@ -44,7 +44,7 @@ Adopt **option 2**. A deterministic raw-evidence inbox is the compaction-proof b
 ## Sources
 
 - Claude Code — Hooks (`PostToolUse`, `PreCompact`, `SessionEnd`, `hookSpecificOutput.additionalContext`) — https://code.claude.com/docs/en/hooks
-- Codex — Hooks (event list; "same event schema as hooks.json"; `PostToolUse` fires on non-zero Bash exit; `Stop` blockable with `stop_hook_active`; `transcript_path`; plugin-bundled hooks with trust review) — https://developers.openai.com/codex/hooks
+- Codex — Hooks (event list; "same event schema as hooks.json"; `PostToolUse` fires on non-zero Bash exit; `Stop` blockable with `stop_hook_active`; `transcript_path`; config-file only — `plugin_hooks` removed per `codex features list` 2026-06-20) — https://developers.openai.com/codex/hooks
 - Codex — Subagents (`spawn_agent` / `multi_agent`) — https://developers.openai.com/codex/concepts/subagents
 - Codex — session rollout files (`~/.codex/sessions/**/rollout-*.jsonl`) — https://github.com/openai/codex/discussions
 - ADR-0010 — the nudge-only capture-guard this record extends

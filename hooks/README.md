@@ -90,14 +90,23 @@ the real path to `strata-capture-guard.mjs` on each OS, then place it at either:
 
 Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 
-> **Tool-support note.** The `SessionStart` / `PreCompact` **nudges** work on Codex.
-> The shipped sample config is **nudge-only today** — it wires `SessionStart` and
-> `PreCompact` only; there is no `PostToolUse` block. The hook schema is
-> Claude-compatible, so the PostToolUse auto-log is expected to port with no logic change,
-> but that is unverified on a live Codex build and is tracked as P3 in
-> docs/deterministic-capture-design.md. The PreCompact transcript scan also needs a Codex
-> rollout parser (P3). Until P3 ships, Codex safely degrades to nudge-only (unrecognised
-> payloads → 0 stubs → nudge still fires; no errors, no inbox).
+> **Codex deterministic capture — verified 2026-06-20.** Codex now does full
+> deterministic capture, not nudge-only:
+>
+> - **`PostToolUse(Bash)`** — Codex sends `tool_name:"Bash"`, `tool_input.command`, and
+>   `tool_response` as a plain string. The guard reads these and writes a raw stub on
+>   failure signals. One caveat: Codex does **not** include an exit code in the
+>   `PostToolUse` payload, so a bare non-zero exit with terse output (no recognisable
+>   signature) is caught only at the next rollout scan, not immediately.
+> - **`PreCompact` / `Stop` rollout scan** — the guard parses the Codex session rollout
+>   (`~/.codex/sessions/**/rollout-*.jsonl`) and detects failures deterministically by the
+>   `Process exited with code N` marker in `function_call_output` entries. This is
+>   exit-code-deterministic, so it also captures benign non-zero exits (e.g. grep/rg/test
+>   no-match) — those land as low-value stubs that `/strata:capture` promotion drops.
+>
+> The sample config wires **SessionStart + PostToolUse(Bash) + PreCompact + Stop**.
+> Codex uses `Stop` (per-turn) rather than `SessionEnd`; the `Stop` drain is silent (no
+> stdout) and shares the per-transcript cursor with `PreCompact` so they never double-log.
 
 ## Cross-platform notes
 
