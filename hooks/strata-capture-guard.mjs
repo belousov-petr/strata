@@ -227,10 +227,13 @@ function handlePostToolUse(root, payload) {
   }) ? 1 : 0
 }
 
-// Shared transcript-tail scan used by PreCompact and SessionEnd: cursor-based,
-// chunk-bounded, per-transcript. Logs stubs for failed tool_results not yet
-// captured; `event` is stamped on each stub. The shared per-transcript cursor
-// means PreCompact + SessionEnd on one session never double-log.
+// Shared transcript-tail scan used by PreCompact, SessionEnd, and Stop:
+// cursor-based, chunk-bounded, per-transcript. Logs stubs for failed tool_results
+// not yet captured; `event` is stamped on each stub. Parses BOTH Claude transcript
+// lines (message.content tool_result blocks) AND Codex rollout lines
+// (response_item / function_call_output, keyed on the "Process exited with code N"
+// marker). The shared per-transcript cursor means PreCompact + SessionEnd + Stop on
+// one session never double-log.
 export function scanTranscript(root, tp, event) {
   const cursorFile = cursorPath(root, tp)
   let size = 0

@@ -13,7 +13,7 @@ the agent's context via `hookSpecificOutput.additionalContext` — the field bot
 read. Outside a strata project it is a **silent no-op**. Any error exits 0 with no
 output, so it can never break or stall a session.
 
-It fires on four events:
+It fires on five events:
 
 - **`SessionStart`** — injects the immediate-capture rule so the agent captures findings
   *as it works*. Re-fires after a compaction, re-priming the rule. If the inbox holds
@@ -29,6 +29,8 @@ It fires on four events:
   failures. No nudge — `SessionEnd` cannot inject context into the agent. Skipped only on
   a hard kill. The shared per-transcript cursor means `PreCompact` + `SessionEnd` on one
   session never double-log.
+- **`Stop`** — Codex's per-turn drain. Silent (no nudge). Runs the same rollout scan as
+  `PreCompact` and shares the per-transcript cursor with it, so they never double-log.
 
 ### Failure detection
 

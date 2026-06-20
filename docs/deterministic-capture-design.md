@@ -66,12 +66,12 @@ Two agents (Claude + Codex) or two sessions share one repo, so:
 - **Atomic cursor writes** — write to a temp file and rename.
 - **Append safety** — `appendFileSync` with `O_APPEND` is atomic for these small lines on local FS; the residual read-then-append duplicate race is absorbed by promote-time dedupe (§3), so duplicates are tolerable and never corrupt the scan.
 
-## 8. Codex adapter (honest-partial)
+## 8. Codex adapter (shipped — full deterministic)
 
-Codex's hook schema is Claude-compatible, so the script's existing snake_case reads already map Codex payloads. Plan:
-- **Now:** register the same script as Codex hooks (`PostToolUse` matcher Bash, plus `SessionStart`/`PreCompact` for the nudge), via plugin-bundled hooks where available or `~/.codex/hooks.json` / `<repo>/.codex/hooks.json`. The failed-Bash auto-log ports with no logic change.
-- **Later:** add a Codex rollout-JSONL parser branch for the `PreCompact` scan, guarded by the existing `transcript_path` null-check so it degrades to nudge if the path is absent.
-- **Verify-on-target before claiming full Codex determinism:** (a) `tool_response` carries failure output/exit on a real failed Bash; (b) `transcript_path` is non-null at `PreCompact`; (c) the rollout line schema matches the parser.
+Codex's hook schema is Claude-compatible, so the script's existing snake_case reads already map Codex payloads. Shipped state (verified on a live Codex build 2026-06-20):
+- **PostToolUse(Bash):** the same script is registered as a Codex hook via config-file only — `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` (plugin_hooks is removed in current Codex; there is no plugin-bundled hook path). The failed-Bash auto-log ports with no logic change.
+- **PreCompact / Stop rollout scan:** a Codex rollout-JSONL parser branch handles `response_item` / `function_call_output` entries, keyed on the `Process exited with code N` marker. Guarded by the existing `transcript_path` null-check.
+- **Verify-on-target complete:** (a) `tool_response` carries failure output/exit on a real failed Bash; (b) `transcript_path` is non-null at `PreCompact`; (c) the rollout line schema matches the parser. Codex is now full deterministic.
 
 ## 9. Distillation decision
 
@@ -96,7 +96,7 @@ Add to `tests/` (extend `lint.sh` or a new node test): multibyte-boundary cursor
 
 **P2 — correctness/coverage:** `stubHash` head+tail+command; non-blocking `SessionEnd` scan; signature correlation + Windows signatures. *Done when* the collision, false-positive, Windows, and no-compaction-flush tests pass.
 
-**P3 — Codex parity:** Codex `PostToolUse` adapter wired; verify-on-target checklist (§8) run on a live Codex build; `hooks/README.md` updated from "Claude-only" to "honest-partial" only after it passes.
+**P3 — Codex parity (shipped 2026-06-20):** Codex `PostToolUse` adapter wired; rollout `function_call_output` parser added for `PreCompact`/`Stop` exit-code scan; verify-on-target checklist (§8) run on a live Codex build. Codex is now full deterministic (PostToolUse signature capture + rollout exit-code scan via PreCompact/Stop). `hooks/README.md` updated accordingly.
 
 **Docs reconciliation (with P1):** `hooks/README.md` stops asserting the read-side loop and the `commandWindows` field name as live until they are wired/verified; ADR-0011 index row added.
 
