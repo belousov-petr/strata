@@ -32,6 +32,8 @@ cp "$TPL/memory/archive/ARCHIVE.md"   "$T/.strata/memory/archive/"
 cp "$TPL/memory/archive/action_log.md" "$T/.strata/memory/archive/"
 cp "$TPL/issues/README.md" "$TPL/issues/_TEMPLATE.md" "$TPL/issues/ACTIVE.md" \
    "$TPL/issues/OPEN.md" "$TPL/issues/PARKED.md" "$T/.strata/issues/"
+mkdir -p "$T/.strata/inbox"
+cp "$TPL/inbox/.gitignore" "$T/.strata/inbox/.gitignore"
 cp "$TPL/docs/ARCHITECTURE.md" "$T/.strata/docs/"
 for d in product architecture decisions reference ops; do
   cp "$TPL/docs/$d/README.md" "$T/.strata/docs/$d/"
@@ -53,6 +55,7 @@ expected=(
   ".strata/docs/product/README.md" ".strata/docs/architecture/README.md"
   ".strata/docs/decisions/README.md" ".strata/docs/reference/README.md"
   ".strata/docs/ops/README.md"
+  ".strata/inbox/.gitignore"
 )
 for p in "${expected[@]}"; do
   if [ -f "$T/$p" ]; then ok "$p"; else fail "missing from scaffold: $p"; fi

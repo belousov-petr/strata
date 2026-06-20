@@ -34,6 +34,7 @@ _(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
     │   ├── project_state.md       current + last completed session (≤200 lines)
     │   ├── learnings/             operation-keyed behavioral rules (+ generated INDEX.md)
     │   └── archive/               COLD — ARCHIVE.md · action_log.md · old sessions · source-*
+    ├── inbox/                     transient capture scratch (git-ignored; promoted by capture/save)
     ├── issues/                    single backlog: findings + tasks + initiatives
     │   ├── ACTIVE.md / OPEN.md / PARKED.md    generated views (edit items, not views)
     │   ├── <id>-<slug>.md         one item per file

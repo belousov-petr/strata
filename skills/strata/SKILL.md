@@ -165,6 +165,7 @@ Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (C
 | `templates/memory/archive/{ARCHIVE,action_log}.md` | `.strata/memory/archive/` | always |
 | `templates/issues/{README,_TEMPLATE,ACTIVE,OPEN,PARKED}.md` | `.strata/issues/` (+ create `issues/archive/`) | always |
 | `templates/docs/ARCHITECTURE.md` + `templates/docs/{product,architecture,decisions,reference,ops}/README.md` | `.strata/docs/…` | code projects |
+| `templates/inbox/.gitignore` | `.strata/inbox/.gitignore` | always |
 
 Existing adapters are left unchanged and reported as such. Adapters are pointers only — never write project memory into them.
 
@@ -179,6 +180,7 @@ Created:
 - .strata/MANIFEST.md (contract, strata_version: 0.0.3)
 - .strata/memory/ (MEMORY.md index, project_state.md, learnings/, archive/)
 - .strata/issues/ (README, _TEMPLATE, ACTIVE/OPEN/PARKED views, archive/)
+- .strata/inbox/ (git-ignored capture scratch)
 <- .strata/docs/ (ARCHITECTURE.md + product/architecture/decisions/reference/ops) — code projects>
 - AGENTS.md / CLAUDE.md adapters that were absent
 <- Existing adapters left unchanged: ...>
