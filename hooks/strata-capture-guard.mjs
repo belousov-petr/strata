@@ -168,8 +168,9 @@ function inboxPaths(root) {
 }
 
 export function stubHash(stub) {
-  const tail = (stub.snippet || '').slice(-200) || stub.command || stub.signal || ''
-  return crypto.createHash('sha1').update((stub.signal || '') + '|' + tail).digest('hex').slice(0, 12)
+  const snip = stub.snippet || ''
+  const basis = [stub.signal || '', stub.command || '', snip.slice(0, 200), snip.slice(-200)].join('|')
+  return crypto.createHash('sha1').update(basis).digest('hex').slice(0, 12)
 }
 
 function recentHashes(file) {

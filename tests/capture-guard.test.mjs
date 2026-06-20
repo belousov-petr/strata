@@ -54,3 +54,10 @@ test('redact masks tokens, keys, and password assignments; leaves clean text alo
   assert.equal(guard.redact('error TS2304: cannot find name foo'), 'error TS2304: cannot find name foo')
   assert.equal(guard.redact(undefined), undefined)
 })
+
+test('stubHash distinguishes failures that share a trailing tail', () => {
+  const tail = 'x'.repeat(300)
+  const a = guard.stubHash({ signal: 'Exit code 1', command: 'a', snippet: 'rootCauseA' + tail })
+  const b = guard.stubHash({ signal: 'Exit code 1', command: 'b', snippet: 'rootCauseB' + tail })
+  assert.notEqual(a, b)
+})
