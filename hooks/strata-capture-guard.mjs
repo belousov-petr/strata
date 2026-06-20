@@ -121,10 +121,45 @@ export function redact(s) {
   return s
 }
 
+// Scan a raw byte window for whole lines. `start` is a byte offset that is
+// always a line boundary (0, or a previous newOffset). Returns the decoded
+// whole-line text and the next offset, computed from RAW BYTES so a window
+// ending mid-multibyte-char never corrupts the offset or inserts U+FFFD.
+export function scanChunk(windowBuf, start) {
+  const lastNl = windowBuf.lastIndexOf(0x0a) // '\n'
+  if (lastNl < 0) return { text: '', newOffset: start } // no complete line yet
+  const consumed = lastNl + 1
+  return { text: windowBuf.subarray(0, consumed).toString('utf8'), newOffset: start + consumed }
+}
+
+function readHead(tp, n) {
+  try {
+    const fd = fs.openSync(tp, 'r')
+    try { const b = Buffer.alloc(n); const r = fs.readSync(fd, b, 0, n, 0); return b.subarray(0, r) }
+    finally { fs.closeSync(fd) }
+  } catch { return Buffer.alloc(0) }
+}
+
+function headHash(buf) {
+  return crypto.createHash('sha1').update(buf.subarray(0, 512)).digest('hex').slice(0, 12)
+}
+
+export function cursorPath(root, transcriptPath) {
+  const id = crypto.createHash('sha1').update(String(transcriptPath)).digest('hex').slice(0, 12)
+  return path.join(root, '.strata', 'inbox', `.cursor.${id}.json`)
+}
+
+function writeCursorAtomic(file, obj) {
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  const tmp = `${file}.tmp`
+  fs.writeFileSync(tmp, JSON.stringify(obj))
+  fs.renameSync(tmp, file)
+}
+
 // --- inbox ------------------------------------------------------------------
 function inboxPaths(root) {
   const dir = path.join(root, '.strata', 'inbox')
-  return { dir, file: path.join(dir, 'captures.jsonl'), cursor: path.join(dir, '.cursor.json') }
+  return { dir, file: path.join(dir, 'captures.jsonl') }
 }
 
 export function stubHash(stub) {
@@ -185,56 +220,50 @@ function handlePostToolUse(root, payload) {
 function handlePreCompact(root, payload) {
   const tp = payload.transcript_path || payload.transcriptPath
   if (!tp || !fs.existsSync(tp)) return 0
-  const { cursor } = inboxPaths(root)
-  let cur = { transcriptPath: tp, offset: 0 }
-  try { cur = JSON.parse(fs.readFileSync(cursor, 'utf8')) } catch { /* fresh */ }
-  if (cur.transcriptPath !== tp) cur = { transcriptPath: tp, offset: 0 }
+  const cursorFile = cursorPath(root, tp)
 
   let size = 0
   try { size = fs.statSync(tp).size } catch { return 0 }
+
+  let cur = { offset: 0, headHash: '' }
+  try { cur = JSON.parse(fs.readFileSync(cursorFile, 'utf8')) } catch { /* fresh */ }
+  const curHead = headHash(readHead(tp, 512))
   let start = typeof cur.offset === 'number' ? cur.offset : 0
-  if (start > size) start = 0 // rotated / truncated
-  if (size - start > MAX_SCAN_BYTES) start = size - MAX_SCAN_BYTES // cap
+  if (cur.headHash && cur.headHash !== curHead) start = 0 // file replaced in place
+  if (start > size) start = 0                              // truncated/rotated
 
-  let buf = ''
-  try {
-    const length = size - start
-    if (length > 0) {
+  const end = Math.min(size, start + MAX_SCAN_BYTES)        // bounded chunk, NO skip-ahead
+  let windowBuf = Buffer.alloc(0)
+  const len = Math.max(0, end - start)
+  if (len > 0) {
+    try {
       const fd = fs.openSync(tp, 'r')
-      const b = Buffer.alloc(length)
-      fs.readSync(fd, b, 0, length, start)
-      fs.closeSync(fd)
-      buf = b.toString('utf8')
-    }
-  } catch { return 0 }
+      try { const b = Buffer.alloc(len); fs.readSync(fd, b, 0, len, start); windowBuf = b }
+      finally { fs.closeSync(fd) }
+    } catch { return 0 }
+  }
 
-  const lastNl = buf.lastIndexOf('\n')
-  const processable = lastNl >= 0 ? buf.slice(0, lastNl) : ''
-  const consumed = lastNl >= 0 ? buf.slice(0, lastNl + 1) : ''
-  const newOffset = start + Buffer.byteLength(consumed, 'utf8')
+  const { text: scanned, newOffset } = scanChunk(windowBuf, start)
 
   let logged = 0
-  for (const line of processable.split('\n')) {
+  for (const line of scanned.split('\n')) {
     if (!line.trim()) continue
     let o
     try { o = JSON.parse(line) } catch { continue }
     const blocks = Array.isArray(o.message?.content) ? o.message.content : []
     for (const blk of blocks) {
       if (blk?.type !== 'tool_result') continue
-      const text = typeof blk.content === 'string' ? blk.content : resultText(blk.content) || resultText(o.toolUseResult)
-      const sig = failureSignal(text, blk.is_error === true)
+      const t = typeof blk.content === 'string' ? blk.content : resultText(blk.content) || resultText(o.toolUseResult)
+      const sig = failureSignal(t, blk.is_error === true)
       if (!sig) continue
       if (appendStub(root, {
-        ts: o.timestamp || nowIso(), event: 'PreCompact', tool: 'tool_result', signal: sig, command: '',
-        snippet: String(text).slice(-MAX_SNIPPET),
+        ts: o.timestamp || nowIso(), event: 'PreCompact', tool: 'tool_result', signal: sig,
+        command: '', snippet: redact(String(t).slice(-MAX_SNIPPET)),
       })) logged++
     }
   }
 
-  try {
-    fs.mkdirSync(path.dirname(cursor), { recursive: true })
-    fs.writeFileSync(cursor, JSON.stringify({ transcriptPath: tp, offset: newOffset }))
-  } catch { /* best effort */ }
+  try { writeCursorAtomic(cursorFile, { transcriptPath: tp, offset: newOffset, headHash: curHead }) } catch { /* best effort */ }
   return logged
 }
 
