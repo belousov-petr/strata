@@ -2,6 +2,21 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `strata_version` stamps in scaffolded manifests. When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.0.4 — 2026-06-20
+
+Plugin release — **deterministic capture-guard**. No layout change (`strata_version` stays `0.0.3`, no migration). Extends the nudge-only hook ([ADR-0010](docs/decisions/ADR-0010-capture-guard-hook.md)) into deterministic, compaction-proof capture across Claude Code and Codex. Decided by a Claude + Codex council; design in [ADR-0011](docs/decisions/ADR-0011-deterministic-capture-inbox.md) + [`docs/deterministic-capture-design.md`](docs/deterministic-capture-design.md).
+
+### Added
+- **Deterministic capture inbox** — the capture-guard hook auto-logs failed tool results to `.strata/inbox/captures.jsonl` the moment they happen (raw, redacted, git-ignored scratch), so evidence survives compaction without the agent acting. `PostToolUse(Bash)` logs live; `PreCompact`, a non-blocking `SessionEnd` (Claude), and a silent `Stop` (Codex) scan the transcript tail on a byte-exact per-transcript cursor (ADR-0011 P1/P2/P3).
+- **Read-side promote-and-clear loop** — `/strata:capture` and `/strata:save` promote real stubs into issues/learnings then clear the inbox; `/strata:load` surfaces the un-promoted count. Contract defined once in `SKILL.md §5a`; `tests/lint.sh §2d` fails the build if the commands ever drop the inbox reference.
+- **Codex deterministic capture** (live-verified 2026-06-20) — `PostToolUse(Bash)` signature capture plus a Codex rollout-JSONL parser (`function_call_output`, keyed on the `Process exited with code N` marker) on `PreCompact`/`Stop`. `hooks/codex-hooks.sample.json` wires SessionStart + PostToolUse + PreCompact + Stop.
+- **Secret boundary** — `.strata/inbox/` git-ignored by default (scaffolded by `/strata:init`); stubs redacted at write (tokens, keys, `password=`, GitHub PATs); triaged at promote.
+- **`docs/decisions/ADR-0011`** (deterministic capture inbox), **`docs/deterministic-capture-design.md`**, and the ADR status lifecycle `proposed → accepted → implemented`.
+
+### Changed
+- The capture-guard hook is no longer nudge-only — it is **deterministic** (the nudge remains the honest floor wherever a deterministic path is unavailable). `hooks/hooks.json` now also fires `SessionEnd`.
+- **Codex correction:** plugin-bundled hooks are **removed** in current Codex (`codex features list → plugin_hooks: removed`); Codex hooks are config-file only, so `hooks/codex-hooks.sample.json` is the supported path (ADR-0010 constraint 2 stands).
+
 ## 0.0.3 — 2026-06-09 … 2026-06-19
 
 Layout generation **`strata_version: 0.0.3`** — breaking; see `MIGRATIONS.md` rung 2 (0.0.2 → 0.0.3). The same generation later packaged Strata as a Claude Code and Codex plugin, added the `/strata:capture` immediate-capture command, and added an optional capture-guard hook; none of those change the on-disk format. Design rationale: [`docs/decisions/`](docs/decisions/README.md), full reference: [`docs/DESIGN.md`](docs/DESIGN.md).

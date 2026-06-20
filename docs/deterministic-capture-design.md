@@ -71,7 +71,7 @@ Two agents (Claude + Codex) or two sessions share one repo, so:
 Codex's hook schema is Claude-compatible, so the script's existing snake_case reads already map Codex payloads. Shipped state (verified on a live Codex build 2026-06-20):
 - **PostToolUse(Bash):** the same script is registered as a Codex hook via config-file only — `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` (plugin_hooks is removed in current Codex; there is no plugin-bundled hook path). The failed-Bash auto-log ports with no logic change.
 - **PreCompact / Stop rollout scan:** a Codex rollout-JSONL parser branch handles `response_item` / `function_call_output` entries, keyed on the `Process exited with code N` marker. Guarded by the existing `transcript_path` null-check.
-- **Verify-on-target complete:** (a) `tool_response` carries failure output/exit on a real failed Bash; (b) `transcript_path` is non-null at `PreCompact`; (c) the rollout line schema matches the parser. Codex is now full deterministic.
+- **Verify-on-target complete:** (a) `PostToolUse` carries `tool_name:"Bash"` + `tool_input.command` + `tool_response` (the output text — **no exit code**, so PostToolUse detection is signature-only); (b) `transcript_path` is non-null on every *observed* event (SessionStart/PreToolUse/PostToolUse/Stop) and points at the rollout — a `PreCompact` wasn't triggered in the test, but the per-turn `Stop` drain covers that path regardless; (c) the rollout `function_call_output.output` carries `Process exited with code N` (verified: failed→2, rg-no-match→1, success→0). Codex is full deterministic.
 
 ## 9. Distillation decision
 
