@@ -1,0 +1,29 @@
+name: notify-marketplace
+
+# When a release tag is pushed here, tell belousov-petr/marketplace to re-sync right
+# away, so Claude Code and Codex consumers auto-update without waiting for the
+# marketplace's scheduled run.
+#
+# Requires the MARKETPLACE_SYNC_TOKEN secret: a fine-grained PAT with
+# Contents: Read and write on belousov-petr/marketplace (that is what the
+# repository_dispatch API needs).
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions: {} # this job calls out via the PAT; it needs no token on this repo
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger the marketplace sync
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_SYNC_TOKEN }}
+        run: |
+          gh api --method POST \
+            repos/belousov-petr/marketplace/dispatches \
+            -f event_type=strata-released
+          echo "Dispatched strata-released to belousov-petr/marketplace."
