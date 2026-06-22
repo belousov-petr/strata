@@ -1,12 +1,12 @@
 ---
-strata_version: 0.0.3
+layout_version: 3
 ---
 
 # MANIFEST — {{PROJECT_NAME}}
 
 **Open this first.** The project-owned memory contract for every AI tool working in this repo — and the *only* place structure and routing live. Other files (including `memory/MEMORY.md`) index and point; they do not restate this contract.
 
-Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) 0.0.3. Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
+Initialized {{INIT_DATE}} with [strata](https://github.com/belousov-petr/strata) (memory `layout_version: 3`). Pattern reference: [DESIGN](https://github.com/belousov-petr/strata/blob/main/docs/DESIGN.md) · upgrades: [MIGRATIONS](https://github.com/belousov-petr/strata/blob/main/MIGRATIONS.md).
 
 ## Invocation — works the same for every tool
 
@@ -28,7 +28,7 @@ _(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
 ├── AGENTS.md · CLAUDE.md          tool adapters → this file (thin)
 ├── README.md                      human front door
 └── .strata/
-    ├── MANIFEST.md                this contract (strata_version, routing, load order)
+    ├── MANIFEST.md                this contract (layout_version, routing, load order)
     ├── memory/                    HOT — loads at session start
     │   ├── MEMORY.md              pure index: live pointers + rules-by-trigger table (≤80 lines)
     │   ├── project_state.md       current + last completed session (≤200 lines)

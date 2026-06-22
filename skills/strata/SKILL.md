@@ -29,7 +29,7 @@ One routing key per store: `project_state.md` = recency ("what was I doing"), `l
 
 **Budgets (hard):** `MEMORY.md` ≤80 lines · `project_state.md` ≤200 lines, current + last completed session only. Warm and cold are unbudgeted — depth is free off the hot path.
 
-**Contract file.** `.strata/MANIFEST.md` (with `strata_version: 0.0.3`) is the *only* per-project file stating structure and routing. `MEMORY.md` is a pure index: live pointers + the generated rules-by-trigger table. Never re-add routing tables to it.
+**Contract file.** `.strata/MANIFEST.md` (with `layout_version: 3`) is the *only* per-project file stating structure and routing. `MEMORY.md` is a pure index: live pointers + the generated rules-by-trigger table. Never re-add routing tables to it.
 
 **Portability.** Project-relative paths only (`.strata/...`); no machine-specific absolute paths, usernames, or single-OS commands in memory — give PowerShell and POSIX variants when a saved command matters on both.
 
@@ -147,7 +147,7 @@ memory.** The inbox is git-ignored transient scratch.
 
 Load order (stop early if the task is already clear):
 
-1. `.strata/MANIFEST.md` (check `strata_version: 0.0.3`; mismatch → `MIGRATIONS.md`, stop)
+1. `.strata/MANIFEST.md` (check `layout_version: 3`; a legacy `strata_version: 0.0.3` stamp or any other mismatch → `MIGRATIONS.md`, stop)
 2. `.strata/memory/MEMORY.md`
 3. `.strata/issues/ACTIVE.md`
 4. `.strata/memory/project_state.md` (current + last completed only)
@@ -166,7 +166,7 @@ Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (C
 
 1. CWD is the target project root, inside a git repo (`git rev-parse --is-inside-work-tree`; error out if not).
 2. **Existing-memory routing.** Detect before writing:
-   - Valid 0.0.3 (`.strata/MANIFEST.md` with `strata_version: 0.0.3`) → refuse: report the existing memory; re-bootstrap requires the user to move/delete it first.
+   - Valid current layout (`.strata/MANIFEST.md` with `layout_version: 3`) → refuse: report the existing memory; re-bootstrap requires the user to move/delete it first.
    - Flat mode (`.strata/memory/project_state.md` exists, with no `.strata/MANIFEST.md` and no `.strata/memory/MEMORY.md`) → run the flat→0.0.3 rung in `MIGRATIONS.md`; never overwrite the flat file in place.
    - 0.0.1/0.0.2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/` (or `.ai/MEMORY-MAP.md`), `open_action_items.md`, `project_<slug>.md` memory files, `docs/parked/`, or project files referencing the old `/save-point`//`/load-point` commands → run the matching `MIGRATIONS.md` rung(s), not a fresh scaffold.
    - Mixed or partial `.strata/` state that is not the flat fingerprint → stop, report every fingerprint, and ask the user to choose repair/migration; never guess and never overwrite.
@@ -198,7 +198,7 @@ Migration writes may target the same paths, but source memory is archived first.
 strata 0.0.3 initialized in <cwd>.
 
 Created:
-- .strata/MANIFEST.md (contract, strata_version: 0.0.3)
+- .strata/MANIFEST.md (contract, layout_version: 3)
 - .strata/memory/ (MEMORY.md index, project_state.md, learnings/, archive/)
 - .strata/issues/ (README, _TEMPLATE, ACTIVE/OPEN/PARKED views, archive/)
 - .strata/inbox/ (git-ignored capture scratch)
@@ -214,8 +214,10 @@ Next:
 
 ## 9. Versioning and migration
 
-- This skill writes layout **`strata_version: 0.0.3`**; the stamp lives in `MANIFEST.md` frontmatter.
-- On `init`, any flat/0.0.1/0.0.2 fingerprint routes to `MIGRATIONS.md` (detect → gated transform → rollback, per rung) instead of fresh scaffolding. On save/load version mismatch: stop, report, point at `MIGRATIONS.md`. Never double-initialize and never overwrite source memory before archiving it.
+- **Two distinct version numbers, deliberately different formats so they cannot be confused** ([ADR-0013](https://github.com/belousov-petr/strata/blob/main/docs/decisions/ADR-0013-layout-version-integer.md)):
+  - **Memory layout** — `layout_version: <integer>` in `MANIFEST.md` frontmatter; a generation counter. This skill writes **`layout_version: 3`** (the generation formerly stamped `strata_version: 0.0.3`; same structure, only the stamp label changed).
+  - **Plugin release** — semver via git tags + `plugin.json`/`marketplace.json` (e.g. `0.0.6`), per ADR-0008. A plugin release can ship with no layout change.
+- On `init`, any flat/0.0.1/0.0.2 fingerprint — or a legacy `strata_version: 0.0.3` stamp — routes to `MIGRATIONS.md` (detect → gated transform → rollback, per rung) instead of fresh scaffolding. On save/load version mismatch: stop, report, point at `MIGRATIONS.md`. Never double-initialize and never overwrite source memory before archiving it.
 - Releases of strata itself: git tags + `CHANGELOG.md` (git-native versioning — no version-archive folders anywhere, one optional `docs/_archive/` for retired docs).
 
 ## 10. Common mistakes

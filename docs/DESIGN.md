@@ -54,7 +54,7 @@ What `strata init` produces (full form — code project):
 ├── CLAUDE.md                       # adapter → .strata/MANIFEST.md (thin; written only if absent)
 ├── README.md                       # human front door (project's own)
 └── .strata/
-    ├── MANIFEST.md                 # contract: strata_version · tiers · routing · load order · where-to-look
+    ├── MANIFEST.md                 # contract: layout_version · tiers · routing · load order · where-to-look
     ├── memory/                     # HOT
     │   ├── MEMORY.md               # pure index: live pointers + generated rules-by-trigger table (≤80 lines)
     │   ├── project_state.md        # current + last completed session; "next action" points at an active issue
@@ -183,7 +183,7 @@ Small on purpose: a learning is a distilled strategy or pitfall, not an essay. I
 
 Required content, in order:
 
-1. `strata_version: 0.0.3` (machine-checkable line — migration tooling keys off it)
+1. `layout_version: 3` (machine-checkable line — migration tooling keys off it; a plain integer, distinct from the plugin release version)
 2. **What <project> is** — 1–3 sentences
 3. **Structural overview** — the `.strata/` tree with one-line roles
 4. **Where do I look for X?** — lookup table
@@ -385,7 +385,7 @@ Regeneration contract: `/strata:save` rebuilds every generated view from current
 
 ## 11. Versioning and migration
 
-- This layout is **`strata_version: 0.0.3`**, stamped in every scaffolded `MANIFEST.md`.
+- This layout is **`layout_version: 3`** (a plain integer generation counter, distinct from the plugin release version), stamped in every scaffolded `MANIFEST.md`.
 - Releases of strata itself: git tags + root `CHANGELOG.md`.
 - Layout generations and how to cross them: [`MIGRATIONS.md`](../MIGRATIONS.md) — detection fingerprints for flat mode (`.strata/memory/project_state.md` without a manifest), 0.0.1 (`.claude/memory/` + `docs/PROJECT-MAP.md`), and 0.0.2 (`.ai/` + `MEMORY-MAP.md`), ordered transforms, rollback per step, destructive steps named and gated.
 - Rationale: [ADR-0006](decisions/ADR-0006-in-repo-migrations-strata-version.md) (migrations), [ADR-0008](decisions/ADR-0008-git-native-versioning.md) (git-native versioning).

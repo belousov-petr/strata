@@ -1,6 +1,6 @@
 # MIGRATIONS — moving a project between strata layout generations
 
-Strata stamps every scaffolded `.strata/MANIFEST.md` with a `strata_version`. This file is the ladder between generations: how each layout is detected, the ordered transform to the next one, and how to back out. No breaking layout change ships without a rung here ([ADR-0006](docs/decisions/ADR-0006-in-repo-migrations-strata-version.md)).
+Strata stamps every scaffolded `.strata/MANIFEST.md` with a `layout_version` (a plain integer; the current generation is `3`). Earlier releases used a `strata_version: 0.0.x` stamp — the rename is recorded in [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md) and migrated by Rung 3 below. This file is the ladder between generations: how each layout is detected, the ordered transform to the next one, and how to back out. No breaking layout change ships without a rung here ([ADR-0006](docs/decisions/ADR-0006-in-repo-migrations-strata-version.md)).
 
 Migrations are **agent-runnable but human-gated**: every rung shows one plan, asks y/n, then executes. This is stricter than `/strata:save`, which previews and then writes automatically. Destructive steps are named per rung; nothing destructive happens outside that list.
 
@@ -10,7 +10,8 @@ Check in this order; first match wins.
 
 | Generation | Fingerprint |
 |---|---|
-| **0.0.3** | `.strata/MANIFEST.md` exists and contains `strata_version: 0.0.3` |
+| **3 (current)** | `.strata/MANIFEST.md` exists and contains `layout_version: 3` |
+| **0.0.3 stamp (legacy)** | `.strata/MANIFEST.md` contains `strata_version: 0.0.3` (old stamp, same structure) → run **Rung 3** |
 | **flat** | `.strata/memory/project_state.md` exists, with no `.strata/MANIFEST.md` and no `.strata/memory/MEMORY.md` |
 | **0.0.2** | `.ai/MEMORY-MAP.md` exists |
 | **0.0.1** | `docs/PROJECT-MAP.md` exists, or `.claude/memory/MEMORY.md` exists (project-local tool tree) |
@@ -32,7 +33,7 @@ Mixed fingerprints (e.g. both `.ai/` and `.strata/`, or partial `.strata/` files
 
 ---
 
-## Rung 0: flat → 0.0.3
+## Rung 0: flat → 0.0.3 (current layout, stamped `layout_version: 3`)
 
 **Detect:** `.strata/memory/project_state.md` exists; no `.strata/MANIFEST.md`; no `.strata/memory/MEMORY.md`.
 
@@ -97,7 +98,7 @@ A 0.0.1 project should normally run rung 1 and rung 2 in the same sitting (two c
 
 1. **Preflight** per the rules (backup branch `pre-strata-0.0.3-migration`).
 2. *(D1)* `git mv .ai .strata`.
-3. *(D2)* `git mv .strata/MEMORY-MAP.md .strata/MANIFEST.md`; rewrite to the 0.0.3 contract from the skill's `templates/MANIFEST.md`: `strata_version: 0.0.3`, project description carried over, structural overview, where-to-look, tiers, routing, load order, canonical states/types. Project-specific notes from the old map are preserved, not regenerated.
+3. *(D2)* `git mv .strata/MEMORY-MAP.md .strata/MANIFEST.md`; rewrite to the current contract from the skill's `templates/MANIFEST.md`: `layout_version: 3`, project description carried over, structural overview, where-to-look, tiers, routing, load order, canonical states/types. Project-specific notes from the old map are preserved, not regenerated.
 4. **Create the backlog skeleton:** `.strata/issues/` with `README.md`, `_TEMPLATE.md`, `ACTIVE.md`, `OPEN.md`, `PARKED.md` from templates, plus `issues/archive/`.
 5. *(D3a)* **Extract `open_action_items.md`:** one `issues/<id>-<slug>.md` per item. Mapping: findings/structural-fix sections → `type: improvement` (or `bug` if it describes broken behavior); time-bounded and in-flight sections → `type: task`; blockers → `type: task`, `severity: high`; "do-not-re-raise" notes → `status: wont-fix` items in `issues/archive/` (they exist to be greppable, not active). `area:` best-effort from the item text; `created:` from the item's date or today. Archive the whole original to `.strata/memory/archive/source-issues-extraction-open-action-items.md`, then delete it.
 6. *(D3b)* **Extract `project_<slug>.md` files:** each becomes `issues/<id>-<slug>.md` with `type: initiative`, `status: in-progress` (it was hot) — body carries the initiative content. Originals → `archive/source-issues-extraction-<slug>.md`, then deleted.
@@ -109,7 +110,7 @@ A 0.0.1 project should normally run rung 1 and rung 2 in the same sitting (two c
 12. **`MEMORY.md` → pure index** (≤80 lines): live pointers + rules-by-trigger table; routing/tier content dropped (MANIFEST owns it now).
 13. **Path sweep:** fix `.ai/` references inside `project_state.md`, `ARCHIVE.md`, and any moved docs.
 14. **Regenerate views:** `ACTIVE.md`/`OPEN.md`/`PARKED.md` from the new issue frontmatter; `learnings/INDEX.md`; the `MEMORY.md` by-trigger table.
-15. **Verify:** `grep -rn "\.ai/\|open_action_items\|MEMORY-MAP\|docs/parked" --include="*.md" .` over the project — expect matches only under `.strata/memory/archive/` (provenance). Confirm `MANIFEST.md` carries `strata_version: 0.0.3`.
+15. **Verify:** `grep -rn "\.ai/\|open_action_items\|MEMORY-MAP\|docs/parked" --include="*.md" .` over the project — expect matches only under `.strata/memory/archive/` (provenance). Confirm `MANIFEST.md` carries `layout_version: 3`.
 16. **Commit** `chore(strata): migrate 0.0.2 layout to 0.0.3`.
 
 **User-side (once):** if you still have old manually-copied commands in `~/.claude/commands/` (`save-point.md` / `load-point.md`, or `strata-save.md` / `strata-load.md`), remove them. Install Strata as a plugin instead — `/plugin marketplace add belousov-petr/strata` then `/plugin install strata@belousov-petr` (or `/plugin marketplace update belousov-petr` to refresh an existing install) — and start a new session so the new skill text loads. See the README's install section.
@@ -118,6 +119,26 @@ A 0.0.1 project should normally run rung 1 and rung 2 in the same sitting (two c
 
 ---
 
+## Rung 3: `strata_version: 0.0.3` → `layout_version: 3`
+
+**Detect:** `.strata/MANIFEST.md` contains `strata_version: 0.0.3` and no `layout_version:` line (the legacy stamp).
+
+A stamp-label change only — the on-disk structure of layout `0.0.3` and `layout_version: 3` is identical ([ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md)). Nothing is moved, extracted, or deleted.
+
+**Destructive steps:** none.
+
+**Transform (ordered):**
+
+1. Preflight per the rules above (clean tree; backup branch `pre-strata-layout-3-migration`).
+2. In `.strata/MANIFEST.md` frontmatter, rewrite the stamp line `strata_version: 0.0.3` → `layout_version: 3`.
+3. Optional tidy: if the manifest's prose still names the contract line "strata_version" (the intro line, the structural-overview row), update those mentions to `layout_version` to match. No other file in the project needs touching.
+4. Verify: `grep -q "^layout_version: 3$" .strata/MANIFEST.md` succeeds and no `^strata_version:` line remains.
+5. Commit `chore(strata): migrate layout stamp to layout_version 3`.
+
+**Rollback:** before commit, `git checkout .strata/MANIFEST.md`; after commit, `pre-strata-layout-3-migration` holds the prior stamp.
+
+---
+
 ## Future rungs
 
-A later generation, if one ever exists, gets detected by `strata_version` alone (one file read), and its rung documents detect → transform → rollback in this same shape before anything ships. That is the standing rule, not an aspiration.
+A later generation gets detected by `layout_version` alone (one file read), and its rung documents detect → transform → rollback in this same shape before anything ships. That is the standing rule, not an aspiration.

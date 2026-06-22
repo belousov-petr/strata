@@ -1,6 +1,6 @@
 # ADR-0006: In-repo migrations keyed off `strata_version`
 
-- **Status:** implemented
+- **Status:** implemented (stamp format revised by [ADR-0013](ADR-0013-layout-version-integer.md) — `strata_version: 0.0.3` → `layout_version: 3`; the migration mechanism here stands)
 - **Date:** 2026-06-09
 
 ## Context and Problem Statement

@@ -1,6 +1,6 @@
 # Decisions — strata's own ADRs
 
-Architecture Decision Records for the strata skill itself. These twelve records lock the 0.0.3 design: what was decided, what was considered and rejected, and the primary sources behind each call.
+Architecture Decision Records for the strata skill itself. These thirteen records lock strata's design: what was decided, what was considered and rejected, and the primary sources behind each call.
 
 Scaffolded projects get their own decision log at `.strata/docs/decisions/` — this folder is about strata, not about your project.
 
@@ -34,13 +34,14 @@ Rules:
 | [ADR-0003](ADR-0003-operation-keyed-learnings.md) | Operation-keyed `learnings/` (ReasoningBank-style) | implemented |
 | [ADR-0004](ADR-0004-generated-indexes-grep-router.md) | Generated-from-frontmatter indexes; grep as router; MANIFEST owns routing | implemented |
 | [ADR-0005](ADR-0005-layered-self-documenting-docs.md) | Layered self-documenting docs; lean SKILL.md | implemented |
-| [ADR-0006](ADR-0006-in-repo-migrations-strata-version.md) | In-repo migrations keyed off `strata_version` | implemented |
+| [ADR-0006](ADR-0006-in-repo-migrations-strata-version.md) | In-repo migrations keyed off the layout stamp | implemented (stamp format revised by ADR-0013) |
 | [ADR-0007](ADR-0007-warm-docs-taxonomy.md) | Warm-docs taxonomy (Diátaxis + arc42-informed), offered not prescribed | implemented |
 | [ADR-0008](ADR-0008-git-native-versioning.md) | Git-native versioning; no version-archive folders | implemented |
 | [ADR-0009](ADR-0009-claude-plugin-packaging.md) | Claude Code plugin packaging; forced command/skill namespacing (`/strata:save`) | implemented |
 | [ADR-0010](ADR-0010-capture-guard-hook.md) | Optional capture-guard hook (Claude + Codex), nudge-not-enforce | implemented (extended by ADR-0011) |
 | [ADR-0011](ADR-0011-deterministic-capture-inbox.md) | Deterministic capture inbox + per-agent distillation; promote-at-read default, B2 distiller opt-in | implemented |
 | [ADR-0012](ADR-0012-immediate-capture-all-moments.md) | Immediate capture covers every important moment (docs-as-you-go), not just issues/learnings | implemented |
+| [ADR-0013](ADR-0013-layout-version-integer.md) | Layout version is an integer (`layout_version: 3`), named distinctly from the plugin release | implemented |
 
 ## Provenance
 

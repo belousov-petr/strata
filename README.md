@@ -109,7 +109,7 @@ When you run `/strata:init` on a fresh project, strata creates this:
 ├── AGENTS.md · CLAUDE.md          # thin adapters → .strata/MANIFEST.md
 ├── README.md                      # your project's front door
 └── .strata/
-    ├── MANIFEST.md                # the contract: version, structure, routing, load order
+    ├── MANIFEST.md                # the contract: layout_version, structure, routing, load order
     ├── memory/                    # HOT
     │   ├── MEMORY.md              # index only: live pointers + rules-by-trigger table (≤80 lines)
     │   ├── project_state.md       # current + last session (≤200 lines)
@@ -126,7 +126,7 @@ When you run `/strata:init` on a fresh project, strata creates this:
         └── CHANGELOG.md · roadmap.md   (when they exist)
 ```
 
-Everything strata owns lives under `.strata/`. Like a lockfile, the folder names its own format and version in the manifest, so any tool can read it and it stays in one place, clear of the rest of your repo. The adapters, `AGENTS.md` and `CLAUDE.md`, are thin pointers into it. `AGENTS.md` still has room for your own build, test, and style notes.
+Everything strata owns lives under `.strata/`. Like a lockfile, the folder names its own format and version in the manifest, so any tool can read it and it stays in one place, clear of the rest of your repo. That stamp is the memory **layout** generation — `layout_version: 3`, a plain integer — kept deliberately distinct from strata's **plugin release** version (semver, e.g. `0.0.6` via git tags), so a glance never confuses the two. The adapters, `AGENTS.md` and `CLAUDE.md`, are thin pointers into it. `AGENTS.md` still has room for your own build, test, and style notes.
 
 ## The commands
 

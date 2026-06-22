@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Repo lints for strata 0.0.3. Run from anywhere: bash tests/lint.sh
+# Repo lints for strata layout_version 3. Run from anywhere: bash tests/lint.sh
 # Checks: legacy tokens, size budgets, canonical states/types consistency,
 # template placeholder hygiene, internal link integrity.
 set -uo pipefail
@@ -55,7 +55,7 @@ done
 
 # Nothing else outside the historical surface may mention legacy tokens at all.
 stray=$(grep -rlE "$LEGACY" --include="*.md" . \
-  --exclude-dir=.git --exclude-dir=.remember --exclude-dir=decisions --exclude-dir=issues \
+  --exclude-dir=.git --exclude-dir=.remember --exclude-dir=.strata --exclude-dir=decisions --exclude-dir=issues \
   --exclude=README.md --exclude=MIGRATIONS.md --exclude=CHANGELOG.md \
   --exclude=SKILL.md --exclude=save.md --exclude=load.md --exclude=DESIGN.md \
   2>/dev/null | grep -v "^./$TEMPLATES_DIR/" || true)

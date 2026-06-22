@@ -25,7 +25,7 @@ Capture any important moment the instant it is clear, so the project's docs grow
 
 ### 1. Detect the mode
 
-- `.strata/MANIFEST.md` present -> **strata mode**. Check `strata_version: 0.0.3`; if it differs, stop and point at `MIGRATIONS.md`.
+- `.strata/MANIFEST.md` present -> **strata mode**. Check `layout_version: 3`; if it differs (e.g. a legacy `strata_version: 0.0.3` stamp), stop and point at `MIGRATIONS.md`.
 - `.strata/memory/project_state.md` present without a manifest -> **flat mode**. Append a concise fresh capture there; later `strata init` migrates and archives the flat source.
 - Nothing present -> create `.strata/memory/project_state.md` as flat mode with the capture. Mention that `strata init` can upgrade it later.
 

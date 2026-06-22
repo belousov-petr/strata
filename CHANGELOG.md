@@ -1,6 +1,17 @@
 # Changelog
 
-Notable changes to strata. Releases are git tags on this repo; *layout generations* are `strata_version` stamps in scaffolded manifests. When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
+Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
+
+## 0.0.6 — 2026-06-22
+
+**The memory-layout stamp is now an integer, named distinctly from the plugin release.** Breaking layout-stamp change — see `MIGRATIONS.md` Rung 3 ([ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md)).
+
+### Changed
+- The layout stamp in scaffolded `MANIFEST.md` is **`layout_version: 3`** (a plain integer generation counter), replacing `strata_version: 0.0.3`. Same on-disk structure — only the stamp label changed. This ends the confusion where the layout (`0.0.3`) and the plugin release (`0.0.5`) looked like one semver counter out of sync: a glance now distinguishes `layout_version: 3` (memory format) from plugin `0.0.6` (release).
+- `SKILL.md §9`, the `load`/`save`/`capture` version checks, `docs/DESIGN.md`, the scaffold templates (`MANIFEST.md`), and the adapter templates (`AGENTS.md`/`CLAUDE.md`) all reference `layout_version: 3`; the plugin release stays semver (ADR-0008 stands).
+
+### Migration
+- **Strict:** a project still stamped `strata_version: 0.0.3` is a version mismatch — `load`/`save`/`capture` stop and point at `MIGRATIONS.md`. New **Rung 3** does the one-line, gated stamp rewrite (`strata_version: 0.0.3` → `layout_version: 3`); no structural change, fully reversible.
 
 ## 0.0.5 — 2026-06-20
 

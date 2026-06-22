@@ -18,9 +18,9 @@ Capture what happened in this session so the next one starts hot. In strata mode
 
 ### 1. Detect the mode
 
-- `.strata/MANIFEST.md` present → **strata mode**. Check its `strata_version` — if it isn't `0.0.3`, stop and point at `MIGRATIONS.md`.
+- `.strata/MANIFEST.md` present → **strata mode**. Check its `layout_version` — if it isn't `3` (e.g. a legacy `strata_version: 0.0.3` stamp), stop and point at `MIGRATIONS.md`.
 - Legacy fingerprints present (`.ai/MEMORY-MAP.md`, `docs/PROJECT-MAP.md`, `.claude/memory/`) → **legacy layout**. Do not save into it and do not scaffold a second memory; offer the migration ladder in `MIGRATIONS.md`.
-- Neither → **flat mode**: capture a single `.strata/memory/project_state.md`; later `strata init` migrates that file into 0.0.3, archiving the original first.
+- Neither → **flat mode**: capture a single `.strata/memory/project_state.md`; later `strata init` migrates that file into the current layout (`layout_version: 3`), archiving the original first.
 
 State the detected mode before proceeding.
 
