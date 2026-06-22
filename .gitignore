@@ -13,3 +13,6 @@ Screenshot*.png
 
 # Subagent-driven-development / superpowers scratch
 .superpowers/
+
+# Private strata dogfood memory — kept local in WSL, not shipped in this public plugin repo
+.strata/
