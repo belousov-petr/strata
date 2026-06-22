@@ -25,5 +25,5 @@ jobs:
         run: |
           gh api --method POST \
             repos/belousov-petr/marketplace/dispatches \
-            -f event_type=strata-released
-          echo "Dispatched strata-released to belousov-petr/marketplace."
+            -f event_type=plugin-released
+          echo "Dispatched plugin-released to belousov-petr/marketplace."
