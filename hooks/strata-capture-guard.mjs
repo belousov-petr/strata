@@ -15,13 +15,12 @@
 //      failures; Stop is the per-turn drain (Codex has no SessionEnd) and scans the
 //      rollout tail via the same cursor-based rollout parser used by PreCompact.
 //
-//   2) NUDGE — it injects an immediate-capture reminder via
-//      `hookSpecificOutput.additionalContext` (the field both tools read):
-//      SessionStart primes the discipline; PreCompact is a last-chance flush;
-//      PostToolUse pings only on the calls where it actually logged a failure.
-//      Stop and SessionEnd are SILENT (no additionalContext) — Stop fires every
-//      Codex turn so a nudge would be noisy; the shared per-transcript cursor makes
-//      per-turn scans incremental and cheap.
+//   2) NUDGE — SessionStart primes the discipline and PostToolUse pings only on
+//      calls where it actually logged a failure. Those events support
+//      `hookSpecificOutput.additionalContext`. PreCompact, SessionEnd, and Stop are
+//      SILENT evidence drains: PreCompact does not accept additionalContext, and
+//      Stop fires every Codex turn so a nudge there would be noisy. The shared
+//      per-transcript cursor makes the scans incremental and cheap.
 //
 // Outside a strata project it is a SILENT no-op (no output). Any error => exit 0 with
 // no output, so the hook can never break or stall the host session.
@@ -358,17 +357,6 @@ function messageFor(event, root, logged) {
         'session end — compaction can erase what lives only in the conversation.' +
         inboxNote(root)
       )
-    case 'PreCompact':
-      return (
-        'Context is about to be compacted. If any findings, failures, gotchas, ' +
-        'durable lessons, decisions, or doc-worthy context from this session are not ' +
-        'yet written to `.strata/`, ' + HOW +
-        ' BEFORE the compaction runs — otherwise they may be lost.' +
-        (logged > 0
-          ? ` (Backstop: ${logged} raw failure stub${logged === 1 ? '' : 's'} were just auto-saved to ` +
-            '`.strata/inbox/captures.jsonl`, but still capture the *lessons* now while you have the context.)'
-          : '')
-      )
     case 'PostToolUse':
       return (
         `⚠ That command failed (${logged > 0 ? 'logged' : 'signal'}). A raw stub was saved to ` +
@@ -399,9 +387,9 @@ async function main() {
     else if (event === 'SessionEnd') logged = handleSessionEnd(root, payload)
     else if (event === 'Stop') logged = handleStop(root, payload)
 
-    // SessionEnd and Stop are silent drains (no additionalContext path);
-    // PostToolUse speaks only when it logged a failure.
-    if (event === 'SessionEnd' || event === 'Stop') process.exit(0)
+    // These lifecycle drains do not inject context. In particular, PreCompact
+    // accepts only top-level decision control; hookSpecificOutput is invalid there.
+    if (event === 'PreCompact' || event === 'SessionEnd' || event === 'Stop') process.exit(0)
     if (event === 'PostToolUse' && logged === 0) process.exit(0)
 
     const out = {

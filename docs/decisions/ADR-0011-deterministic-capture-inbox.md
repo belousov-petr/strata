@@ -1,6 +1,6 @@
 # ADR-0011: Deterministic capture inbox + per-agent distillation (extends ADR-0010)
 
-- **Status:** implemented (extends ADR-0010) — P1+P2+P3 all shipped 2026-06-20; ADR-0011 fully implemented
+- **Status:** implemented (extends ADR-0010; `PreCompact` output corrected by ADR-0014) — P1+P2+P3 all shipped 2026-06-20; ADR-0011 fully implemented
 - **Date:** 2026-06-20
 
 ## Context and Problem Statement

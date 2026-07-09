@@ -34,7 +34,7 @@ tool fails ──hook──▶ .strata/inbox/captures.jsonl ──/strata:captur
 
 **Write (per agent):**
 - `PostToolUse(Bash)` — on a failing result, append a stub immediately; silent on success.
-- `PreCompact` — scan the transcript tail (cursor-based) for failed tool results not already captured; flush them; then the last-chance nudge.
+- `PreCompact` — scan the transcript tail (cursor-based) for failed tool results not already captured, flush them, then exit 0 with no stdout. The event supports top-level block decisions, not `hookSpecificOutput.additionalContext` (ADR-0014).
 - `SessionEnd`/`Stop` (new, non-blocking) — run **only** the transcript-tail scan, so a session that ends without compaction still drains. No block, no wedge — the salvaged half of B1.
 
 **Promote (read side, defined once in `SKILL.md`, referenced by the commands):**
@@ -81,7 +81,7 @@ Codex's hook schema is Claude-compatible, so the script's existing snake_case re
 
 ## 10. Error handling
 
-Unchanged where it already holds: any error → exit 0, no output; silent no-op outside a strata project; no output on a successful `PostToolUse`; bounded stdin read. New code keeps the same discipline — a redaction or parser failure degrades to "write less / nudge only," never to a crash or a block.
+Unchanged where it already holds: any error → exit 0, no output; silent no-op outside a strata project; no output on a successful `PostToolUse`; bounded stdin read. `PreCompact`, `SessionEnd`, and `Stop` are silent drains. A redaction or parser failure degrades to writing less evidence, never to a crash or a block; supported nudges remain on `SessionStart` and failed `PostToolUse` events.
 
 ## 11. Testing
 

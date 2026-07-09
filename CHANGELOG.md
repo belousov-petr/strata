@@ -2,6 +2,13 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.0.7 — 2026-07-09
+
+**`PreCompact` is now a silent, cross-tool evidence drain.** No memory-layout change; projects remain on `layout_version: 3` and need no migration.
+
+### Fixed
+- `PreCompact` now performs its transcript drain silently. The previous `hookSpecificOutput.additionalContext` response is not valid for Claude Code's `PreCompact` event and caused compaction to report `invalid PreCompact hook JSON output`. Entry-point tests now lock the event's zero-stdout contract while confirming that evidence is still persisted and `SessionStart` context injection remains intact ([ADR-0014](docs/decisions/ADR-0014-precompact-silent-evidence-drain.md)).
+
 ## 0.0.6 — 2026-06-22
 
 **The memory-layout stamp is now an integer, named distinctly from the plugin release.** Breaking layout-stamp change — see `MIGRATIONS.md` Rung 3 ([ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md)).

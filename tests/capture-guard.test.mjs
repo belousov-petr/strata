@@ -5,6 +5,10 @@ import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+const hookPath = fileURLToPath(new URL('../hooks/strata-capture-guard.mjs', import.meta.url))
 
 test('module exports the pure helpers and does not run main on import', () => {
   assert.equal(typeof guard.failureSignal, 'function')
@@ -80,6 +84,58 @@ function inboxLines(root) {
       .trim().split('\n').filter(Boolean).map((l) => JSON.parse(l))
   } catch { return [] }
 }
+
+function runHook(payload) {
+  const env = { ...process.env }
+  // A nested Node process otherwise inherits the test runner's internal context
+  // and reports through the parent instead of behaving like a CLI entry point.
+  delete env.NODE_TEST_CONTEXT
+  return spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify(payload),
+    encoding: 'utf8',
+    env,
+  })
+}
+
+test('PreCompact entry point drains failures without emitting an invalid response', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_result', is_error: true, content: 'build did not complete' }] } },
+  ])
+  const got = runHook({
+    session_id: 'precompact-test',
+    transcript_path: tp,
+    cwd: root,
+    hook_event_name: 'PreCompact',
+    trigger: 'manual',
+    custom_instructions: '',
+  })
+  assert.ifError(got.error)
+  assert.equal(got.status, 0)
+  assert.equal(got.stdout, '')
+  assert.equal(got.stderr, '')
+  assert.equal(inboxLines(root).length, 1)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('SessionStart entry point still emits its supported context response', () => {
+  const root = tmpRoot()
+  const got = runHook({
+    session_id: 'session-start-test',
+    transcript_path: path.join(root, 'transcript.jsonl'),
+    cwd: root,
+    hook_event_name: 'SessionStart',
+    source: 'startup',
+  })
+  assert.ifError(got.error)
+  assert.equal(got.status, 0)
+  assert.equal(got.stderr, '')
+  const output = JSON.parse(got.stdout)
+  assert.equal(output.continue, true)
+  assert.equal(output.hookSpecificOutput.hookEventName, 'SessionStart')
+  assert.match(output.hookSpecificOutput.additionalContext, /immediate-capture rule/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
 
 test('scanTranscript (SessionEnd) logs a failed tool_result and stamps the event', () => {
   const root = tmpRoot()

@@ -7,11 +7,12 @@ Linux**.
 ## What it does
 
 [`strata-capture-guard.mjs`](strata-capture-guard.mjs) reads the hook event JSON on
-stdin and, **only when the working directory is inside a strata project** (a `.strata/`
-directory at the cwd or any ancestor), prints a JSON object that injects a reminder into
-the agent's context via `hookSpecificOutput.additionalContext` — the field both tools
-read. Outside a strata project it is a **silent no-op**. Any error exits 0 with no
-output, so it can never break or stall a session.
+stdin and acts **only when the working directory is inside a strata project** (a
+`.strata/` directory at the cwd or any ancestor). `SessionStart` and failed
+`PostToolUse` events inject a reminder through their supported
+`hookSpecificOutput.additionalContext` field. Lifecycle drains are silent. Outside a
+strata project it is a **silent no-op**. Any error exits 0 with no output, so it can
+never break or stall a session.
 
 It fires on five events:
 
@@ -22,8 +23,10 @@ It fires on five events:
   **writes a raw stub to the inbox immediately** and pings the agent to distill the
   lesson. Silent on success, so there is no per-command noise.
 - **`PreCompact`** — scans the transcript tail (cursor-based) for failed tool results,
-  **writes any not-yet-captured ones to the inbox**, then injects the last-chance
-  "save unsaved findings now" reminder.
+  **writes any not-yet-captured ones to the inbox**, then exits successfully with no
+  stdout. Claude Code's `PreCompact` response contract does not accept
+  `hookSpecificOutput.additionalContext`; returning it makes compaction report an
+  invalid-hook-JSON error.
 - **`SessionEnd`** — a non-blocking, silent end-of-session drain: runs the same
   cursor-based transcript scan so a session that ends without compaction still captures
   failures. No nudge — `SessionEnd` cannot inject context into the agent. Skipped only on
@@ -57,7 +60,8 @@ commit raw inbox files — redaction is best-effort and raw stubs can still cont
 
 ### Honest limitation
 
-A hook still **cannot make the agent reason**. The nudges prime the discipline; the
+A hook still **cannot make the agent reason**. The `SessionStart` and failed-command
+nudges prime the discipline; the
 *inbox* is the part that does not depend on the agent taking a turn — it captures the
 raw failure evidence deterministically, so even if compaction lands before the agent
 distills a lesson, the evidence is already on disk to promote later. The agent still
@@ -107,8 +111,8 @@ Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 >   no-match) — those land as low-value stubs that `/strata:capture` promotion drops.
 >
 > The sample config wires **SessionStart + PostToolUse(Bash) + PreCompact + Stop**.
-> Codex uses `Stop` (per-turn) rather than `SessionEnd`; the `Stop` drain is silent (no
-> stdout) and shares the per-transcript cursor with `PreCompact` so they never double-log.
+> Codex uses `Stop` (per-turn) rather than `SessionEnd`; both rollout drains are silent
+> (no stdout) and share the per-transcript cursor so they never double-log.
 
 ## Cross-platform notes
 
