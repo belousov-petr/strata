@@ -30,7 +30,7 @@ _(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
 └── .strata/
     ├── MANIFEST.md                this contract (layout_version, routing, load order)
     ├── memory/                    HOT — loads at session start
-    │   ├── MEMORY.md              pure index: live pointers + rules-by-trigger table (≤80 lines)
+    │   ├── MEMORY.md              pure index: live pointers + rules-by-trigger table = hot subset (≤80 lines; full list in learnings/INDEX.md)
     │   ├── project_state.md       current + last completed session (≤200 lines)
     │   ├── learnings/             operation-keyed behavioral rules (+ generated INDEX.md)
     │   └── archive/               COLD — ARCHIVE.md · action_log.md · old sessions · source-*

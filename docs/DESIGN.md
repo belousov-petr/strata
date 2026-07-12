@@ -172,6 +172,7 @@ Filename = `<id>-<slug>.md`. The frontmatter is the query surface — keep value
 trigger: <when this applies — operation-keyed, e.g. "before pushing to a shared branch">
 applies-when: <glob or area, optional — e.g. "**/*.ps1">
 origin: success | failure
+hot: <true | false, optional — true loads the rule into MEMORY.md every session; default false = INDEX.md only>
 ---
 
 **Lesson:** <1–3 sentences. Imperative. What to do or avoid, and the one-line why.>
@@ -206,7 +207,7 @@ The MANIFEST is the *only* per-project file that states routing and structure ([
 - [Active issues](../issues/ACTIVE.md) — <n> in progress
 - [Open backlog](../issues/OPEN.md) — <n> open
 
-## Rules by trigger   <!-- GENERATED from learnings/ frontmatter at /strata:save -->
+## Rules by trigger   <!-- GENERATED from learnings/ frontmatter at /strata:save — the hot:true subset, §5.8 -->
 | When you are about to… | Read |
 |---|---|
 | <trigger> | [learnings/<slug>.md](learnings/<slug>.md) |
@@ -257,7 +258,7 @@ MADR-derived, same format as strata's own records: Status/Date · Context and Pr
 - `issues/OPEN.md` — every `status: open`, grouped by `area:`, sorted severity-first.
 - `issues/PARKED.md` — every `status: parked`: id, what, **revive-when** verbatim.
 - `learnings/INDEX.md` — every learning: `| trigger | applies-when | origin | file |`.
-- `MEMORY.md` rules-by-trigger table — same rows, trimmed to trigger + link.
+- `MEMORY.md` rules-by-trigger table — the **hot subset**: learnings with `hot: true`, trimmed to trigger + link. *Graceful default:* until any learning sets `hot:`, all appear (legacy behavior); once one does, the table filters to `hot: true` while `INDEX.md` stays complete. New learnings default `hot: false`, so the ≤80 hot table stays bounded as learnings accumulate. If regeneration would breach ≤80, `/strata:save` flags it and suggests curating — it never auto-picks the set ([ADR-0015](decisions/ADR-0015-hot-tier-curated-subset.md)).
 
 Each generated file carries the header comment `<!-- GENERATED at /strata:save — do not hand-edit; edit item frontmatter instead -->`.
 

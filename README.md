@@ -80,7 +80,7 @@ origin: failure
 cross-references.
 ```
 
-When you find out how a website paginates, or why a deploy needs a manual step, this is where it lands, so the next session reads it rather than learning it again. The trigger keys the lesson to an operation rather than a date, so the by-trigger table in `MEMORY.md` keeps lookups fast.
+When you find out how a website paginates, or why a deploy needs a manual step, this is where it lands, so the next session reads it rather than learning it again. The trigger keys the lesson to an operation rather than a date, so the by-trigger table in `MEMORY.md` keeps lookups fast. Mark a broad, often-used rule `hot: true` and it rides in that always-loaded table; everything else stays one grep away in `learnings/INDEX.md`, so the cheat sheet the agent reads every session stays short no matter how many lessons pile up (new lessons default to index-only). If it ever does bloat past its budget, `/strata:save` tells you and suggests trimming — it never quietly drops a rule you flagged.
 
 ### Session memory
 
@@ -111,7 +111,7 @@ When you run `/strata:init` on a fresh project, strata creates this:
 └── .strata/
     ├── MANIFEST.md                # the contract: layout_version, structure, routing, load order
     ├── memory/                    # HOT
-    │   ├── MEMORY.md              # index only: live pointers + rules-by-trigger table (≤80 lines)
+    │   ├── MEMORY.md              # index only: live pointers + rules-by-trigger table = hot subset (≤80 lines)
     │   ├── project_state.md       # current + last session (≤200 lines)
     │   ├── learnings/             # lessons keyed by trigger + a generated INDEX.md
     │   └── archive/               # COLD: old sessions, decision sources, action_log.md

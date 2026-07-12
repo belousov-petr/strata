@@ -68,7 +68,7 @@ DELETIONS (section-only):
 
 REGENERATED:
 - issues/ACTIVE.md · issues/OPEN.md · issues/PARKED.md
-- memory/learnings/INDEX.md · MEMORY.md rules-by-trigger table
+- memory/learnings/INDEX.md (all) · MEMORY.md rules-by-trigger table (hot subset — skill §4)
 
 PROMOTED (from inbox):
 - .strata/issues/<id>-<slug>.md  ← from inbox stub (failure: <signal>)
@@ -89,7 +89,7 @@ Immediately after the preview, run in this order: **writes → appends → updat
 
 ### 7. Verify
 
-- `MEMORY.md` ≤80 lines; `project_state.md` ≤200 lines and covers only current + last completed.
+- `MEMORY.md` ≤80 lines; `project_state.md` ≤200 lines and covers only current + last completed. If the regenerated `MEMORY.md` rules table would breach ≤80, don't auto-trim — report it and suggest curating the hot subset (flag the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`), per skill §4/§6E.
 - Generated views match item frontmatter (spot-check one item per view).
 - Resumption point is specific enough to act on without questions.
 - No contradiction left between hot memory and the warm docs touched this session.

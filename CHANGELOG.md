@@ -2,6 +2,18 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.0.8 — 2026-07-12
+
+**The hot tier (`MEMORY.md` rules table) is now a curated `hot: true` subset, so it stays within its ≤80-line budget as learnings accumulate.** No memory-layout change; projects remain on `layout_version: 3` and need no migration ([ADR-0015](docs/decisions/ADR-0015-hot-tier-curated-subset.md)).
+
+### Added
+- **`hot:` frontmatter on learnings + the curated hot subset.** `learnings/<slug>.md` gains an optional `hot: true | false`. `MEMORY.md`'s rules-by-trigger table now regenerates from `hot: true` learnings only (the broad / frequently-triggered rules worth loading every session); `learnings/INDEX.md` stays the complete list. New learnings default `hot: false` (INDEX-only), so the always-loaded hot table is future-bounded no matter how many learnings a project accumulates.
+- **Advisory budget guard at `/strata:save`.** If the regenerated `MEMORY.md` table would breach ≤80 lines, the save reports it and suggests curating the hot subset — it never auto-picks or auto-trims the set. A human owns what loads every session, so a guardrail rule is never silently demoted, and deterministic regeneration is preserved (no per-save analysis; [ADR-0004](docs/decisions/ADR-0004-generated-indexes-grep-router.md) idempotency stands).
+
+### Compatibility
+- **Fully backward-compatible — graceful default.** A project with no `hot:` flag anywhere keeps *all* learnings in the MEMORY table (current behavior); the first `hot:` flag opts it into filtering. Existing `layout_version: 3` projects are unchanged and need no migration. To adopt: run `/strata:save`, and when the guard flags an over-budget table, flag your most-triggered learnings `hot: true` in one pass — the rest stay in `INDEX.md`.
+- `SKILL.md §1/§4/§6E`, `commands/save.md`, `docs/DESIGN.md §5.2/§5.4/§5.8`, and the scaffold templates (`memory/learnings/_TEMPLATE.md`, `memory/MEMORY.md`, `MANIFEST.md`) document the convention; new projects scaffold with the `hot: false` default and the hot-subset note.
+
 ## 0.0.7 — 2026-07-09
 
 **`PreCompact` is now a silent, cross-tool evidence drain.** No memory-layout change; projects remain on `layout_version: 3` and need no migration.

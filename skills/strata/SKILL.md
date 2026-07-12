@@ -29,7 +29,7 @@ One routing key per store: `project_state.md` = recency ("what was I doing"), `l
 
 **Budgets (hard):** `MEMORY.md` ≤80 lines · `project_state.md` ≤200 lines, current + last completed session only. Warm and cold are unbudgeted — depth is free off the hot path.
 
-**Contract file.** `.strata/MANIFEST.md` (with `layout_version: 3`) is the *only* per-project file stating structure and routing. `MEMORY.md` is a pure index: live pointers + the generated rules-by-trigger table. Never re-add routing tables to it.
+**Contract file.** `.strata/MANIFEST.md` (with `layout_version: 3`) is the *only* per-project file stating structure and routing. `MEMORY.md` is a pure index: live pointers + the generated rules-by-trigger table — the **hot subset** of learnings (§4); the complete list is `learnings/INDEX.md`. Never re-add routing tables to it.
 
 **Portability.** Project-relative paths only (`.strata/...`); no machine-specific absolute paths, usernames, or single-OS commands in memory — give PowerShell and POSIX variants when a saved command matters on both.
 
@@ -79,12 +79,14 @@ One lesson per `memory/learnings/<slug>.md`:
 trigger: <when this applies — operation-keyed>
 applies-when: <glob/area, optional>
 origin: success | failure
+hot: <true|false, optional — true loads the rule into MEMORY.md every session>
 ---
 **Lesson:** <1–3 sentences>
 ```
 
 - Capture **failures and successes** — a pitfall with its counterfactual fix is the highest-value item.
-- `learnings/INDEX.md` and the rules-by-trigger table in `MEMORY.md` are regenerated from frontmatter at `/strata:save`.
+- `learnings/INDEX.md` (every learning) and the `MEMORY.md` rules-by-trigger table (the **hot subset**) are regenerated from frontmatter at `/strata:save`.
+- **Hot subset.** The MEMORY table lists learnings marked `hot: true` — the broad/frequent rules worth loading every session. *Graceful default:* a project with **no** `hot:` flag anywhere keeps all learnings in the table (legacy, unchanged); the first `hot:` flag opts it into filtering. New learnings default `hot: false` (INDEX-only), so the hot table stays bounded as learnings accumulate — promote to `hot: true` only when a rule proves broadly triggered. Never auto-pick the set; `/strata:save` only *flags* an over-budget table and suggests curating (§6E).
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
@@ -141,7 +143,7 @@ memory.** The inbox is git-ignored transient scratch.
 
 **D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → clear inbox (truncate captures.jsonl + drop cursor files — the physical clear; promotion happens in step A) → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
 
-**E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. Then a concise summary of what went where.
+**E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim — report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
 
 ## 7. `/strata:load` — orientation contract
 

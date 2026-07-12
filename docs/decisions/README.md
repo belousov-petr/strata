@@ -43,6 +43,7 @@ Rules:
 | [ADR-0012](ADR-0012-immediate-capture-all-moments.md) | Immediate capture covers every important moment (docs-as-you-go), not just issues/learnings | implemented |
 | [ADR-0013](ADR-0013-layout-version-integer.md) | Layout version is an integer (`layout_version: 3`), named distinctly from the plugin release | implemented |
 | [ADR-0014](ADR-0014-precompact-silent-evidence-drain.md) | `PreCompact` scans evidence silently; context nudges stay on supported events | implemented |
+| [ADR-0015](ADR-0015-hot-tier-curated-subset.md) | Hot tier (`MEMORY.md` table) is a curated `hot:true` subset; `INDEX.md` stays complete; graceful default + advisory budget guard | implemented |
 
 ## Provenance
 

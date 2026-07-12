@@ -11,6 +11,7 @@ Pure hot index: live pointers + the generated rules-by-trigger table. Keep ≤80
 ## Rules by trigger
 
 <!-- GENERATED at /strata:save from learnings/ frontmatter — do not hand-edit; edit learning files instead -->
+<!-- The hot subset: learnings marked `hot: true`. Full list: learnings/INDEX.md. Until any learning sets `hot:`, all appear here (see MANIFEST / skill §4). -->
 
 | When you are about to… | Read |
 |---|---|
