@@ -2,6 +2,11 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.0.9 — 2026-09-11
+
+### Fixed
+- Set the bundled `SessionEnd` hook timeout to 3 seconds, matching [Codex’s documented maximum](https://learn.chatgpt.com/docs/hooks). This removes the startup warning that the previous 10-second timeout was being clamped. Other hook timeouts and capture behavior are unchanged. No memory-layout change or migration is required.
+
 ## 0.0.8 — 2026-07-12
 
 **The hot tier (`MEMORY.md` rules table) is now a curated `hot: true` subset, so it stays within its ≤80-line budget as learnings accumulate.** No memory-layout change; projects remain on `layout_version: 3` and need no migration ([ADR-0015](docs/decisions/ADR-0015-hot-tier-curated-subset.md)).
