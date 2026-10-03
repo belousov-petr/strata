@@ -475,12 +475,19 @@ export function scanTranscript(root, tp, event) {
       if (blk?.type !== 'tool_result') continue
       const origin = toolById.get(blk.tool_use_id)
       const t = typeof blk.content === 'string' ? blk.content : resultText(blk.content) || resultText(o.toolUseResult)
-      // A tool_result without is_error (older hosts) has no status: only a shell
-      // result (or one of unknown origin) may use the strict text fallback.
+      // A tool_result without is_error (older hosts, non-shell tools) has no
+      // status: only a shell result may use the strict text fallback. When the
+      // tool_use sits before this scan window, infer the tool from the result:
+      // a shell result carries stdout/stderr or starts with "Exit code N".
       const isError = blk.is_error === true ? true : blk.is_error === false ? false : undefined
-      const r = classify({ tool: origin ? origin.name : undefined, text: t, isError })
+      let tool = origin ? origin.name : null
+      if (!tool) {
+        const tur = o.toolUseResult
+        tool = (tur && typeof tur === 'object' && 'stdout' in tur) || /^Exit code \d+/.test(String(t)) ? 'Bash' : 'tool'
+      }
+      const r = classify({ tool, text: t, isError })
       if (!r) continue
-      if (appendStub(root, stubFor(event, origin ? origin.name : 'tool_result', r, {
+      if (appendStub(root, stubFor(event, tool, r, {
         command: origin ? origin.command : '', text: t, ts: o.timestamp, tuid: blk.tool_use_id,
       }))) logged++
     }

@@ -373,3 +373,18 @@ test('classify follows status before text', () => {
   assert.equal(guard.classify({ tool: 'Bash', text: 'x', isError: true, interrupted: true }).category, 'interrupted')
   assert.equal(guard.classify({ tool: 'Bash', text: 'ok\n  fatal: indented, not a git error' }), null)
 })
+
+test('a result whose tool_use precedes the scan window is classified from its own shape', () => {
+  const root = tmpRoot()
+  const tp = writeTranscript(root, [
+    // A Read result (no stdout) that prints a traceback, with no is_error: not a failure.
+    { toolUseResult: { file: { filePath: '/work/app/log.txt' } }, message: { content: [{ type: 'tool_result', tool_use_id: 'gone1', content: 'Traceback (most recent call last):\n  File "x.py"' }] } },
+    // A Bash failure whose tool_use is out of the window: still a failure.
+    { toolUseResult: { stdout: '', stderr: 'boom', interrupted: false }, message: { content: [{ type: 'tool_result', tool_use_id: 'gone2', is_error: true, content: 'Exit code 2\nboom' }] } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 1)
+  const got = inboxLines(root)
+  assert.equal(got[0].category, 'failure')
+  assert.equal(got[0].tool, 'Bash')
+  fs.rmSync(root, { recursive: true, force: true })
+})
