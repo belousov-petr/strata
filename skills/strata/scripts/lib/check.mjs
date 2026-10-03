@@ -9,6 +9,7 @@ import {
   readIssues, readLearnings, TYPES, STATUSES, SEVERITIES, ORIGINS, TERMINAL, LIVE,
 } from './model.mjs'
 import { syncViews } from './views.mjs'
+import { driverState, DRIVER } from './setup.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
 
@@ -132,6 +133,13 @@ export function runCheck(project) {
       if (n === 'ARCHIVE.md' || !n.endsWith('.md')) continue
       if (!archiveIndex.includes(n)) add('warn', 'archive-unindexed', `.strata/memory/archive/${n}`, 'not listed in ARCHIVE.md')
     }
+  }
+
+  // 8. Merge driver: committed .gitattributes names it, but git config is per clone.
+  const attrs = readLf(path.join(project, '.gitattributes')) || ''
+  if (attrs.includes(`merge=${DRIVER}`)) {
+    const st = driverState(project)
+    if (st.inGit && !st.configured) add('warn', 'merge-driver-missing', '.gitattributes', `this clone has no merge.${DRIVER}.driver; run strata setup once`)
   }
 
   const errors = findings.filter((f) => f.level === 'error').length

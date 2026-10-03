@@ -9,6 +9,7 @@ import { syncViews } from './views.mjs'
 import { runCheck, BUDGETS } from './check.mjs'
 import { readJournal, journalSummaryLine } from './journal.mjs'
 import { inboxSummary } from './inbox.mjs'
+import { driverState, installDriver } from './setup.mjs'
 
 // Extra steps registered by later modules (inbox summary, merge driver refresh,
 // drift list, auto-memory pointer). Each gets (roots, ctx) and adds to ctx.
@@ -160,6 +161,12 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   if (v.external) ctx.info.views = 'external'
   if (v.hot.overflow) ctx.judgment.push(`hot rules: ${v.hot.overflow} over the adapter block budget (${v.hot.total} hot); curate the hot set`)
   for (const x of v.views) if (x.state === 'no-table') ctx.judgment.push(`${x.file}: no generated rules table found; add one under "## Rules by trigger"`)
+
+  const drv = driverState(project)
+  if (drv.inGit && drv.configured && !drv.current) {
+    installDriver(project, dryRun)
+    ctx.changed.push('refresh the generated-views merge driver path in local git config (the plugin moved)')
+  }
 
   for (const step of extraSteps) await step(roots, ctx)
 

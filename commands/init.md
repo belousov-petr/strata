@@ -14,15 +14,17 @@ Set up `.strata/` project memory in this repo, or upgrade an older layout to the
 - A repo has no project memory yet and you want strata set up
 - User says "set up strata", "init strata", "scaffold project memory"
 - A repo has flat or older strata memory and you want it on the current format
+- A project initialized before strata 0.1.0: init adds the views merge driver and the hot-rules block, and nothing else
 
 ## Process
 
 Run the skill's `init` flow:
 
-1. **Preconditions.** Confirm the working directory is the project root inside a git repo. Detect existing memory before writing anything: a valid current-format `.strata/MANIFEST.md` means refuse (report it; re-bootstrap needs the user to move or delete it first); a flat or older layout routes to the matching `MIGRATIONS.md` rung instead of a fresh scaffold; a mixed or partial state stops and asks.
+1. **Preconditions.** Confirm the working directory is the project root inside a git repo. Detect existing memory before writing anything: a valid current-format `.strata/MANIFEST.md` means no re-scaffold; run `strata setup` (below) to add the 0.1.0 add-ons and report; a flat or older layout routes to the matching `MIGRATIONS.md` rung instead of a fresh scaffold; a mixed or partial state stops and asks.
 2. **Ask** (one prompt): the project name, and whether this is a code project (full `.strata/docs/` taxonomy) or a knowledge/ops project (memory + issues; docs grow later). During a migration, derive these from existing memory when obvious.
 3. **Scaffold or migrate.** For a fresh project, write the templates from the skill's `templates/` (substituting the project name and today's date), with `AGENTS.md` and `CLAUDE.md` written only if absent. For flat or older memory, run the `MIGRATIONS.md` rung: archive the source first, then write the current-format files with provenance links back to the archived source.
-4. **Report** what was created or migrated, plus the next steps, per the skill's `init` report block.
+4. **Set up the add-ons.** Run `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs" setup` (Codex: `node <skill folder>/scripts/strata.mjs setup`). It is idempotent: it adds the `.gitattributes` block and the local git config line for the generated-views merge driver, and the hot-rules block to `CLAUDE.md` / `AGENTS.md`, and touches nothing else. Each other clone of the repo runs it once.
+5. **Report** what was created, migrated or set up, plus the next steps, per the skill's `init` report block.
 
 ## Invocation
 

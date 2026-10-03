@@ -172,7 +172,7 @@ Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (C
 
 1. CWD is the target project root, inside a git repo (`git rev-parse --is-inside-work-tree`; error out if not).
 2. **Existing-memory routing.** Detect before writing:
-   - Valid current layout (`.strata/MANIFEST.md` with `layout_version: 3`) → refuse: report the existing memory; re-bootstrap requires the user to move/delete it first.
+   - Valid current layout (`.strata/MANIFEST.md` with `layout_version: 3`) → do not re-scaffold. Run `strata setup` instead: it adds what a project initialized before 0.1.0 lacks (the views merge driver and the hot-rules block) and changes nothing else. Report what it did. A full re-bootstrap still requires the user to move/delete the existing memory first.
    - Flat mode (`.strata/memory/project_state.md` exists, with no `.strata/MANIFEST.md` and no `.strata/memory/MEMORY.md`) → run the flat→0.0.3 rung in `MIGRATIONS.md`; never overwrite the flat file in place.
    - 0.0.1/0.0.2 fingerprints — `.claude/memory/`, `docs/PROJECT-MAP.md`, `.ai/` (or `.ai/MEMORY-MAP.md`), `open_action_items.md`, `project_<slug>.md` memory files, `docs/parked/`, or project files referencing the old `/save-point`//`/load-point` commands → run the matching `MIGRATIONS.md` rung(s), not a fresh scaffold.
    - Mixed or partial `.strata/` state that is not the flat fingerprint → stop, report every fingerprint, and ask the user to choose repair/migration; never guess and never overwrite.
@@ -194,7 +194,7 @@ Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (C
 | `templates/docs/ARCHITECTURE.md` + `templates/docs/{product,architecture,decisions,reference,ops}/README.md` | `.strata/docs/…` | code projects |
 | `templates/inbox/.gitignore` | `.strata/inbox/.gitignore` | always |
 
-Existing adapters are left unchanged and reported as such. Adapters are pointers only — never write project memory into them.
+After the templates are written, run `strata setup`: it writes the `.gitattributes` block that routes the generated views (and the adapters' hot-rules block) through the `strata-views` merge driver, sets that driver in the clone's local git config, and appends the hot-rules block to adapters that existed before init. Existing adapters are otherwise left unchanged and reported as such. Adapters are pointers plus that one generated block; never write project memory into them. Every other clone of the repo runs `strata setup` once, because git config is not committed.
 
 Migration writes may target the same paths, but source memory is archived first. Flat `project_state.md` becomes `.strata/memory/archive/source-flat-project-state-<date>.md` before a new hot `project_state.md` is written; extracted issues, learnings, and ADRs cite that archive path or the archived section heading. Ambiguous content stays in the archive and gets a triage issue, not a silent drop.
 
@@ -207,7 +207,8 @@ Created:
 - .strata/MANIFEST.md (contract, layout_version: 3)
 - .strata/memory/ (MEMORY.md index, project_state.md, learnings/, archive/)
 - .strata/issues/ (README, _TEMPLATE, ACTIVE/OPEN/PARKED views, archive/)
-- .strata/inbox/ (git-ignored capture scratch)
+- .strata/inbox/ (git-ignored capture scratch: journal + hook inbox)
+- .gitattributes block + local merge driver for the generated views (strata setup)
 <- .strata/docs/ (ARCHITECTURE.md + product/architecture/decisions/reference/ops) — code projects>
 - AGENTS.md / CLAUDE.md adapters that were absent
 <- Existing adapters left unchanged: ...>
@@ -254,6 +255,8 @@ Next:
 | `journal add / list / clear` | the pending-capture journal (§5, §5a) |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
+| `views --merge-driver %O %A %B %P` | the git merge driver: merges view rows (and the adapters' hot-rules lines) three ways, renders them in the fixed order, `git merge-file` for the text around them |
+| `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver, hot-rules block in existing adapters |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
