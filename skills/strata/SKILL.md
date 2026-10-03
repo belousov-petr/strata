@@ -254,6 +254,7 @@ Next:
 | `journal add / list / clear` | the pending-capture journal (§5, §5a) |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
+| `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
 | `check [--json]` | budgets, frontmatter vocabularies, unique ids, links, view drift; exit 1 on errors |
