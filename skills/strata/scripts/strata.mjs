@@ -14,6 +14,7 @@ import * as journal from './lib/journal.mjs'
 import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
 import { setup, formatSetup } from './lib/setup.mjs'
+import { newIssue, nextAdr } from './lib/ids.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
@@ -31,6 +32,9 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   views [--check]                 regenerate ACTIVE/OPEN/PARKED, learnings INDEX, the MEMORY table, hot rules
   views --merge-driver %O %A %B %P   the git merge driver for generated views
   setup [--dry-run]               one-time install: inbox ignore file, merge driver, hot-rules block
+  new-issue --slug <s> [--title <t>] [--type --severity --area --status --revive] [--dry-run]
+                                  next free id for today (tree, worktrees, branches), file from _TEMPLATE.md
+  next-adr [--dir <d>] [--dry-run]   next free decision-record number
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
 
@@ -153,6 +157,22 @@ const commands = {
     const r = resolveRoots(args.root)
     const res = setup(r.project, { dryRun: Boolean(args['dry-run']) })
     out(args, res, formatSetup(res))
+    return 0
+  },
+
+  'new-issue'(argv) {
+    const args = parseArgs(argv, { bools: ['json', 'dry-run'] })
+    const r = resolveRoots(args.root)
+    const res = newIssue(r, { ...args, dryRun: Boolean(args['dry-run']) })
+    out(args, res, res.dryRun ? res.id : `${res.id}  ${res.file}`)
+    return 0
+  },
+
+  'next-adr'(argv) {
+    const args = parseArgs(argv, { bools: ['json', 'dry-run'] })
+    const r = resolveRoots(args.root)
+    const res = nextAdr(r, { dir: args.dir, dryRun: Boolean(args['dry-run']) })
+    out(args, res, `${res.adr}  (in ${res.dir}/)`)
     return 0
   },
 
