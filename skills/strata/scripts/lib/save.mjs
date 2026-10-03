@@ -10,6 +10,7 @@ import { runCheck, BUDGETS } from './check.mjs'
 import { readJournal, journalSummaryLine } from './journal.mjs'
 import { inboxSummary } from './inbox.mjs'
 import { driverState, installDriver } from './setup.mjs'
+import { driftList, recordSaveMarker } from './drift.mjs'
 
 // Extra steps registered by later modules (inbox summary, merge driver refresh,
 // drift list, auto-memory pointer). Each gets (roots, ctx) and adds to ctx.
@@ -166,6 +167,14 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   if (drv.inGit && drv.configured && !drv.current) {
     installDriver(project, dryRun)
     ctx.changed.push('refresh the generated-views merge driver path in local git config (the plugin moved)')
+  }
+
+  const drift = driftList(roots)
+  ctx.drift = drift.drift
+  ctx.info.drift = { marker: drift.marker, checked: drift.checked, unreferenced: drift.drift.length }
+  if (drift.inGit && !dryRun) {
+    const head = recordSaveMarker(roots)
+    if (head) ctx.info.marker = head
   }
 
   for (const step of extraSteps) await step(roots, ctx)
