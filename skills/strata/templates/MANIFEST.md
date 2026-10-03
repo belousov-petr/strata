@@ -34,7 +34,7 @@ _(Replace with 1–3 sentences: what it does, who it's for, what "done" means.)_
     │   ├── project_state.md       current + last completed session (≤200 lines)
     │   ├── learnings/             operation-keyed behavioral rules (+ generated INDEX.md)
     │   └── archive/               COLD — ARCHIVE.md · action_log.md · old sessions · source-*
-    ├── inbox/                     transient capture scratch (git-ignored; promoted by capture/save)
+    ├── inbox/                     git-ignored capture stage: journal.jsonl (captures) + captures.jsonl (hook); filed by save
     ├── issues/                    single backlog: findings + tasks + initiatives
     │   ├── ACTIVE.md / OPEN.md / PARKED.md    generated views (edit items, not views)
     │   ├── <id>-<slug>.md         one item per file
@@ -91,7 +91,7 @@ _(Extend with project-specific directories as they develop.)_
 
 ## Capture interrupt (`/strata:capture`)
 
-Use this while working when a command fails, an agent retries with a workaround, a brittle environment rule appears, or a finding is too useful to leave in conversation memory. Route closeable work to `issues/`, reusable behavior to `memory/learnings/`, or both. Do not edit generated views during capture; `/strata:save` regenerates them.
+Use this while working when a command fails, an agent retries with a workaround, a brittle environment rule appears, a decision or operator answer settles something, or a finding is too useful to leave in conversation memory. It appends to the pending-capture journal (`.strata/inbox/journal.jsonl`, git-ignored, shared by every worktree), so it needs no commit. `/strata:save` files each entry: closeable work to `issues/`, reusable behavior to `memory/learnings/`, decisions to `docs/decisions/`, and so on. Do not edit generated views during capture; `/strata:save` regenerates them. Tool-owned memory (Claude auto memory, Codex memory) holds no project notes.
 
 ## Load order (`/strata:load`)
 

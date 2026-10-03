@@ -1,6 +1,6 @@
 # ADR-0019: Hot rules go into the adapters, and Claude auto memory holds only a pointer
 
-- **Status:** accepted
+- **Status:** implemented (0.1.0)
 - **Date:** 2026-10-03
 
 ## Context and Problem Statement

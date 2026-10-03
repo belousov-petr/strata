@@ -67,7 +67,7 @@ What `strata init` produces (full form — code project):
     │       ├── action_log.md       # append-only external-completions ledger
     │       ├── YYYY-MM-sessions-*.md   # rolled-over session narratives
     │       └── source-*.md         # provenance behind promoted ADRs/reference
-    ├── inbox/                      # git-ignored capture scratch, auto-logged failures (§12)
+    ├── inbox/                      # git-ignored capture stage: journal.jsonl + hook captures (§12), in the main worktree
     ├── issues/                     # single backlog: findings + tasks + initiatives
     │   ├── README.md               # how the backlog works (for tools without the skill)
     │   ├── _TEMPLATE.md            # copy-me blank
@@ -75,7 +75,7 @@ What `strata init` produces (full form — code project):
     │   ├── OPEN.md                 # generated: status open, grouped by area (on demand)
     │   ├── PARKED.md               # generated: status parked + revive triggers (on demand)
     │   ├── <id>-<slug>.md          # one item per file (schema §5.1)
-    │   └── archive/                # resolved / wont-fix items
+    │   └── archive/                # resolved / wont-fix items + INDEX.md (one row per closed item)
     └── docs/                       # WARM (code projects; offered, grown on demand)
         ├── ARCHITECTURE.md         # codemap + index into architecture/
         ├── product/                # PRDs, product requirements
@@ -258,6 +258,7 @@ MADR-derived, same format as strata's own records: Status/Date · Context and Pr
 - `issues/OPEN.md` — every `status: open`, grouped by `area:`, sorted severity-first.
 - `issues/PARKED.md` — every `status: parked`: id, what, **revive-when** verbatim.
 - `learnings/INDEX.md` — every learning: `| trigger | applies-when | origin | file |`.
+- The hot-rules block in `CLAUDE.md` / `AGENTS.md`, between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->`: the same hot subset, one line per rule (trigger, first sentence of the lesson, link), at most 25 rules and 4,000 characters. Text outside the markers is never touched ([ADR-0019](decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md)).
 - `MEMORY.md` rules-by-trigger table — the **hot subset**: learnings with `hot: true`, trimmed to trigger + link. *Graceful default:* until any learning sets `hot:`, all appear (legacy behavior); once one does, the table filters to `hot: true` while `INDEX.md` stays complete. New learnings default `hot: false`, so the ≤80 hot table stays bounded as learnings accumulate. If regeneration would breach ≤80, `/strata:save` flags it and suggests curating — it never auto-picks the set ([ADR-0015](decisions/ADR-0015-hot-tier-curated-subset.md)).
 
 Each generated file carries the header comment `<!-- GENERATED at /strata:save — do not hand-edit; edit item frontmatter instead -->`.
@@ -334,17 +335,17 @@ Transition rules:
 ### 8.2 Session lifecycle (what updates when)
 
 - **`strata init`** (once): on fresh projects, adapters (only if absent) · `MANIFEST.md` (+version) · `memory/{MEMORY, project_state, learnings/{INDEX,_TEMPLATE}, archive/{ARCHIVE, action_log}}` · `issues/{README, _TEMPLATE, ACTIVE, OPEN, PARKED}` · (code projects) `docs/{ARCHITECTURE.md, product/, architecture/, decisions/, reference/, ops/}`. On flat/0.0.1/0.0.2 memory, runs the matching migration rung instead; source memory is archived before 0.0.3 hot files replace it.
-- **`/strata:capture` / mid-session (continuous):** new finding/bug -> issue file to disk immediately, as above. High-value lessons may also be written immediately. Generated views stay untouched until `/strata:save`. The capture-guard hook (§12) may have already logged failed commands to `.strata/inbox/`; those are promoted into issues/learnings at the next capture or save.
-- **`/strata:save`** (preview, then automatic execution):
+- **`/strata:capture` / mid-session (continuous):** every important moment (finding, gotcha, decision with lineage, operator answer, requirement, runbook note) is appended to the pending-capture journal, `.strata/inbox/journal.jsonl`, at once. That needs no commit, so a slow commit gate or a commit ban never delays it ([ADR-0016](decisions/ADR-0016-pending-capture-journal.md)). The agent may also file the record right away and mark the entry filed. Generated views stay untouched until `/strata:save`. The capture-guard hook (§12) logs failed commands to `.strata/inbox/captures.jsonl` on its own.
+- **`/strata:save`** (preview, then automatic execution; the mechanical steps run through `strata save --prepare`, §13):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
-  2. issue triage — new captures get id/severity/area, dedup, status updates; promote any un-promoted `.strata/inbox/` stubs into issues/learnings and clear the inbox (§12); resolved/wont-fix move to `archive/`; **regenerate ACTIVE/OPEN/PARKED**;
-  3. learnings written/updated; **regenerate `learnings/INDEX.md` + the MEMORY.md by-trigger table**;
-  4. shipped decisions promote to ADRs (number = highest existing + 1); sources archive as `source-adr-*`;
+  2. issue triage: every journal entry is routed to its store, new issues get ids from `strata new-issue`, dedup, status updates; repeated inbox failures are promoted, then the journal and the inbox are cleared (§12); resolved/wont-fix move to `archive/` with an `archive/INDEX.md` row; **regenerate ACTIVE/OPEN/PARKED**;
+  3. learnings written/updated; **regenerate `learnings/INDEX.md`, the MEMORY.md by-trigger table, and the hot-rules block in `CLAUDE.md` / `AGENTS.md`**;
+  4. shipped decisions promote to ADRs (number from `strata next-adr`, which also checks worktrees and recent branches); sources archive as `source-adr-*`;
   5. durable-doc sync — fix docs the session made wrong, in place;
   6. external completions append to `action_log.md`;
-  7. `MEMORY.md` and `ARCHIVE.md` indexes sync.
-  Safeguards: the preview lists the plan before writes begin; git-dirty files are skipped (never moved); deletions are section-only; idempotent re-run proposes nothing.
-- **`/strata:load`:** the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. It also reports the count of un-promoted inbox captures in its orientation (§12). Surface OPEN by area only on request.
+  7. `MEMORY.md` and `ARCHIVE.md` indexes sync; the Claude auto-memory pointer is refreshed; the drift list (commits no record mentions) is reviewed and the save marker moves.
+  Safeguards: the preview lists the plan before writes begin; moves use `git mv`, so uncommitted edits travel along, and a conflicted file is never moved; deletions are section-only; idempotent re-run proposes nothing.
+- **`/strata:load`:** `strata status` first (pending journal captures, inbox counts by category, view drift), then the §3 order, then verify against git (`git status`, `git log --oneline -5`, spot-check referenced paths); state is a hint, the repo is truth; conflicts get reported, never silently absorbed. Surface OPEN by area only on request.
 - **Migration:** version detected per `MIGRATIONS.md`; ladder runs gated, on a backup branch. `strata init` routes flat/0.0.1/0.0.2 fingerprints here instead of scaffolding over them.
 
 ---
@@ -399,26 +400,49 @@ Strata's core rule is immediate capture: write a finding to `.strata/` the momen
 
 ### 12.1 Write side (the deterministic hook)
 
-One shared Node script, `hooks/strata-capture-guard.mjs`, reads the hook event on stdin and acts only inside a strata project. On a failed tool result it appends a raw stub to `.strata/inbox/captures.jsonl`: `{ts, event, tool, signal, command, snippet, h}`, one JSON line, content-hash deduped. The agent does nothing; the evidence lands on disk. That is the part that survives compaction. It also injects the immediate-capture reminder into context.
+One shared Node script, `hooks/strata-capture-guard.mjs`, reads the hook event on stdin and acts only inside a strata project. On a failed tool call it appends a raw stub to `.strata/inbox/captures.jsonl`: `{ts, event, tool, category, signal, command, snippet, h}` plus the host's `tuid` (tool-use id) when there is one, one JSON line, deduped by `h`. The agent does nothing; the evidence lands on disk. That is the part that survives compaction.
 
-It fires on:
+It decides from the real status of a result, never from words in successful output ([ADR-0017](decisions/ADR-0017-capture-guard-decides-by-status.md)):
 
-- `SessionStart`: injects the immediate-capture rule (re-injecting it after a compaction), plus the count of un-promoted inbox stubs.
-- `PostToolUse`: a failing Bash command, logged the moment it returns.
-- `PreCompact`, a non-blocking `SessionEnd` (Claude), and a per-turn `Stop` (Codex): each scans the session transcript tail for failures not already caught, on a per-transcript byte cursor so nothing is double-logged or skipped.
+- Claude `PostToolUseFailure` (matcher `Bash`): a failure, with `Exit code N` as its first line, or an interrupt.
+- Claude `PostToolUse`: Claude only fires it after a success, so it never logs.
+- Claude transcript `tool_result`: `is_error` decides.
+- Codex rollout `function_call_output`: `Process exited with code N` decides.
+- Codex `PostToolUse`: no status, so a strict text fallback applies, anchored to the start of a line and limited to the last 60 lines (shell "command not found", tracebacks, git `fatal:`, npm/pnpm/yarn failures, TypeScript errors, the Windows "is not recognized" forms).
 
-Outside a strata project it is silent. Any error exits 0 with no output, so it can never block or stall the host. Failure detection trusts an explicit error flag plus a small set of output signatures (`Exit code N`, `ELIFECYCLE`, `npm ERR!`, `fatal:`, `Traceback`, `command not found`, the Windows `is not recognized` forms, Codex's `Process exited with code N`, and a few more), because a non-zero exit is recorded inconsistently across tools.
+Categories: `failure` (a shell command that really failed), `policy` (a permission refusal: the auto mode classifier, the built-in safety check, a harness block, a user rejection), `tool-error` (a non-shell tool error), `interrupted`. `PreCompact`, a non-blocking `SessionEnd` (Claude) and a per-turn `Stop` (Codex) scan the transcript tail on a per-transcript byte cursor, so nothing is missed or logged twice, and a stub keyed by `tuid` is never written twice.
 
-### 12.2 The inbox (raw evidence, not memory)
+The hook is quiet while the agent works: the per-failure nudge is opt-in (`STRATA_FAILURE_NUDGE=1`). `SessionStart` injects the capture rule and what is waiting: pending journal captures and inbox counts. Outside a strata project it is silent. Any error exits 0 with no output, so it can never block or stall the host.
 
-`.strata/inbox/captures.jsonl` is git-ignored transient scratch, scaffolded by `strata init`. Stubs are redacted on the way in (tokens, keys, `password=`, GitHub PATs), because raw output can carry secrets and §6 forbids those in durable memory. The inbox is the one two-stage store: raw stub, then promoted memory.
+### 12.2 The capture stage (raw evidence and pending captures, not memory)
 
-### 12.3 Read side (promote and clear)
+`.strata/inbox/` is git-ignored transient scratch, scaffolded by `strata init`, and resolved to the repository's **main worktree** whenever that worktree also holds `.strata/` ([ADR-0016](decisions/ADR-0016-pending-capture-journal.md)), so every worktree shares one and nothing is lost when a worktree is removed. It holds:
 
-`/strata:capture` and `/strata:save` read the inbox, fold the real failures into issues or learnings (the §6 routing), then truncate the file and drop the cursors. `/strata:load` reports the un-promoted count in its orientation. The contract lives once in `SKILL.md §5a`; the commands point at it. A lint check (`tests/lint.sh §2d`) fails the build if the hook or README ever claim this loop without the commands backing it.
+- `captures.jsonl`: the hook's stubs, redacted on the way in (tokens, keys, `password=`, GitHub PATs), because raw output can carry secrets and §6 forbids those in durable memory.
+- `journal.jsonl`: the agent's pending captures from `/strata:capture`, also redacted.
+- the hook's transcript cursors and `state.json` (the save marker and id reservations).
+
+### 12.3 Read side (route and clear)
+
+`/strata:save` routes every journal entry, and the inbox failures worth keeping (repeated ones first), into issues, learnings, decision records and docs (the §6 routing), then runs `strata journal clear` and `strata inbox clear`. Clearing the inbox keeps live transcript cursors, so cleared failures are not logged again. `/strata:load` reports pending captures first, then the inbox counts by category and any repeated failures. The contract lives once in `SKILL.md §5a`; the commands point at it. A lint check (`tests/lint.sh §2d`) fails the build if the commands ever drop the inbox reference.
 
 ### 12.4 Both agents
 
 The stub schema is shared. Claude reads its transcript's `tool_result` blocks. Codex's hook payload is Claude-compatible (`tool_name` normalised to `Bash`, `tool_input.command`, `tool_response`), and its rollout file (`~/.codex/sessions/**/rollout-*.jsonl`) is parsed for `function_call_output` entries keyed on `Process exited with code N`, verified on a live build, 2026-06-20. Codex plugins cannot ship hooks (`plugin_hooks` is removed), so Codex uses a config file copied from `hooks/codex-hooks.sample.json`.
 
 The honest scope: a hook can write the evidence but cannot reason. Distilling a raw stub into a finished lesson is still the agent's job, at the next capture or save. The evidence is deterministic; the distillation stays a convention.
+
+---
+
+## 13. The strata script
+
+`skills/strata/scripts/strata.mjs` runs the mechanical half of strata ([ADR-0018](decisions/ADR-0018-strata-script-for-mechanical-chores.md)). It uses only Node's built-in modules, calls git with argument lists, keeps each file's line endings, and is tested on Windows, macOS and Linux. It lives inside the skill folder so every install path ships it. The full behaviour of each part is in the [0.1.0 spec](specs/0.1.0-capture-and-save.md).
+
+- **Views.** `strata views` renders ACTIVE, OPEN, PARKED, `learnings/INDEX.md`, the `MEMORY.md` rules table, and the hot-rules block in `CLAUDE.md` / `AGENTS.md` ([ADR-0019](decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md)) in a fixed order: severity, then id, then file name; OPEN grouped by area; learnings by trigger. Each view keeps its own header up to the `GENERATED` marker. A project with its own renderer sets `generated_views: external` in the MANIFEST frontmatter.
+- **Merge driver.** `strata setup` routes those files through the `strata-views` git merge driver (a `.gitattributes` block plus the clone's local git config). The driver merges table rows three ways, keyed by issue id or learning file, renders them in the same order, and lets `git merge-file` merge the hand-written text around them. Without the driver, git merges them as plain text.
+- **Checks.** `strata check` validates the layout stamp, the hot budgets, frontmatter vocabularies, unique ids, parked triggers, relative links and view drift.
+- **Save chores.** `strata save --prepare` archives closed issues with index rows, rolls old sessions out of `project_state.md` with an `ARCHIVE.md` row, regenerates every view, refreshes the auto-memory pointer and the merge driver path, records the save marker, and reports what is left for judgment: pending captures, inbox counts, the drift list, parked triggers, check findings.
+- **Ids.** `strata new-issue` and `strata next-adr` scan the tree, every worktree, recent branch tips and a reservation list before picking a number.
+- **Drift.** `strata drift` lists the commits since the last save that no decision record, doc, issue, learning, changelog or pending capture mentions.
+- **Auto-memory pointer.** Claude Code's per-repository auto memory holds only `strata-pointer.md` and one index line, written when that folder exists.
+

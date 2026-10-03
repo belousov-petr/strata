@@ -65,7 +65,7 @@ States and types (canonical, defined here and in MANIFEST/DESIGN, reused verbati
 
 Operational rules:
 
-1. **Capture immediately and completely.** The moment a finding surfaces mid-task: journal it (§5), or write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`, allocated by `strata new-issue`, which checks other branches and worktrees) from `_TEMPLATE.md` — What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time* — status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
+1. **Capture immediately and completely.** The moment a finding surfaces mid-task: journal it (§5), or write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`, allocated by `strata new-issue`, which checks other branches and worktrees) from `_TEMPLATE.md`: What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time*, status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
 2. **Status changes are frontmatter edits.** No file moves while an item is alive.
 3. **`parked` requires a concrete `revive-when:`** trigger; `/strata:save` checks triggers against the session and revives matches.
 4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata:save`.
@@ -130,7 +130,7 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 - `/strata:load`: report pending captures first, then the inbox counts by category and any repeated failures (`strata status`).
 - A typo, a one-off failure, or a policy refusal is counted, not promoted. Promotion is the authoritative dedup.
 
-## 6. `/strata:save` — preview-execute contract
+## 6. `/strata:save`: preview-execute contract
 
 **A. Scan.** Start from the pending journal (`strata journal list`) and the mechanical plan (`strata save --prepare --dry-run`, which also reports inbox counts, repeated failures, the drift list, parked triggers, and check findings). Sort them and the session into buckets: resumption point · issue events (journal findings, status changes, resolutions, repeated failures) · learnings (both origins) · decision records (journal decisions, direction changes, answers) · durable-doc impact (the drift list is a prompt) · external completions · rollover.
 
@@ -140,12 +140,12 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 
 - **Moves keep content.** Archive moves use `git mv` (or a plain rename when untracked), so uncommitted edits travel with the file and the report says so; a file with an unresolved merge conflict is never moved.
 - **Collision-free numbers.** Issue ids from `strata new-issue`, decision numbers from `strata next-adr`: both scan the tree, every worktree, recent branches, and recent reservations.
-- **Section-only deletions** — never remove whole files without explicit instruction.
-- **Idempotent** — re-run with no new work proposes nothing; `strata save --prepare` on an unchanged tree changes nothing.
+- **Section-only deletions.** Never remove whole files without explicit instruction.
+- **Idempotent.** A re-run with no new work proposes nothing; `strata save --prepare` on an unchanged tree changes nothing.
 
 **D. Execute** immediately after the preview, in order: your writes → appends → updates (frontmatter/status) → `strata save --prepare` (archive moves with `issues/archive/INDEX.md` rows, session rollover with an `ARCHIVE.md` row, **regenerate all views last**: `ACTIVE/OPEN/PARKED`, `learnings/INDEX`, the MEMORY trigger table, the hot-rules blocks; plus the auto-memory pointer and the save marker) → `strata journal clear` + `strata inbox clear` once everything is routed. Sync `MEMORY.md` live pointers by hand. Leave it all for one commit.
 
-**E. Verify & report**: `strata check` passes (budgets §1, vocabularies, unique ids, links, no view drift); the journal is empty; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim — report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
+**E. Verify & report**: `strata check` passes (budgets §1, vocabularies, unique ids, links, no view drift); the journal is empty; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim; report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
 
 A project that renders views with its own tool sets `generated_views: external` in the `MANIFEST.md` frontmatter; strata then leaves the views alone (the hot-rules blocks are still strata's).
 
@@ -162,7 +162,9 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Verify against git** before presenting: `git status` (do listed uncommitted changes exist?), `git log --oneline -5` (commits since last session?), spot-check referenced paths and issue ids. State is a hint; the repo is truth; report conflicts, never silently absorb them.
 
-**Present** ≤6 lines: last session · next up (issue id) · active count · prerequisites · fired parked-triggers · inbox un-promoted count · drift. Then ask: continue or something else?
+**Start with `strata status`**: pending journal captures, inbox counts by category with repeated failures, view drift, and a setup hint for projects initialized before 0.1.0.
+
+**Present** ≤8 lines, pending captures first: pending captures · last session · next up (issue id) · active count · prerequisites · fired parked-triggers · inbox counts (failures, repeated, policy) · drift. Then ask: continue or something else?
 
 ## 8. `init` — scaffold or migrate a project
 
@@ -257,15 +259,15 @@ Next:
 | `journal add / list / clear` | the pending-capture journal (§5, §5a) |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
+| `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
+| `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
 | `views --merge-driver %O %A %B %P` | the git merge driver: merges view rows (and the adapters' hot-rules lines) three ways, renders them in the fixed order, `git merge-file` for the text around them |
+| `check [--json]` | budgets, frontmatter vocabularies, unique ids, links, view drift; exit 1 on errors |
+| `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment |
 | `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver, hot-rules block in existing adapters |
+| `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `new-issue --slug <s> [--title --type --severity --area --status --revive] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
 | `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
 | `drift [--since <rev>]` | commits since the last save (the marker `save --prepare` records) that no decision record, doc, issue, learning, changelog or pending capture mentions by path, folder, hash, branch or id |
 | `pointer [--dry-run]` | write or refresh the Claude auto-memory pointer (§11); silent when the folder does not exist |
-| `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
-| `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
-| `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
-| `check [--json]` | budgets, frontmatter vocabularies, unique ids, links, view drift; exit 1 on errors |
-| `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment |
 

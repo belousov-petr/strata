@@ -2,6 +2,35 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.1.0 - 2026-10-03
+
+**Capture and save that hold up in big repos: slow commit gates, night commit bans, one worktree per task, parallel branches.** No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Run `/strata:init` once after updating (it runs `strata setup`; details below). Plan and spec: [`docs/specs/0.1.0-capture-and-save.md`](docs/specs/0.1.0-capture-and-save.md). Decisions: [ADR-0016](docs/decisions/ADR-0016-pending-capture-journal.md) to [ADR-0019](docs/decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md).
+
+### Added
+- **Pending-capture journal.** `/strata:capture` appends one dated entry (a decision with its lineage, an operator answer, a finding, a gotcha, a requirement, a runbook note) to `.strata/inbox/journal.jsonl`. The write is instant, git-ignored, needs no commit, and masks secret-shaped values. `/strata:save` routes every entry into its store and clears the journal, keeping the last batch in `journal.routed.jsonl`. `/strata:load` shows the pending count first.
+- **The strata script**, `skills/strata/scripts/strata.mjs`: Node only, no dependencies, Windows, macOS and Linux. Subcommands: `journal`, `status`, `where`, `inbox`, `views`, `check`, `save --prepare`, `setup`, `new-issue`, `next-adr`, `drift`, `pointer`, `hot-rules`. The commands call it; judgment stays with the agent.
+- **Deterministic save chores.** `strata save --prepare` archives resolved and wont-fix issues with `git mv` and an `issues/archive/INDEX.md` row, rolls old `project_state.md` sessions into a dated archive file with an `ARCHIVE.md` row, regenerates every view, and reports what changed and what needs judgment. `--dry-run` writes nothing. `strata check` validates budgets, frontmatter vocabularies, unique ids, parked triggers, links and view drift.
+- **Hot rules reach every agent.** A generated block between `strata:hot-rules` markers in `CLAUDE.md` and `AGENTS.md` lists the `hot: true` learnings (trigger, first sentence, link), because subagents and Codex read the adapters but never `.strata/memory/`. Text outside the markers is never touched. Budget 25 rules and 4,000 characters.
+- **Merge-friendly views.** Views render in a fixed order. A `strata-views` git merge driver merges view rows (and the adapters' hot-rules lines) three ways and re-renders them; `strata setup` installs it through `.gitattributes` and the clone's local git config.
+- **Collision-free ids.** `strata new-issue` and `strata next-adr` scan the tree, every worktree, recent local and remote-tracking branch tips, and a reservation list before picking a number.
+- **Drift list at save.** Commits since the last save that no decision record, doc, issue, learning, changelog or pending capture mentions are listed in the save report (`strata drift`).
+- **Claude auto-memory pointer.** Claude Code's per-repository auto memory now holds only `strata-pointer.md` and one index line, which `/strata:save` writes or refreshes when that folder exists. `STRATA_AUTO_MEMORY_POINTER=0` turns it off.
+- `.github/workflows/test.yml` runs the lint, the scaffold check and the node tests on Ubuntu, macOS and Windows.
+- Templates: `issues/archive/INDEX.md`; the hot-rules markers in the `CLAUDE.md` and `AGENTS.md` templates.
+
+### Changed
+- **One inbox and journal per repository.** The hook and the script resolve `.strata/inbox/` to the main worktree whenever it holds `.strata/`, so captures from every worktree land in one place and survive worktree removal.
+- **The capture guard decides by real status.** Claude failures come from the new `PostToolUseFailure` hook (`Exit code N`); `PostToolUse` is a success and never logs; transcript results follow `is_error`; Codex rollouts use the exit code; only Codex `PostToolUse`, which has no status, uses a strict line-anchored text fallback. Successful output that merely contains words like "Permission denied" no longer counts.
+- **Categories.** Inbox stubs carry `category`: `failure`, `policy` (permission refusals: the auto mode classifier, the built-in safety check, a harness block, a user rejection), `tool-error`, `interrupted`, and the host's tool-use id, so the live event and the transcript scan never double-log.
+- **Quiet by default.** The per-failure "capture this now" message is off (`STRATA_FAILURE_NUDGE=1` turns it on). `SessionStart`, `/strata:load` and `/strata:save` report counts by category and list only repeated failures.
+- `strata inbox clear` keeps live transcript cursors, so cleared failures are not logged again; stale cursors are pruned.
+- `/strata:init` on a project that already has the current layout runs `strata setup` instead of refusing.
+
+### Upgrading
+- Update the plugin and start a new session. Then run `/strata:init` once in each project (Codex: `Skill(name='strata', args='init')`). On a current-layout project it only runs `strata setup`: the `.gitattributes` block and local git config line for the merge driver, and the hot-rules block appended to existing `CLAUDE.md` / `AGENTS.md`. Commit those two files. Every other clone runs `/strata:init` (or `strata setup`) once too, because git config is not committed.
+- A project that renders its views with its own generator sets `generated_views: external` in the `MANIFEST.md` frontmatter; strata then leaves the views alone.
+- Codex users: add nothing. Codex has no `PostToolUseFailure`; the existing `hooks/codex-hooks.sample.json` wiring stays correct.
+
 ## 0.0.9 — 2026-09-11
 
 ### Fixed
