@@ -48,6 +48,8 @@ silent.
 
 ### The inbox — `.strata/inbox/captures.jsonl`
 
+One inbox per repository: the hook and the strata script resolve `.strata/inbox/` in the repository's **main worktree** whenever that worktree also holds `.strata/` (read from the `.git` file and its `commondir`, no git process). Sessions in other worktrees write there too, so captures never scatter or vanish with a removed worktree. Outside git, or when the main worktree has no `.strata/`, the inbox stays in the current project root. An inbox folder created without an ignore file gets one that ignores everything.
+
 The deterministic half, and the part that actually defeats compaction loss. Each stub is
 one JSON line (`{ts, event, tool, signal, command, snippet, h}`); duplicates are
 suppressed by a content hash, and `PreCompact` tracks a byte cursor (`.cursor.json`) so

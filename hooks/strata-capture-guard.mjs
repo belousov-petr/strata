@@ -68,13 +68,63 @@ export function findStrataRoot(startDir) {
   return null
 }
 
+// --- worktrees ---------------------------------------------------------------
+// Find the git work tree that holds `dir` and, for a linked worktree, the main
+// worktree of the same repository. Pure file reads (no git process), matching
+// `git rev-parse --show-toplevel` / `--git-common-dir`:
+//   main checkout:   <top>/.git is a folder              -> main = top
+//   linked worktree: <top>/.git is a file "gitdir: X"     -> X/commondir names the
+//                    common folder; main = its parent when it is named .git
+//   submodule, bare common folder, unreadable files      -> main = top
+export function gitTopAndMain(dir) {
+  let cur = dir
+  for (let i = 0; i < 60 && cur; i++) {
+    const dotgit = path.join(cur, '.git')
+    let st = null
+    try { st = fs.statSync(dotgit) } catch { /* keep walking */ }
+    if (st && st.isDirectory()) return { top: cur, main: cur }
+    if (st && st.isFile()) {
+      let main = cur
+      try {
+        const m = /^gitdir:\s*(.+?)\s*$/m.exec(fs.readFileSync(dotgit, 'utf8'))
+        if (m) {
+          const gitdir = path.resolve(cur, m[1])
+          let common = gitdir
+          try { common = path.resolve(gitdir, fs.readFileSync(path.join(gitdir, 'commondir'), 'utf8').trim()) } catch { /* not a linked worktree */ }
+          if (common !== gitdir && path.basename(common) === '.git') {
+            const candidate = path.dirname(common)
+            if (fs.statSync(candidate).isDirectory()) main = candidate
+          }
+        }
+      } catch { /* fall back to this worktree */ }
+      return { top: cur, main }
+    }
+    const parent = path.dirname(cur)
+    if (parent === cur) break
+    cur = parent
+  }
+  return null
+}
+
 // The two roots shared by the hook and the strata script:
 //   project: where tracked memory lives (the nearest .strata/ at or above cwd)
-//   shared:  where untracked scratch lives (inbox, journal, cursors, state)
+//   shared:  where untracked scratch lives (inbox, journal, cursors, state):
+//            the same folder in the repo's main worktree when that one also
+//            holds .strata/, so every worktree shares one inbox and journal
+//            and nothing is lost when a worktree is removed.
 export function resolveRoots(cwd) {
   const project = findStrataRoot(cwd)
   if (!project) return null
-  return { project, shared: project }
+  let shared = project
+  try {
+    const g = gitTopAndMain(project)
+    if (g && g.main !== g.top) {
+      const rel = path.relative(g.top, project)
+      const candidate = rel && !rel.startsWith('..') ? path.join(g.main, rel) : g.main
+      if (fs.statSync(path.join(candidate, '.strata')).isDirectory()) shared = candidate
+    }
+  } catch { /* no main-worktree .strata: stay in this worktree */ }
+  return { project, shared }
 }
 
 // --- failure detection ------------------------------------------------------
@@ -168,14 +218,22 @@ export function cursorPath(root, transcriptPath) {
 }
 
 function writeCursorAtomic(file, obj) {
-  fs.mkdirSync(path.dirname(file), { recursive: true })
+  ensureInbox(path.dirname(file))
   const tmp = `${file}.tmp`
   fs.writeFileSync(tmp, JSON.stringify(obj))
   fs.renameSync(tmp, file)
 }
 
 // --- inbox ------------------------------------------------------------------
-function inboxPaths(root) {
+// A missing ignore file means this inbox was not scaffolded here: ignore
+// everything, including the ignore file, so captures never show up in git.
+export function ensureInbox(dir) {
+  fs.mkdirSync(dir, { recursive: true })
+  const gi = path.join(dir, '.gitignore')
+  if (!fs.existsSync(gi)) fs.writeFileSync(gi, '*\n')
+}
+
+export function inboxPaths(root) {
   const dir = path.join(root, '.strata', 'inbox')
   return { dir, file: path.join(dir, 'captures.jsonl') }
 }
@@ -199,7 +257,7 @@ function appendStub(root, stub) {
     const { dir, file } = inboxPaths(root)
     const h = stubHash(stub)
     if (recentHashes(file).has(h)) return false
-    fs.mkdirSync(dir, { recursive: true })
+    ensureInbox(dir)
     fs.appendFileSync(file, JSON.stringify({ ...stub, h }) + '\n')
     return true
   } catch { return false }
@@ -387,8 +445,10 @@ async function main() {
     try { payload = JSON.parse(await readStdin()) } catch { payload = {} }
     const event = payload.hook_event_name || payload.hookEventName || 'Unknown'
     const cwd = payload.cwd || process.cwd()
-    const root = findStrataRoot(cwd)
-    if (!root) process.exit(0) // not a strata project — stay silent
+    const roots = resolveRoots(cwd)
+    if (!roots) process.exit(0) // not a strata project: stay silent
+    // Inbox, cursors and counts live in the shared root (the main worktree).
+    const root = roots.shared
 
     let logged = 0
     if (event === 'PostToolUse') logged = handlePostToolUse(root, payload)

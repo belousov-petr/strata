@@ -101,14 +101,8 @@ export function writeText(p, lfText, { eol } = {}) {
   return true
 }
 
-export function ensureInboxDir(dir) {
-  fs.mkdirSync(dir, { recursive: true })
-  const gi = path.join(dir, '.gitignore')
-  // A missing ignore file means this inbox was not scaffolded here. Ignore
-  // everything, including the ignore file itself, so captures never show up
-  // as untracked files.
-  if (!exists(gi)) fs.writeFileSync(gi, '*\n')
-}
+// Same rule as the hook: an inbox created without an ignore file ignores itself.
+export function ensureInboxDir(dir) { guard.ensureInbox(dir) }
 
 export function toPosix(p) { return p.split(path.sep).join('/') }
 export function relPosix(from, to) { return toPosix(path.relative(from, to)) }
