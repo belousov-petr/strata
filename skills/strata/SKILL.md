@@ -259,6 +259,7 @@ Next:
 | `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver, hot-rules block in existing adapters |
 | `new-issue --slug <s> [--title --type --severity --area --status --revive] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
 | `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
+| `drift [--since <rev>]` | commits since the last save (the marker `save --prepare` records) that no decision record, doc, issue, learning, changelog or pending capture mentions by path, folder, hash, branch or id |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |

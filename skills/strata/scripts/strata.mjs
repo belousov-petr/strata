@@ -15,6 +15,7 @@ import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
 import { setup, formatSetup } from './lib/setup.mjs'
 import { newIssue, nextAdr } from './lib/ids.mjs'
+import { driftList, formatDrift } from './lib/drift.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
@@ -35,6 +36,7 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   new-issue --slug <s> [--title <t>] [--type --severity --area --status --revive] [--dry-run]
                                   next free id for today (tree, worktrees, branches), file from _TEMPLATE.md
   next-adr [--dir <d>] [--dry-run]   next free decision-record number
+  drift [--since <rev>] [--json]  commits since the last save that no record mentions
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
 
@@ -173,6 +175,14 @@ const commands = {
     const r = resolveRoots(args.root)
     const res = nextAdr(r, { dir: args.dir, dryRun: Boolean(args['dry-run']) })
     out(args, res, `${res.adr}  (in ${res.dir}/)`)
+    return 0
+  },
+
+  drift(argv) {
+    const args = parseArgs(argv, { bools: ['json'] })
+    const r = resolveRoots(args.root)
+    const res = driftList(r, { since: typeof args.since === 'string' ? args.since : undefined })
+    out(args, res, formatDrift(res))
     return 0
   },
 
