@@ -11,6 +11,7 @@ import { readJournal, journalSummaryLine } from './journal.mjs'
 import { inboxSummary } from './inbox.mjs'
 import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
+import { writePointers } from './pointer.mjs'
 
 // Extra steps registered by later modules (inbox summary, merge driver refresh,
 // drift list, auto-memory pointer). Each gets (roots, ctx) and adds to ctx.
@@ -175,6 +176,13 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   if (drift.inGit && !dryRun) {
     const head = recordSaveMarker(roots)
     if (head) ctx.info.marker = head
+  }
+
+  if (opts.pointer !== false) {
+    const ptr = writePointers(roots, { dryRun })
+    for (const d of ptr.dirs) {
+      if (d.pointer !== 'current' || d.index !== 'current') ctx.changed.push(`Claude auto-memory pointer: ${d.pointer === 'current' ? 'index line ' + d.index : 'strata-pointer.md ' + d.pointer} in ${d.dir}`)
+    }
   }
 
   for (const step of extraSteps) await step(roots, ctx)

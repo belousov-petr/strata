@@ -246,6 +246,8 @@ Next:
 
 `remember:remember` (single handoff note), `atlas-memory` (SQLite + vectors), `agentdb-*` (vector/RL backends) are storage mechanisms and are orthogonal. Strata is the **structural pattern** — where knowledge lives, when it loads, when it moves. They can coexist; strata files stay plain markdown + grep on purpose.
 
+**Claude Code auto memory holds only a pointer.** Claude keeps a per-repository auto memory (`~/.claude/projects/<encoded repo path>/memory/`, shared by all worktrees). Left alone it becomes a second log that only Claude sees and that drifts from the repo. The rule: it holds one file, `strata-pointer.md`, plus one index line in that folder's `MEMORY.md`, both written and refreshed by `strata save --prepare` (or `strata pointer`) when the folder exists, and nothing else. Findings, decisions, answers, and lessons go to the journal (§5). `STRATA_AUTO_MEMORY_POINTER=0` turns the pointer off; a custom `autoMemoryDirectory` setting is not detected.
+
 ## 12. The strata script
 
 `scripts/strata.mjs` in this skill folder runs the mechanical half of strata, the same way every time. Node only, no dependencies, Windows, macOS, and Linux. Every subcommand takes `--root <dir>`; the ones commands parse take `--json`.
@@ -260,6 +262,7 @@ Next:
 | `new-issue --slug <s> [--title --type --severity --area --status --revive] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
 | `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
 | `drift [--since <rev>]` | commits since the last save (the marker `save --prepare` records) that no decision record, doc, issue, learning, changelog or pending capture mentions by path, folder, hash, branch or id |
+| `pointer [--dry-run]` | write or refresh the Claude auto-memory pointer (§11); silent when the folder does not exist |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |

@@ -28,6 +28,9 @@ export function cleanEnv(extra = {}) {
   // Ignore the developer's global git config (hooks, signing, autocrlf) so tests
   // behave the same on every machine and in CI.
   env.GIT_CONFIG_GLOBAL = emptyGlobalConfig()
+  // Never touch the developer's real Claude folder (auto-memory pointer).
+  env.CLAUDE_CONFIG_DIR = emptyClaudeDir()
+  delete env.CLAUDE_CODE_PROJECT_DIR_NAME
   return { ...env, ...extra }
 }
 
@@ -38,6 +41,12 @@ function emptyGlobalConfig() {
     fs.writeFileSync(globalCfg, '[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n[core]\n\tautocrlf = false\n')
   }
   return globalCfg
+}
+
+let claudeDir
+function emptyClaudeDir() {
+  if (!claudeDir) claudeDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'strata-claude-home-')))
+  return claudeDir
 }
 
 export function tmpDir(prefix = 'strata-test-') {
