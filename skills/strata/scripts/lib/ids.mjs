@@ -35,18 +35,31 @@ function worktreeDirs(project, relDir) {
   return out
 }
 
-// File names under `relDir` on every recent branch tip.
+// File names under `relDir` on every recent branch tip. Branch tips usually
+// share the same tree for that folder, so resolve `<tip>:<relDir>` for all tips
+// in one `git cat-file --batch-check` and list each distinct tree once.
 function refFileNames(project, relDir, sinceEpoch) {
   const names = []
-  const refs = gitOut(project, ['for-each-ref', '--format=%(objectname) %(committerdate:unix) %(refname)', 'refs/heads', 'refs/remotes'])
+  const refs = gitOut(project, ['for-each-ref', '--format=%(objectname) %(committerdate:unix)', 'refs/heads', 'refs/remotes'])
   if (!refs) return names
-  const seen = new Set()
+  const tips = new Set()
   for (const line of refs.split('\n')) {
     const [obj, when] = line.split(' ')
-    if (!obj || seen.has(obj) || Number(when) < sinceEpoch) continue
-    seen.add(obj)
-    const r = git(project, ['ls-tree', '-r', '--name-only', obj, '--', relDir.replace(/\\/g, '/') + '/'])
-    if (r.ok) for (const p of r.stdout.split('\n')) if (p) names.push(p.split('/').pop())
+    if (obj && Number(when) >= sinceEpoch) tips.add(obj)
+  }
+  if (!tips.size) return names
+  const top = gitOut(project, ['rev-parse', '--show-prefix']) || ''
+  const spec = (top + relDir.replace(/\\/g, '/')).replace(/\/+$/, '')
+  const r = git(project, ['cat-file', '--batch-check'], { input: [...tips].map((t) => `${t}:${spec}`).join('\n') + '\n' })
+  if (!r.ok) return names
+  const trees = new Set()
+  for (const line of r.stdout.split('\n')) {
+    const m = /^([0-9a-f]{40,64}) tree /.exec(line)
+    if (m) trees.add(m[1])
+  }
+  for (const t of trees) {
+    const ls = git(project, ['ls-tree', '-r', '--name-only', t])
+    if (ls.ok) for (const p of ls.stdout.split('\n')) if (p) names.push(p.split('/').pop())
   }
   return names
 }
@@ -64,7 +77,10 @@ export function usedIssueNumbers(project, isoDate) {
   const rel = path.join('.strata', 'issues')
   const scanDir = (dir) => {
     for (const f of walk(dir, (name, full, isDirectory) => !isDirectory && !name.endsWith('.md'))) {
-      take(path.basename(f))
+      const base = path.basename(f)
+      take(base)
+      // A file named by its id needs no read; others may carry the id in frontmatter.
+      if (/^\d{8}-\d+/.test(base)) continue
       const text = readLf(f)
       if (text && text.startsWith('---')) take(parseFrontmatter(text).data.id)
     }

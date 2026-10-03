@@ -13,11 +13,6 @@ import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
 import { writePointers } from './pointer.mjs'
 
-// Extra steps registered by later modules (inbox summary, merge driver refresh,
-// drift list, auto-memory pointer). Each gets (roots, ctx) and adds to ctx.
-const extraSteps = []
-export function registerSaveStep(step) { extraSteps.push(step) }
-
 const ARCHIVE_INDEX_HEAD = [
   '# Closed issues',
   '',
@@ -39,7 +34,7 @@ function trackedState(project, file) {
 }
 
 function archiveIssues(project, ctx) {
-  const issues = readIssues(project).filter((i) => i.frontmatter && TERMINAL.includes(i.status) && i.topLevel)
+  const issues = readIssues(project).filter((i) => i.frontmatter && i.id && TERMINAL.includes(i.status) && i.topLevel)
   if (!issues.length) return
   const archiveDir = path.join(project, '.strata', 'issues', 'archive')
   const indexFile = path.join(archiveDir, 'INDEX.md')
@@ -185,7 +180,6 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
     }
   }
 
-  for (const step of extraSteps) await step(roots, ctx)
 
   const entries = readJournal(roots.shared)
   ctx.info.journal = entries.length

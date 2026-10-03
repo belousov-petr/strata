@@ -54,7 +54,7 @@ function issueLink(i) { return `[${cell(i.id || path.basename(i.rel, '.md'))}]($
 
 export function issueRows(kind, issues) {
   const status = { active: 'in-progress', open: 'open', parked: 'parked' }[kind]
-  const sel = issues.filter((i) => !i.archived && i.status === status && i.frontmatter)
+  const sel = issues.filter((i) => !i.archived && i.status === status && i.frontmatter && i.id)
   sel.sort(kind === 'parked' ? byId : byIssueOrder)
   return sel.map((i) => {
     let line
@@ -125,7 +125,7 @@ function groupOrder(a, b) {
 
 // --- region text ----------------------------------------------------------------
 // The generated region of an issue view or INDEX, starting right after the marker line.
-export function renderRegion(kind, rows, { anyLearnings = false } = {}) {
+export function renderRegion(kind, rows) {
   const out = ['']
   if (kind === 'open') {
     if (!rows.length) return '\n_No open issues._\n'
@@ -148,7 +148,6 @@ export function renderRegion(kind, rows, { anyLearnings = false } = {}) {
     else if (kind === 'parked') out.push('', '_Nothing parked._')
     else if (kind === 'index') out.push('| _no learnings yet_ | — | — | — |')
   }
-  void anyLearnings
   return out.join('\n') + '\n'
 }
 

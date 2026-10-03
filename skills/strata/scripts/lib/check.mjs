@@ -78,6 +78,8 @@ export function runCheck(project) {
       if (i.topLevel) add('error', 'issue-no-frontmatter', where, 'issue file without frontmatter')
       continue
     }
+    // Files in sub-folders (an initiative's PRD, notes) are issues only when they carry an id.
+    if (!i.topLevel && !i.archived && !i.id) continue
     if (!i.archived) {
       for (const k of ['id', 'type', 'status', 'severity']) if (!i[k]) add('error', 'issue-missing-field', where, `missing ${k}:`)
       for (const k of ['area', 'created']) if (!i[k]) add('warn', 'issue-missing-field', where, `missing ${k}:`)
