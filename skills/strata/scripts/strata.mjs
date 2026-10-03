@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// strata — the mechanical half of strata project memory.
+// strata: the mechanical half of strata project memory.
 //
 // Judgment stays with the agent: what to capture, where it belongs, how to word it.
 // This script does the rest the same way every time: the pending-capture journal,
@@ -9,11 +9,12 @@
 // Run `node strata.mjs help` for the subcommands.
 
 import fs from 'node:fs'
+import path from 'node:path'
 import { parseArgs, resolveRoots, print, UsageError } from './lib/core.mjs'
 import * as journal from './lib/journal.mjs'
 import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
-import { setup, formatSetup } from './lib/setup.mjs'
+import { setup, formatSetup, driverState } from './lib/setup.mjs'
 import { newIssue, nextAdr } from './lib/ids.mjs'
 import { driftList, formatDrift } from './lib/drift.mjs'
 import { writePointers } from './lib/pointer.mjs'
@@ -208,11 +209,18 @@ const commands = {
     const stale = drifted(views)
     const lines = [journal.journalSummaryLine(entries), formatInbox(sum, { limit: 5 })]
     lines.push(stale.length ? `Views: ${stale.length} differ from a fresh render (${stale.join(', ')}); /strata:save regenerates them.` : 'Views: current.')
+    // Projects initialized before 0.1.0 lack the merge driver and the hot-rules block.
+    const missing = []
+    if (!fs.existsSync(path.join(r.project, '.gitattributes')) || !fs.readFileSync(path.join(r.project, '.gitattributes'), 'utf8').includes('merge=strata-views')) missing.push('views merge driver')
+    else if (driverState(r.project).inGit && !driverState(r.project).configured) missing.push('merge driver in this clone')
+    if (syncHotRules(r.project, { check: true }).results.some((x) => x.state === 'no-markers')) missing.push('hot-rules block in CLAUDE.md / AGENTS.md')
+    if (missing.length) lines.push(`Setup: missing ${missing.join(', ')}. Run /strata:init once (Codex: Skill(name='strata', args='init')); it runs strata setup and changes nothing else.`)
     out(args, {
       roots: r,
       journal: { pending: entries.length, kinds: Object.fromEntries(journal.kindCounts(entries)) },
       inbox: { total: sum.total, counts: sum.counts, repeated: sum.repeated },
       views: { drifted: stale },
+      setup: { missing: lines.filter((l) => l.startsWith('Setup:')) },
     }, lines.join('\n'))
     return 0
   },
