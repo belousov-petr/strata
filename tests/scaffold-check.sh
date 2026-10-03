@@ -40,7 +40,10 @@ for d in product architecture decisions reference ops; do
 done
 
 # substitute placeholders in every copied file
-find "$T" -name "*.md" -exec sed -i "s/{{PROJECT_NAME}}/$NAME/g; s/{{INIT_DATE}}/$DATE/g" {} +
+# (portable in-place edit: BSD sed on macOS has no bare `-i`)
+while IFS= read -r f; do
+  sed "s/{{PROJECT_NAME}}/$NAME/g; s/{{INIT_DATE}}/$DATE/g" "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+done < <(find "$T" -name "*.md")
 
 # --- assertions ----------------------------------------------------------------
 expected=(
@@ -74,6 +77,15 @@ if grep -q "^layout_version: 3$" "$T/.strata/MANIFEST.md"; then
 else
   fail "layout_version: 3 missing from MANIFEST.md"
 fi
+
+# both adapters carry the generated hot-rules block markers (ADR-0019)
+for a in AGENTS.md CLAUDE.md; do
+  if grep -qF '<!-- strata:hot-rules:begin -->' "$T/$a" && grep -qF '<!-- strata:hot-rules:end -->' "$T/$a"; then
+    ok "$a carries the hot-rules block markers"
+  else
+    fail "$a is missing the hot-rules block markers"
+  fi
+done
 
 # project name actually landed
 if grep -q "$NAME" "$T/.strata/MANIFEST.md"; then ok "project name substituted"; else fail "project name not substituted"; fi
