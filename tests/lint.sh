@@ -194,11 +194,27 @@ else
   fail "Claude hooks.json does not reference the guard script"
 fi
 
-if command -v node >/dev/null 2>&1 && [ -f tests/capture-guard.test.mjs ]; then
-  if node --test tests/capture-guard.test.mjs >/dev/null 2>&1; then
-    ok "capture-guard unit tests pass"
+# 2c'. The strata script (ADR-0018): present, syntax-clean, wired into the commands.
+SCRIPT="$SKILL_DIR/scripts/strata.mjs"
+if [ -f "$SCRIPT" ]; then ok "$SCRIPT present"; else fail "$SCRIPT missing"; fi
+if command -v node >/dev/null 2>&1; then
+  for f in hooks/strata-capture-guard.mjs "$SCRIPT" "$SKILL_DIR"/scripts/lib/*.mjs; do
+    if node --check "$f" >/dev/null 2>&1; then ok "node --check $f"; else fail "node --check $f"; fi
+  done
+fi
+for f in commands/save.md commands/capture.md commands/load.md; do
+  if grep -qF 'skills/strata/scripts/strata.mjs' "$f"; then
+    ok "$f calls the strata script"
   else
-    fail "capture-guard unit tests failed (run: node --test tests/capture-guard.test.mjs)"
+    fail "$f does not call skills/strata/scripts/strata.mjs"
+  fi
+done
+
+if command -v node >/dev/null 2>&1; then
+  if node --test tests/*.test.mjs >/dev/null 2>&1; then
+    ok "node unit tests pass (tests/*.test.mjs)"
+  else
+    fail "node unit tests failed (run: node --test tests/*.test.mjs)"
   fi
 fi
 
