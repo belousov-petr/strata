@@ -12,7 +12,8 @@ import fs from 'node:fs'
 import { parseArgs, resolveRoots, print, UsageError } from './lib/core.mjs'
 import * as journal from './lib/journal.mjs'
 import { syncHotRules } from './lib/adapters.mjs'
-import { syncViews, viewsSummary, drifted } from './lib/views.mjs'
+import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
+import { setup, formatSetup } from './lib/setup.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
@@ -28,6 +29,8 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   where [--json]                  print the project root, shared root and inbox path
   hot-rules [--check] [--install] refresh the hot-rules block in CLAUDE.md / AGENTS.md
   views [--check]                 regenerate ACTIVE/OPEN/PARKED, learnings INDEX, the MEMORY table, hot rules
+  views --merge-driver %O %A %B %P   the git merge driver for generated views
+  setup [--dry-run]               one-time install: inbox ignore file, merge driver, hot-rules block
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
 
@@ -97,7 +100,12 @@ const commands = {
   },
 
   views(argv) {
-    const args = parseArgs(argv, { bools: ['json', 'check'] })
+    const args = parseArgs(argv, { bools: ['json', 'check', 'merge-driver'] })
+    if (args['merge-driver']) {
+      const [o, a, b, p] = args._
+      if (!o || !a || !b) throw new UsageError('strata views --merge-driver %O %A %B %P')
+      return mergeDriver(o, a, b, p || a)
+    }
     const r = resolveRoots(args.root)
     const res = syncViews(r.project, { check: args.check })
     const stale = drifted(res)
@@ -138,6 +146,14 @@ const commands = {
       return 0
     }
     throw new UsageError('strata inbox: use summary or clear')
+  },
+
+  setup(argv) {
+    const args = parseArgs(argv, { bools: ['json', 'dry-run'] })
+    const r = resolveRoots(args.root)
+    const res = setup(r.project, { dryRun: Boolean(args['dry-run']) })
+    out(args, res, formatSetup(res))
+    return 0
   },
 
   status(argv) {
