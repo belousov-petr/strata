@@ -11,6 +11,7 @@
 import fs from 'node:fs'
 import { parseArgs, resolveRoots, print, UsageError } from './lib/core.mjs'
 import * as journal from './lib/journal.mjs'
+import { syncHotRules } from './lib/adapters.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
 
@@ -19,6 +20,7 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   journal clear (--all | --id <id>...)
   status [--json]                 load-time summary: pending captures, inbox, views
   where [--json]                  print the project root, shared root and inbox path
+  hot-rules [--check] [--install] refresh the hot-rules block in CLAUDE.md / AGENTS.md
 
 kinds: ${journal.KINDS.join(', ')}
 `
@@ -71,6 +73,18 @@ const commands = {
       return 0
     }
     throw new UsageError('strata journal: use add, list or clear')
+  },
+
+  'hot-rules'(argv) {
+    const args = parseArgs(argv, { bools: ['json', 'check', 'install'] })
+    const r = resolveRoots(args.root)
+    const res = syncHotRules(r.project, { check: args.check, install: args.install })
+    const lines = res.results.length
+      ? res.results.map((x) => `${x.file}: ${x.state}`)
+      : ['no CLAUDE.md or AGENTS.md at the project root']
+    lines.push(`hot rules: ${res.shown} shown of ${res.total}` + (res.overflow ? ` (${res.overflow} over the block budget; curate the hot set)` : ''))
+    out(args, res, lines.join('\n'))
+    return args.check && res.results.some((x) => x.state === 'stale') ? 1 : 0
   },
 
   status(argv) {

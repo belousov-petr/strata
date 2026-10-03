@@ -89,6 +89,7 @@ hot: <true|false, optional — true loads the rule into MEMORY.md every session>
 - Capture **failures and successes** — a pitfall with its counterfactual fix is the highest-value item.
 - `learnings/INDEX.md` (every learning) and the `MEMORY.md` rules-by-trigger table (the **hot subset**) are regenerated from frontmatter at `/strata:save`.
 - **Hot subset.** The MEMORY table lists learnings marked `hot: true` — the broad/frequent rules worth loading every session. *Graceful default:* a project with **no** `hot:` flag anywhere keeps all learnings in the table (legacy, unchanged); the first `hot:` flag opts it into filtering. New learnings default `hot: false` (INDEX-only), so the hot table stays bounded as learnings accumulate — promote to `hot: true` only when a rule proves broadly triggered. Never auto-pick the set; `/strata:save` only *flags* an over-budget table and suggests curating (§6E).
+- **Adapter block (reaches every agent).** Subagents and Codex read `CLAUDE.md` / `AGENTS.md` but never open `.strata/memory/`, so the same hot subset is mirrored into a generated block between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->` in each adapter: one line per rule (trigger, first sentence of the lesson, link). `strata views` and `/strata:save` refresh it; text outside the markers is never touched. Budget 25 rules / 4,000 characters, with an overflow line pointing at `MEMORY.md`.
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
@@ -251,4 +252,5 @@ Next:
 | `journal add / list / clear` | the pending-capture journal (§5, §5a) |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
+| `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 
