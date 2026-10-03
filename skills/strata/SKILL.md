@@ -15,6 +15,8 @@ Three entry points: **rule lookup** (default — commands read §§1–7 for dec
 
 **Invocation.** The skill's canonical name is `strata`; Codex and other tools call `Skill(name='strata', …)`. Installed as the Claude Code plugin, commands and skill are namespaced under the plugin name — the commands are `/strata:init`, `/strata:save`, `/strata:load`, `/strata:capture`, and the skill is `Skill(name='strata:strata', …)`. Slash-command references below use the plugin form.
 
+**The strata script.** `strata <subcommand>` in this file means `node "${CLAUDE_SKILL_DIR}/scripts/strata.mjs" <subcommand>`. Claude Code fills in `${CLAUDE_SKILL_DIR}`; in Codex and other tools, use the folder that holds this `SKILL.md`. It needs only Node, and its subcommands are listed in §12.
+
 ---
 
 ## 1. Tiers and stores
@@ -90,43 +92,42 @@ hot: <true|false, optional — true loads the rule into MEMORY.md every session>
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
-## 5. Immediate capture — before context decays
+## 5. Immediate capture, before context decays
 
-Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any moment something worth keeping appears mid-task. Write every important moment to its home the instant it is clear, so the docs grow as you build instead of waiting on session end. Spend tokens now; a compacted-away diagnosis or rationale is more expensive than a small file write.
+Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any moment something worth keeping appears mid-task. Capture every important moment the instant it is clear, so the docs grow as you build instead of waiting on session end. Spend tokens now; a compacted-away diagnosis or rationale is more expensive than a one-line write.
 
-**Trigger:** a failed command/tool/API, retry loop, or workaround; surprising repo behavior or a brittle environment step; a bug, finding, or doc drift; a rule future agents should know before an operation; **a decision you settled** (with the rationale and the options you rejected); **a change of direction** that overturns a prior decision or spec; **how an outside system actually works**; or **a requirement, or the reasoning behind it**, worth a spec or PRD.
+**Trigger:** a failed command/tool/API, retry loop, or workaround; surprising repo behavior or a brittle environment step; a bug, finding, or doc drift; a rule future agents should know before an operation; **a decision you settled** (with the rationale and the options you rejected); **a change of direction** that overturns a prior decision or spec; **an operator answer** future sessions need; **how an outside system actually works**; or **a requirement, or the reasoning behind it**.
 
-**Route** (write the home for what you captured; `/strata:save` is the safety net that files anything you miss):
+**Journal first.** The capture is one entry in the pending-capture journal (§5a): `strata journal add --kind <kind> --title "…" --text -` with the full text on stdin. It is instant, git-ignored, needs no commit, survives compaction, and is shared by every worktree of the repo. Kinds: `decision`, `direction`, `answer`, `finding`, `gotcha`, `learning`, `requirement`, `runbook`, `note`. Give decisions and direction changes their lineage (`--lineage "supersedes ADR-0007"`).
 
-- Closeable work -> `issues/<id>-<slug>.md` from `_TEMPLATE.md`, with `status: open` or `in-progress`, severity/area, What/Why, Tried/Error/Hypothesis/Repro, evidence, and next action.
+**Route at save** (`/strata:save` files each entry; this is where it lands):
+
+- Closeable work -> `issues/<id>-<slug>.md` from `_TEMPLATE.md` (id from `strata new-issue`), with `status: open` or `in-progress`, severity/area, What/Why, Tried/Error/Hypothesis/Repro, evidence, and next action.
 - Reusable behavior -> `memory/learnings/<slug>.md`, with operation-keyed `trigger:`, optional `applies-when:`, `origin: success | failure`, and a 1-3 sentence lesson.
-- Settled decision with non-obvious rationale -> `docs/decisions/ADR-NNNN-<slug>.md` (NNNN = highest existing + 1, the §6 collision scan), status `proposed`/`accepted`, with the considered options. A change of direction supersedes the old ADR per `docs/decisions/README.md` — new ADR, old one marked superseded, never an in-place rewrite.
+- Settled decision with non-obvious rationale -> `docs/decisions/ADR-NNNN-<slug>.md` (number from `strata next-adr`), status `proposed`/`accepted`, with the considered options. A change of direction supersedes the old ADR per `docs/decisions/README.md`: a new ADR, the old one marked superseded, never an in-place rewrite.
 - Durable knowledge -> the warm docs: a runbook or how-a-system-works under `docs/ops/` or `docs/architecture/`; a requirement or its reasoning under `docs/product/`.
 - Several at once when one moment is more than one of these: e.g. a fixable bug (issue) that also taught a rule (learning).
 - Flat mode -> append a concise "Fresh capture" entry to `.strata/memory/project_state.md` under Findings/Gotchas/Open Items.
 
-**Write discipline:** targeted grep first to avoid duplicates; fold new evidence into an existing file when it matches. Keep evidence concise; no raw transcript dumps, full logs, or secret values. Capture writes the source file only — do not regenerate the views or the `ARCHITECTURE.md` index; `/strata:save` does that and finalizes anything left as a draft.
+**Filing early is optional.** When the tree can take a loose file, the agent may write the store file at capture time too, then add the entry with `--filed <path>` so save only checks it. In a repo with a slow commit gate or a commit ban, the journal entry alone is the capture.
 
-**Report and resume:** say which file(s) were written or updated, then continue the original task unless the capture reveals a blocker.
+**Write discipline:** keep evidence concise; no raw transcript dumps, full logs, or secret values (the journal masks secret-shaped values as a backstop). Capture never regenerates views or the `ARCHITECTURE.md` index; `/strata:save` does.
 
-The hook may have pre-logged failures to the inbox; promote them per §5a.
+**Report and resume:** say what was captured (journal id, or the file written), then continue the original task unless the capture reveals a blocker.
 
-### 5a. Inbox — deterministic capture backstop
+**Claude auto memory is not a capture target.** It holds only the pointer `/strata:save` maintains (§11); findings, decisions, and lessons go to the journal.
 
-The capture-guard hook (ADR-0011) auto-logs failed tool results to
-`.strata/inbox/captures.jsonl` the moment they happen, so evidence survives
-compaction without the agent acting. Each line is one redacted raw stub
-`{ts, event, tool, signal, command, snippet, h}` — **raw evidence, not finished
-memory.** The inbox is git-ignored transient scratch.
+### 5a. Journal and inbox: the git-ignored capture stage
 
-**Promote-and-clear (the read side, deterministic — no extra agent turn):**
-- `/strata:capture` and `/strata:save`: read `.strata/inbox/captures.jsonl`,
-  fold each real failure into an issue/learning (dedup against the backlog,
-  drop secrets/stack-traces per §2), then **truncate** `captures.jsonl` and
-  delete `.strata/inbox/.cursor.*.json`.
-- `/strata:load`: report the un-promoted count in the orientation.
-- A typo or already-known failure is dropped, not promoted. Promotion is the
-  authoritative dedup; the hook's append-time window is only a first pass.
+Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the **main worktree** of the repository when it holds `.strata/` (so every worktree shares one; outside git, the current project root):
+
+- `journal.jsonl` holds what the agent captured (§5). Entries `{id, ts, kind, title, text, lineage, refs, filed, branch, worktree}`, redacted on write.
+- `captures.jsonl` holds what the hook auto-logged: raw tool-result stubs `{ts, event, tool, category, signal, command, snippet, h}`. Categories: `failure` (a shell command that really failed), `policy` (a permission refusal), `tool-error` (a non-shell tool error), `interrupted`. **Raw evidence, not finished memory.**
+
+**Route and clear** (the read side, run by the commands, no extra agent turn):
+- `/strata:save`: route every journal entry and every real, repeated, or reusable failure into its store (dedup against the backlog, drop secrets/stack-traces per §2), then `strata journal clear --all` and `strata inbox clear`. The last cleared journal batch stays in `journal.routed.jsonl` until the next clear.
+- `/strata:load`: report pending captures first, then the inbox counts by category and any repeated failures (`strata status`).
+- A typo, a one-off failure, or a policy refusal is counted, not promoted. Promotion is the authoritative dedup.
 
 ## 6. `/strata:save` — preview-execute contract
 
@@ -240,3 +241,14 @@ Next:
 ## 11. Relationship to other memory skills
 
 `remember:remember` (single handoff note), `atlas-memory` (SQLite + vectors), `agentdb-*` (vector/RL backends) are storage mechanisms and are orthogonal. Strata is the **structural pattern** — where knowledge lives, when it loads, when it moves. They can coexist; strata files stay plain markdown + grep on purpose.
+
+## 12. The strata script
+
+`scripts/strata.mjs` in this skill folder runs the mechanical half of strata, the same way every time. Node only, no dependencies, Windows, macOS, and Linux. Every subcommand takes `--root <dir>`; the ones commands parse take `--json`.
+
+| Subcommand | Does |
+|---|---|
+| `journal add / list / clear` | the pending-capture journal (§5, §5a) |
+| `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
+| `where` | the project root, the shared root (main worktree), and the inbox path |
+

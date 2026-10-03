@@ -1,13 +1,15 @@
 ---
 name: capture
-description: Use immediately when an agent hits a failure, retry loop, workaround, surprising behavior, gotcha, bug, or important finding that should not wait for /strata:save. Captures issues and behavioral learnings while context is fresh. Strata-aware when the project has `.strata/MANIFEST.md`; flat-mode fallback appends to `.strata/memory/project_state.md`.
+description: Use immediately when an agent hits a failure, retry loop, workaround, surprising behavior, gotcha, bug, decision, operator answer, or important finding that should not wait for /strata:save. Appends it to the pending-capture journal at once, with no commit needed; /strata:save files it into issues, learnings, decision records, and docs. Strata-aware when the project has `.strata/MANIFEST.md`; flat-mode fallback appends to `.strata/memory/project_state.md`.
 ---
 
 # Capture Fresh Finding or Gotcha
 
-Write the memory now, then continue. Prefer spending a few tokens on the spot over losing the evidence to compaction.
+Write it down now, then continue. Spending a few tokens on the spot beats losing the evidence to compaction.
 
-**Authoritative rules live in `Skill: strata:strata`, especially the immediate-capture contract.** This command is the interrupt you use while working; `/strata:save` remains the end-of-session bookkeeping pass.
+**Authoritative rules live in `Skill: strata:strata`, especially §5 (immediate capture) and §5a (journal and inbox).** This command is the interrupt you use while working; `/strata:save` files what you captured and does the bookkeeping.
+
+In this file, `strata` means `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs"`. Codex and other tools run `node <skill folder>/scripts/strata.mjs`, where the skill folder holds the strata `SKILL.md`.
 
 ## When to use
 
@@ -18,6 +20,7 @@ Capture any important moment the instant it is clear, so the project's docs grow
 - You learned a rule future agents should know before doing the same operation
 - You used a workaround that should not be rediscovered later
 - You settled a decision worth explaining later, or changed direction on an earlier one
+- The operator answered a question whose answer future sessions need
 - You worked out how an outside system actually behaves (runbook material)
 - You pinned down a requirement, or the reasoning behind it, that belongs in a spec or PRD
 
@@ -31,63 +34,62 @@ Capture any important moment the instant it is clear, so the project's docs grow
 
 State the detected mode in one line.
 
-### 2. Gather just enough context
+### 2. Append it to the journal
 
-Use targeted reads only:
+This is the capture. It writes one line to `.strata/inbox/journal.jsonl` in the main worktree, which git ignores, so it needs no commit and survives compaction and worktree removal.
 
-- `MANIFEST.md`, `MEMORY.md`, and `issues/ACTIVE.md` in strata mode
-- `issues/OPEN.md` only if the capture looks like an existing area of work
-- `.strata/inbox/captures.jsonl` — fold any matching auto-logged failure into this capture, then clear it (skill §5a)
-- `rg` for a distinctive error phrase, file path, command name, or learning trigger before creating a new file
+```bash
+strata journal add --kind <kind> --title "<one line>" [--lineage "<supersedes ADR-0007>"] [--ref <path>]... --text - <<'EOF'
+<the full capture: what happened, why it matters, the evidence.
+Failures: Tried / Error / Hypothesis / Repro.
+Decisions: the options you turned down and why.>
+EOF
+```
 
-Do not bulk-read `learnings/`, `archive/`, ADRs, or every issue.
+| Kind | Use it for | Filed at save as |
+|---|---|---|
+| `decision` | a settled choice and its reasons | decision record (`docs/decisions/`) |
+| `direction` | a change that overturns an earlier decision or spec | new decision record superseding the old one |
+| `answer` | an operator answer future sessions need | the record it settles (decision, requirement, learning) |
+| `finding` | a bug, weakness, task, or idea | issue |
+| `gotcha` | a trap and its fix | learning, often with an issue |
+| `learning` | a reusable rule, success or failure | learning |
+| `requirement` | a requirement or its reasoning | `docs/product/` |
+| `runbook` | how a system behaves, or a procedure | `docs/ops/` or `docs/architecture/` |
+| `note` | anything else worth keeping | wherever save routes it |
 
-### 3. Route the capture
+Put the lineage on decisions and direction changes (`--lineage "supersedes ADR-0007"`, or `"answers 20261003-02"`). Keep the text concise: no raw logs, transcripts, or secret values. Secret-shaped values are masked on write as a backstop, not as permission.
 
-Write to the home for what you captured (full table in `Skill: strata:strata` §2/§5). `/strata:save` is the safety net that files anything you miss.
+### 3. Optionally file it now
 
-- **Issue** if there is closeable work: bug, improvement, debt, task, feature, initiative.
-- **Learning** if the value is a reusable behavior rule: "before doing X, know Y."
-- **Decision record** under `docs/decisions/ADR-NNNN-<slug>.md` if you settled something with non-obvious rationale (number = highest existing + 1); a change of direction supersedes the old ADR, never edits it.
-- **Durable doc** if it is lasting knowledge: a runbook or how-a-system-works under `docs/ops/` or `docs/architecture/`, a requirement or its reasoning under `docs/product/`.
-- **Several** if one moment is more than one of these.
-- **Flat mode** if no 0.0.3 structure exists: append under Findings/Gotchas/Open Items in `project_state.md`.
+When filing is cheap and the tree can take a loose file, you may also write the store file right away: an issue from `.strata/issues/_TEMPLATE.md` (get the id from `strata new-issue`), a learning from `learnings/_TEMPLATE.md`, a decision record numbered by `strata next-adr`, or a doc. Write the file first, then pass `--filed <path>` on the journal entry so save only checks it. In a repo with a slow commit gate or a commit ban, skip this step; the journal entry is enough.
 
-Dedup before writing. If a matching file exists, update it with the new evidence instead of creating a near-duplicate. Capture writes the source file only; `/strata:save` regenerates the views and the `ARCHITECTURE.md` index.
+Do not regenerate the views during capture. `/strata:save` does that.
 
-### 4. Write immediately
+### 4. Fold in the inbox
 
-For an issue, use `.strata/issues/_TEMPLATE.md` and include:
-
-- frontmatter: `id`, `type`, `status`, `severity`, `area`, `created`
-- What happened and why it matters
-- Tried / Error / Hypothesis / Repro, when the finding came from a failure
-- Evidence trimmed to the smallest useful command, path, or observation
-- Next action or acceptance criteria
-
-For a learning, use `.strata/memory/learnings/_TEMPLATE.md` and keep the lesson to 1-3 sentences with `origin: success | failure`.
-
-For a decision, write an ADR (Context / Considered Options / Decision / Consequences) under `.strata/docs/decisions/`; for a runbook, spec, or PRD, write the durable doc under the matching `.strata/docs/` folder. See `Skill: strata:strata` §5 for the routing.
-
-Do not hand-edit generated views (`ACTIVE.md`, `OPEN.md`, `PARKED.md`, `learnings/INDEX.md`, or the `MEMORY.md` trigger table). `/strata:save` regenerates them from source files.
+If the hook auto-logged the failure you are capturing, mention it in the text. Read the inbox counts with `strata inbox summary` only when it helps; promotion and clearing happen at save (skill §5a).
 
 ### 5. Report and resume
 
-Report the file(s) written or updated:
-
 ```
-Mode: strata (0.0.3).
-Captured: .strata/issues/20260617-01-plugin-cache-stale.md
-Learning: .strata/memory/learnings/before-updating-codex-plugin.md
+Mode: strata (layout 3).
+Captured: journal j-20261003-134501-3f2a (decision: queue drains before deploy). 3 pending.
 Continuing: <original task>
 ```
 
 Then continue the original task unless the capture shows that the task is blocked.
 
+## Invocation
+
+- Claude Code: `/strata:capture`.
+- Codex and other tools: `Skill(name='strata', args='capture')`.
+
 ## Do NOT
 
 - Wait for `/strata:save`
 - Ask the user what to capture when the session already shows it
+- Keep the capture in a tool's private memory (Claude auto memory, Codex memory) instead of the journal
 - Dump full logs, transcripts, secrets, or token values
 - Move closed issues to archive during capture; save handles archive moves
 - Regenerate generated views during capture unless the user explicitly asks

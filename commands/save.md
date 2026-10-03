@@ -30,7 +30,7 @@ State the detected mode before proceeding.
 
 ### 3. Inventory the session
 
-Sort what actually happened into the 0.0.3 buckets:
+Start from the pending-capture journal: `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs" journal list` (Codex: `node <skill folder>/scripts/strata.mjs journal list`). Every entry gets routed this save. Then sort what actually happened into the buckets:
 
 - **Resumption point** — last completed, immediate next action (point at an issue id when one exists), prerequisites, uncommitted scope, background processes. The single most important capture; write it so a fresh session starts without questions.
 - **Issue events** — findings/bugs captured mid-session with `/strata:capture` or direct issue writes (should already be on disk — verify; write any that slipped through, with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired; promote un-promoted `.strata/inbox/` stubs and clear the inbox (skill §5a).
@@ -86,6 +86,8 @@ Per the skill: git-dirty files are never moved or deleted-from (list under SKIP)
 ### 6. Execute
 
 Immediately after the preview, run in this order: **writes → appends → updates → moves → deletions → regenerate views**. Regeneration is last so views reflect the post-save world.
+
+Once every journal entry is written to its store, clear the journal with `strata journal clear --all` (or `--id <id>` for the ones routed this time). The cleared batch stays in `.strata/inbox/journal.routed.jsonl` until the next clear.
 
 ### 7. Verify
 
