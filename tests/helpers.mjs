@@ -37,7 +37,7 @@ export function cleanEnv(extra = {}) {
 let globalCfg
 function emptyGlobalConfig() {
   if (!globalCfg) {
-    globalCfg = path.join(fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'strata-gitcfg-'))), 'gitconfig')
+    globalCfg = path.join(fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'strata-gitcfg-'))), 'gitconfig')
     fs.writeFileSync(globalCfg, '[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n[core]\n\tautocrlf = false\n')
   }
   return globalCfg
@@ -45,12 +45,14 @@ function emptyGlobalConfig() {
 
 let claudeDir
 function emptyClaudeDir() {
-  if (!claudeDir) claudeDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'strata-claude-home-')))
+  if (!claudeDir) claudeDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'strata-claude-home-')))
   return claudeDir
 }
 
+// realpath.native expands Windows 8.3 short names (RUNNER~1), which git never
+// writes into a worktree's .git file, so paths compare equal on every OS.
 export function tmpDir(prefix = 'strata-test-') {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)))
+  return fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), prefix)))
 }
 
 export function rm(dir) {
