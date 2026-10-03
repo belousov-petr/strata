@@ -65,7 +65,7 @@ States and types (canonical, defined here and in MANIFEST/DESIGN, reused verbati
 
 Operational rules:
 
-1. **Capture immediately and completely.** The moment a finding surfaces mid-task: write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`) from `_TEMPLATE.md` — What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time* — status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
+1. **Capture immediately and completely.** The moment a finding surfaces mid-task: journal it (§5), or write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`, allocated by `strata new-issue`, which checks other branches and worktrees) from `_TEMPLATE.md` — What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time* — status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
 2. **Status changes are frontmatter edits.** No file moves while an item is alive.
 3. **`parked` requires a concrete `revive-when:`** trigger; `/strata:save` checks triggers against the session and revives matches.
 4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata:save`.
@@ -238,7 +238,7 @@ Next:
 | `parked` without `revive-when:` | A concrete trigger or it isn't parked, it's abandoned |
 | Bulk-loading learnings/ADRs/archive at load | Indexes + trigger table exist so you don't |
 | Save waits for a y/n gate | One preview block, then execute automatically — invoking `/strata:save` is the confirmation |
-| New ADR with a colliding number | Scan `docs/decisions/`, take highest + 1 |
+| New ADR or issue id that collides with a parallel branch | Take numbers from `strata next-adr` and ids from `strata new-issue`; they scan worktrees, recent branches and reservations |
 | Capturing "architecture needs cleanup" | Evidence, affected paths, hypothesis, fix direction, acceptance criteria — in the issue |
 | `init` over flat or legacy memory | Migrate via `MIGRATIONS.md`; archive source first, then write 0.0.3 files |
 
@@ -257,6 +257,8 @@ Next:
 | `where` | the project root, the shared root (main worktree), and the inbox path |
 | `views --merge-driver %O %A %B %P` | the git merge driver: merges view rows (and the adapters' hot-rules lines) three ways, renders them in the fixed order, `git merge-file` for the text around them |
 | `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver, hot-rules block in existing adapters |
+| `new-issue --slug <s> [--title --type --severity --area --status --revive] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
+| `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
