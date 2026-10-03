@@ -355,7 +355,9 @@ function mergeFile(ours, base, theirs) {
     const f = (n, t) => { const p = path.join(dir, n); fs.writeFileSync(p, t); return p }
     const a = f('ours', ours); const o = f('base', base); const b = f('theirs', theirs)
     const r = spawnSync('git', ['merge-file', '-p', '-L', 'ours', '-L', 'base', '-L', 'theirs', a, o, b], { encoding: 'utf8', env: gitEnv(), windowsHide: true })
-    if (r.status === null || r.status < 0 || r.error) return null
+    // merge-file exits with the number of conflicts, or a negative value (255 or
+    // more on POSIX) on error. Never write its output to %A on error.
+    if (r.error || r.status === null || r.status < 0 || r.status >= 128) return null
     return { text: r.stdout, conflicts: r.status }
   } finally {
     try { fs.rmSync(dir, { recursive: true, force: true }) } catch { /* ignore */ }
