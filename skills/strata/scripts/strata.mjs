@@ -16,6 +16,7 @@ import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
 import { setup, formatSetup } from './lib/setup.mjs'
 import { newIssue, nextAdr } from './lib/ids.mjs'
 import { driftList, formatDrift } from './lib/drift.mjs'
+import { writePointers } from './lib/pointer.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
@@ -37,6 +38,7 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
                                   next free id for today (tree, worktrees, branches), file from _TEMPLATE.md
   next-adr [--dir <d>] [--dry-run]   next free decision-record number
   drift [--since <rev>] [--json]  commits since the last save that no record mentions
+  pointer [--dry-run]             write or refresh the Claude auto-memory pointer (only when the folder exists)
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
 
@@ -183,6 +185,17 @@ const commands = {
     const r = resolveRoots(args.root)
     const res = driftList(r, { since: typeof args.since === 'string' ? args.since : undefined })
     out(args, res, formatDrift(res))
+    return 0
+  },
+
+  pointer(argv) {
+    const args = parseArgs(argv, { bools: ['json', 'dry-run'] })
+    const r = resolveRoots(args.root)
+    const res = writePointers(r, { dryRun: Boolean(args['dry-run']) })
+    const text = res.disabled ? 'pointer: off (STRATA_AUTO_MEMORY_POINTER=0)'
+      : res.dirs.length ? res.dirs.map((d) => `${d.dir}: pointer ${d.pointer}, index line ${d.index}`).join('\n')
+        : 'pointer: no Claude auto-memory folder for this project; nothing to do'
+    out(args, res, text)
     return 0
   },
 
