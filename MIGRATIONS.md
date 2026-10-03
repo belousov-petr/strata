@@ -139,6 +139,12 @@ A stamp-label change only — the on-disk structure of layout `0.0.3` and `layou
 
 ---
 
+## Plugin 0.1.0: no rung, one setup step
+
+Plugin release 0.1.0 adds the pending-capture journal, the strata script, the generated hot-rules block in the adapters and the views merge driver, all without changing the layout: projects stay on `layout_version: 3`. Everything new is additive. The journal and the state file live in the git-ignored inbox, `issues/archive/INDEX.md` is created on first use, and `generated_views` is an optional MANIFEST key.
+
+The one step: run `/strata:init` (Codex: `Skill(name='strata', args='init')`) once. On a current-layout project it runs `strata setup` and nothing else, which adds the `.gitattributes` block and the local git config line for the merge driver, and appends the hot-rules block to existing `CLAUDE.md` / `AGENTS.md`. It is idempotent. Each other clone runs it once too, because git config is not committed. Skipping it is safe: views then merge as plain text, as before, and the hot rules stay in `MEMORY.md` only.
+
 ## Future rungs
 
 A later generation gets detected by `layout_version` alone (one file read), and its rung documents detect → transform → rollback in this same shape before anything ships. That is the standing rule, not an aspiration.

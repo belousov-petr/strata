@@ -61,7 +61,8 @@ Conflicts → tell the user ("state says X, repo shows Y"), trust git, never sil
 **Prerequisites:** <env/services, or "none">
 **Parked triggers:** <any revive-when that looks fired, or "none">
 **Drift:** <state-vs-git mismatches, or "none">
-**Inbox:** <n> un-promoted (auto-logged failures), or "none"
+**Inbox:** <n> failures (<n> repeated), <n> policy refusals, or "empty"
+**Setup:** only when `strata status` says the project lacks the 0.1.0 add-ons: "run /strata:init once"
 ```
 
 Then: "Ready to continue, or work on something else?"

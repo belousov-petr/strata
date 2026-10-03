@@ -1,6 +1,6 @@
 # ADR-0016: Capture goes to a pending journal first, shared across worktrees
 
-- **Status:** accepted
+- **Status:** implemented (0.1.0)
 - **Date:** 2026-10-03
 
 ## Context and Problem Statement
