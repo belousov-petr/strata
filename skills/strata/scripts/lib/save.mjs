@@ -8,6 +8,7 @@ import { readIssues, TERMINAL, cell } from './model.mjs'
 import { syncViews } from './views.mjs'
 import { runCheck, BUDGETS } from './check.mjs'
 import { readJournal, journalSummaryLine } from './journal.mjs'
+import { inboxSummary } from './inbox.mjs'
 
 // Extra steps registered by later modules (inbox summary, merge driver refresh,
 // drift list, auto-memory pointer). Each gets (roots, ctx) and adds to ctx.
@@ -165,6 +166,13 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   const entries = readJournal(roots.shared)
   ctx.info.journal = entries.length
   if (entries.length) ctx.judgment.unshift(`${journalSummaryLine(entries)} Then run strata journal clear --all.`)
+
+  const inbox = inboxSummary(roots.shared)
+  ctx.info.inbox = { total: inbox.total, counts: inbox.counts, repeated: inbox.repeated }
+  if (inbox.total) {
+    const rep = inbox.repeated.slice(0, 5).map((g) => `${g.count}x ${g.command || g.signal}`).join('; ')
+    ctx.judgment.push(`${inbox.line}${rep ? ` Repeated: ${rep}.` : ''} Promote what is worth keeping, then run strata inbox clear.`)
+  }
 
   const issues = readIssues(project)
   const parked = issues.filter((i) => i.status === 'parked')

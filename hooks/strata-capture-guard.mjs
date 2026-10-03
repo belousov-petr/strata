@@ -1,36 +1,33 @@
 #!/usr/bin/env node
-// strata capture-guard — a lifecycle hook shared by Claude Code (plugin hooks)
+// strata capture-guard: one lifecycle hook shared by Claude Code (plugin hooks)
 // and Codex CLI (~/.codex/hooks.json or a project .codex/hooks.json).
 //
-// It reads the hook event JSON on stdin. If the session's working directory is
-// inside a strata project (a `.strata/` directory exists at cwd or an ancestor) it
-// does two things:
+// It reads the hook event JSON on stdin and acts only inside a strata project
+// (a `.strata/` folder at the working directory or above):
 //
-//   1) DETERMINISTIC CAPTURE (survives compaction without the agent acting) —
-//      on PostToolUse (Bash/exec_command failures), PreCompact, SessionEnd, and Stop,
-//      it appends raw failure stubs to `.strata/inbox/captures.jsonl`. The agent does
-//      NOT have to do anything for the evidence to land on disk. `/strata:capture` and
-//      `/strata:save` promote these stubs into proper issues/learnings, then clear the
-//      inbox. Codex is fully covered: PostToolUse captures per-call exec_command
-//      failures; Stop is the per-turn drain (Codex has no SessionEnd) and scans the
-//      rollout tail via the same cursor-based rollout parser used by PreCompact.
+//   1) DETERMINISTIC CAPTURE. Tool calls that really failed are appended as raw
+//      stubs to `.strata/inbox/captures.jsonl` in the repository's main worktree
+//      (one inbox per repo, ADR-0016). It decides by real status, never by
+//      words in successful output (ADR-0017):
+//        Claude  PostToolUseFailure      always a failure (Exit code N / interrupt)
+//        Claude  PostToolUse             always a success, never logged
+//        Claude  transcript tool_result  `is_error` decides
+//        Codex   rollout output          `Process exited with code N` decides
+//        Codex   PostToolUse             no status: strict, line-anchored fallback
+//      Stubs carry a category: failure | policy | tool-error | interrupted.
+//      Permission refusals are `policy`, not failures.
+//      PreCompact, SessionEnd (Claude) and Stop (Codex) scan the transcript tail
+//      on a per-transcript byte cursor, so nothing is missed or logged twice.
 //
-//   2) NUDGE — SessionStart primes the discipline and PostToolUse pings only on
-//      calls where it actually logged a failure. Those events support
-//      `hookSpecificOutput.additionalContext`. PreCompact, SessionEnd, and Stop are
-//      SILENT evidence drains: PreCompact does not accept additionalContext, and
-//      Stop fires every Codex turn so a nudge there would be noisy. The shared
-//      per-transcript cursor makes the scans incremental and cheap.
+//   2) CONTEXT. SessionStart primes the capture rule and reports pending journal
+//      captures and inbox counts. The per-failure "capture this now" nudge is
+//      off unless STRATA_FAILURE_NUDGE=1. PreCompact, SessionEnd and Stop print
+//      nothing (PreCompact rejects additionalContext; Stop fires every turn).
 //
-// Outside a strata project it is a SILENT no-op (no output). Any error => exit 0 with
-// no output, so the hook can never break or stall the host session.
+// Outside a strata project it is a silent no-op. Any error exits 0 with no
+// output, so the hook can never break or stall the host session.
 //
-// Honest scope: a hook still cannot make the agent *reason*. The nudges prime the
-// discipline; the deterministic inbox is the part that does not depend on the agent
-// taking a turn — it is what actually defeats compaction loss.
-//
-// Cross-platform: pure Node + path.join + whitespace-tolerant parsing + a byte-offset
-// cursor, so it is identical on Windows / macOS / Linux.
+// Cross-platform: pure Node, path.join, a byte-offset cursor, no git process.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -38,9 +35,10 @@ import crypto from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 
 const MAX_SNIPPET = 600           // per-stub output snippet cap (chars)
-const SIG_SCAN_TAIL = 64 * 1024   // only test the last N chars of output for signatures
-const MAX_SCAN_BYTES = 512 * 1024 // PreCompact: cap how much transcript tail we read
-const DEDUPE_WINDOW = 80          // dedupe a new stub against the last N inbox lines
+const FALLBACK_LINES = 60         // the text fallback reads only the last N lines
+const MAX_SCAN_BYTES = 512 * 1024 // transcript scans read at most this much per run
+const DEDUPE_WINDOW = 200         // dedupe a new stub against the last N inbox lines
+const SHELL_TOOLS = /^(Bash|PowerShell|exec_command|shell|local_shell|container\.exec)$/i
 
 function readStdin() {
   return new Promise((resolve) => {
@@ -127,40 +125,6 @@ export function resolveRoots(cwd) {
   return { project, shared }
 }
 
-// --- failure detection ------------------------------------------------------
-// Grounded in the real Claude Code transcript schema: a non-zero Bash exit is
-// recorded inconsistently — sometimes tool_result.is_error=true (string output),
-// sometimes is_error=false with NO exit-code field (e.g. pnpm/eslint exit 1, where
-// the only signal is "ELIFECYCLE" / "exit code 1" in the text). So we trust an
-// explicit error flag AND a set of high-precision output signatures.
-const FAIL_SIGNATURES = [
-  /(^|\n)Exit code [1-9]\d*/,
-  /Command failed with exit code [1-9]/i,
-  /\bELIFECYCLE\b/,
-  /\bnpm ERR!/,
-  /(^|\n)fatal: /,
-  /Traceback \(most recent call last\)/,
-  /\berror TS\d{3,}\b/,
-  /\bcommand not found\b/,
-  /\bPermission denied\b/,
-  /\bsegmentation fault\b/i,
-  /\bpanic:/,
-  /\bis not recognized as (?:an internal or external command|the name of a cmdlet)/i,
-  /\bThe term '[^'\n]*' is not recognized\b/,
-  /Process exited with code [1-9]\d*/,
-]
-
-export function failureSignal(text, isError) {
-  if (isError === true) return 'is_error'
-  if (typeof text !== 'string' || !text) return null
-  const tail = text.length > SIG_SCAN_TAIL ? text.slice(-SIG_SCAN_TAIL) : text
-  for (const re of FAIL_SIGNATURES) {
-    const m = re.exec(tail)
-    if (m) return m[0].trim().replace(/\s+/g, ' ').slice(0, 40)
-  }
-  return null
-}
-
 // Normalise a tool result (string OR {stdout,stderr,...} OR content blocks) to text.
 export function resultText(r) {
   if (r == null) return ''
@@ -238,7 +202,10 @@ export function inboxPaths(root) {
   return { dir, file: path.join(dir, 'captures.jsonl') }
 }
 
+// One stub per tool call: keyed by the host's tool_use_id when there is one, so
+// the live event and the later transcript scan agree. Otherwise by content.
 export function stubHash(stub) {
+  if (stub.tuid) return crypto.createHash('sha1').update('tuid|' + stub.tuid).digest('hex').slice(0, 12)
   const snip = stub.snippet || ''
   const basis = [stub.signal || '', stub.command || '', snip.slice(0, 200), snip.slice(-200)].join('|')
   return crypto.createHash('sha1').update(basis).digest('hex').slice(0, 12)
@@ -263,43 +230,211 @@ function appendStub(root, stub) {
   } catch { return false }
 }
 
-function unpromotedCount(root) {
-  try {
-    return fs.readFileSync(inboxPaths(root).file, 'utf8').trim().split('\n').filter(Boolean).length
-  } catch { return 0 }
-}
-
 function nowIso() {
   try { return new Date().toISOString() } catch { return '' }
 }
 
-// --- handlers ---------------------------------------------------------------
-// PostToolUse: log a stub when a Bash result shows a failure signal.
-function handlePostToolUse(root, payload) {
-  const tool = payload.tool_name || payload.toolName
-  if (tool && tool !== 'Bash' && tool !== 'exec_command') return 0
-  const input = payload.tool_input || payload.toolInput || {}
-  const resp = payload.tool_response ?? payload.toolResponse
-  const isError =
-    payload.is_error === true ||
-    (resp && typeof resp === 'object' && (resp.is_error === true || resp.interrupted === true))
-  const text = resultText(resp)
-  const sig = failureSignal(text, isError)
-  if (!sig) return 0
-  const command = redact(String(input.command || '').replace(/\s+/g, ' ').slice(0, 300))
-  return appendStub(root, {
-    ts: nowIso(), event: 'PostToolUse', tool: tool || 'Bash', signal: sig,
-    command, snippet: redact(text.slice(-MAX_SNIPPET)),
-  }) ? 1 : 0
+// --- classification -------------------------------------------------------
+export const CATEGORIES = ['failure', 'policy', 'tool-error', 'interrupted']
+
+// Permission refusals: the agent's own safety layer said no. Counted, not failures.
+const POLICY_PATTERNS = [
+  /denied by the Claude Code auto mode classifier/i,
+  /auto mode classifier gave no verdict/i,
+  /denied by a built-in Claude Code safety check/i,
+  /^\s*<tool_use_error>\s*Blocked:/i,
+  /The user doesn't want to proceed with this tool use/i,
+  /\btool use was rejected\b/i,
+  /\bPermission (?:for this (?:action|command) |to use \S+ )?(?:was|has been) denied\b/i,
+  /haven't granted it yet/i,
+  /\brejected by (?:the )?user\b/i,
+]
+
+// Strict fallback for results that carry no status (Codex PostToolUse). Every
+// pattern is anchored to the start of a line, and only the last lines are read,
+// so a grep or cat that merely prints these words does not match.
+const FALLBACK_SIGNATURES = [
+  /^(?:Exit code|Process exited with code) [1-9]\d*\s*$/m,
+  /^(?:(?:ba|z|k|da)?sh|bash\.exe): (?:line \d+: )?[^\n:]+: command not found\s*$/m,
+  /^zsh: command not found: \S+/m,
+  /^Traceback \(most recent call last\):\s*$/m,
+  /^fatal: \S/m,
+  /^npm (?:ERR!|error) /m,
+  /^\s*ELIFECYCLE\b/m,
+  /^error Command failed with exit code [1-9]/m,
+  /^(?:\S+\(\d+,\d+\): )?error TS\d{3,}:/m,
+  /^Segmentation fault\b/m,
+  /^panic: /m,
+  /^'[^'\n]+' is not recognized as an internal or external command/m,
+  /^(?:\S+ : )?The term '[^'\n]+' is not recognized\b/m,
+]
+
+function tailLines(text, n) {
+  const lines = String(text).split('\n')
+  return lines.length > n ? lines.slice(-n).join('\n') : String(text)
 }
 
-// Shared transcript-tail scan used by PreCompact, SessionEnd, and Stop:
-// cursor-based, chunk-bounded, per-transcript. Logs stubs for failed tool_results
-// not yet captured; `event` is stamped on each stub. Parses BOTH Claude transcript
-// lines (message.content tool_result blocks) AND Codex rollout lines
-// (response_item / function_call_output, keyed on the "Process exited with code N"
-// marker). The shared per-transcript cursor means PreCompact + SessionEnd + Stop on
-// one session never double-log.
+function short(s) { return String(s).trim().replace(/\s+/g, ' ').slice(0, 60) }
+
+export function policySignal(text) {
+  if (typeof text !== 'string' || !text) return null
+  const head = text.slice(0, 2000)
+  for (const re of POLICY_PATTERNS) {
+    const m = re.exec(head)
+    if (m) return short(m[0])
+  }
+  return null
+}
+
+// The strict text fallback. `isError === true` short-circuits (kept for callers
+// of the 0.0.x API).
+export function failureSignal(text, isError) {
+  if (isError === true) return 'is_error'
+  if (typeof text !== 'string' || !text) return null
+  const tail = tailLines(text, FALLBACK_LINES)
+  for (const re of FALLBACK_SIGNATURES) {
+    const m = re.exec(tail)
+    if (m) return short(m[0])
+  }
+  return null
+}
+
+// Decide what a tool result is. Returns { category, signal } or null (success).
+// isError / exitCode undefined means the host gave no status.
+export function classify({ tool, text = '', isError, exitCode, interrupted } = {}) {
+  const shell = !tool || SHELL_TOOLS.test(String(tool))
+  const t = typeof text === 'string' ? text : resultText(text)
+  if (interrupted === true) return { category: 'interrupted', signal: 'interrupted' }
+  if (typeof exitCode === 'number' && Number.isFinite(exitCode)) {
+    if (exitCode === 0) return null
+    return { category: shell ? 'failure' : 'tool-error', signal: `exit code ${exitCode}` }
+  }
+  if (isError === true) {
+    const pol = policySignal(t)
+    if (pol) return { category: 'policy', signal: pol }
+    if (/^\s*\[?(?:Request )?interrupted by user/i.test(t)) return { category: 'interrupted', signal: 'interrupted' }
+    const ec = /^Exit code (\d+)/.exec(t)
+    if (shell) return { category: 'failure', signal: ec ? `Exit code ${ec[1]}` : 'is_error' }
+    const first = t.replace(/<\/?tool_use_error>/g, '').trim().split('\n')[0]
+    return { category: 'tool-error', signal: short(first || 'is_error') }
+  }
+  if (isError === false) return null
+  const pol = policySignal(t)
+  if (pol) return { category: 'policy', signal: pol }
+  if (!shell) return null
+  const sig = failureSignal(t)
+  return sig ? { category: 'failure', signal: sig } : null
+}
+
+// Category of a stored stub. Stubs written before 0.1.0 have none.
+export function stubCategory(stub) {
+  if (stub && CATEGORIES.includes(stub.category)) return stub.category
+  return policySignal(String((stub && stub.snippet) || '')) ? 'policy' : 'failure'
+}
+
+export function readStubs(root) {
+  try {
+    return fs.readFileSync(inboxPaths(root).file, 'utf8').split('\n').filter((l) => l.trim())
+      .map((l) => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean)
+  } catch { return [] }
+}
+
+// Counts by category, plus failures seen at least twice (same command, or the
+// same signal and output tail when there is no command).
+export function summarizeStubs(stubs) {
+  const counts = Object.fromEntries(CATEGORIES.map((c) => [c, 0]))
+  const groups = new Map()
+  for (const s of stubs) {
+    const cat = stubCategory(s)
+    counts[cat] = (counts[cat] || 0) + 1
+    if (cat !== 'failure') continue
+    const cmd = String(s.command || '').replace(/\s+/g, ' ').trim().slice(0, 200)
+    const key = cmd ? `cmd|${cmd}` : `sig|${s.signal || ''}|${String(s.snippet || '').replace(/\s+/g, ' ').trim().slice(-80)}`
+    const g = groups.get(key) || { count: 0, command: cmd, signal: s.signal || '', last: '' }
+    g.count++
+    if (String(s.ts || '') > g.last) g.last = String(s.ts || '')
+    groups.set(key, g)
+  }
+  const repeated = [...groups.values()].filter((g) => g.count >= 2)
+    .sort((a, b) => b.count - a.count || (a.command < b.command ? -1 : 1))
+  return { total: stubs.length, counts, repeated }
+}
+
+export function summaryLine(sum) {
+  if (!sum.total) return 'Inbox: empty.'
+  const parts = []
+  const c = sum.counts
+  if (c.failure) parts.push(`${c.failure} failure${c.failure === 1 ? '' : 's'}${sum.repeated.length ? ` (${sum.repeated.length} repeated)` : ''}`)
+  if (c.policy) parts.push(`${c.policy} policy refusal${c.policy === 1 ? '' : 's'}`)
+  if (c['tool-error']) parts.push(`${c['tool-error']} tool error${c['tool-error'] === 1 ? '' : 's'}`)
+  if (c.interrupted) parts.push(`${c.interrupted} interrupted`)
+  return `Inbox: ${sum.total} capture${sum.total === 1 ? '' : 's'}: ${parts.join(', ')}.`
+}
+
+export function journalCount(root) {
+  try {
+    return fs.readFileSync(path.join(root, '.strata', 'inbox', 'journal.jsonl'), 'utf8').split('\n').filter((l) => l.trim()).length
+  } catch { return 0 }
+}
+
+// --- handlers ---------------------------------------------------------------
+function oneLine(s, max = 300) { return redact(String(s || '').replace(/\s+/g, ' ').trim().slice(0, max)) }
+
+function stubFor(event, tool, r, { command = '', text = '', ts, tuid } = {}) {
+  const stub = {
+    ts: ts || nowIso(), event, tool: tool || 'Bash', category: r.category, signal: r.signal,
+    command: oneLine(command), snippet: redact(String(text || '').slice(-MAX_SNIPPET)),
+  }
+  if (tuid) stub.tuid = String(tuid)
+  return stub
+}
+
+// PostToolUse. Claude only calls it after a tool succeeded (failures go to
+// PostToolUseFailure); its Bash response is an object with stdout/stderr, so an
+// object here is a success unless it says otherwise. Codex sends a plain string
+// with no status, so only the strict fallback applies there.
+function handlePostToolUse(root, payload) {
+  const tool = payload.tool_name || payload.toolName || 'Bash'
+  if (!SHELL_TOOLS.test(tool)) return { logged: 0 }
+  const input = payload.tool_input || payload.toolInput || {}
+  const resp = payload.tool_response ?? payload.toolResponse
+  let isError
+  let exitCode
+  let interrupted
+  if (resp && typeof resp === 'object' && !Array.isArray(resp)) {
+    for (const k of ['exit_code', 'exitCode', 'returnCode']) if (typeof resp[k] === 'number') exitCode = resp[k]
+    if (resp.is_error === true) isError = true
+    if (resp.interrupted === true) interrupted = true
+    if (exitCode === undefined && isError === undefined) isError = false // Claude: PostToolUse = success
+  }
+  if (payload.is_error === true) isError = true
+  const text = resultText(resp)
+  const r = classify({ tool, text, isError, exitCode, interrupted })
+  if (!r) return { logged: 0 }
+  const ok = appendStub(root, stubFor('PostToolUse', tool, r, {
+    command: input.command, text, tuid: payload.tool_use_id || payload.toolUseId,
+  }))
+  return { logged: ok ? 1 : 0, category: r.category }
+}
+
+// PostToolUseFailure (Claude): the tool ran and failed, or was aborted.
+// `error` starts with "Exit code N" for a shell command that exited.
+function handlePostToolUseFailure(root, payload) {
+  const tool = payload.tool_name || payload.toolName || 'Bash'
+  const input = payload.tool_input || payload.toolInput || {}
+  const err = typeof payload.error === 'string' ? payload.error : resultText(payload.error)
+  const r = classify({ tool, text: err, isError: true, interrupted: payload.is_interrupt === true })
+  if (!r) return { logged: 0 }
+  const ok = appendStub(root, stubFor('PostToolUseFailure', tool, r, {
+    command: input.command, text: err, tuid: payload.tool_use_id || payload.toolUseId,
+  }))
+  return { logged: ok ? 1 : 0, category: r.category }
+}
+
+// Shared transcript-tail scan used by PreCompact, SessionEnd and Stop: cursor
+// based, chunk bounded, per transcript. Parses Claude transcript lines
+// (message.content tool_use / tool_result blocks) and Codex rollout lines
+// (response_item function_call / function_call_output).
 export function scanTranscript(root, tp, event) {
   const cursorFile = cursorPath(root, tp)
   let size = 0
@@ -312,7 +447,7 @@ export function scanTranscript(root, tp, event) {
   if (cur.headHash && cur.headHash !== curHead) start = 0 // file replaced in place
   if (start > size) start = 0                              // truncated/rotated
 
-  const end = Math.min(size, start + MAX_SCAN_BYTES)        // bounded chunk, NO skip-ahead
+  const end = Math.min(size, start + MAX_SCAN_BYTES)        // bounded chunk, no skip-ahead
   let windowBuf = Buffer.alloc(0)
   const len = Math.max(0, end - start)
   if (len > 0) {
@@ -325,8 +460,8 @@ export function scanTranscript(root, tp, event) {
 
   const { text: scanned, newOffset } = scanChunk(windowBuf, start)
 
-  const toolNameById = new Map()
-  const callCmdById = new Map()
+  const toolById = new Map()
+  const callById = new Map()
   let logged = 0
   for (const line of scanned.split('\n')) {
     if (!line.trim()) continue
@@ -334,40 +469,38 @@ export function scanTranscript(root, tp, event) {
     try { o = JSON.parse(line) } catch { continue }
     const blocks = Array.isArray(o.message?.content) ? o.message.content : []
     for (const blk of blocks) {
-      if (blk?.type === 'tool_use' && blk.id) toolNameById.set(blk.id, blk.name)
+      if (blk?.type === 'tool_use' && blk.id) toolById.set(blk.id, { name: blk.name, command: blk.input?.command || '' })
     }
     for (const blk of blocks) {
       if (blk?.type !== 'tool_result') continue
-      const originTool = toolNameById.get(blk.tool_use_id)
+      const origin = toolById.get(blk.tool_use_id)
       const t = typeof blk.content === 'string' ? blk.content : resultText(blk.content) || resultText(o.toolUseResult)
-      // A text signature is only trusted from a Bash (or unknown-origin) result;
-      // a known non-Bash tool that merely PRINTED a signature (e.g. a Read/grep
-      // showing "Traceback") needs an explicit is_error to count.
-      const allowText = originTool === undefined || originTool === 'Bash'
-      const sig = allowText
-        ? failureSignal(t, blk.is_error === true)
-        : (blk.is_error === true ? 'is_error' : null)
-      if (!sig) continue
-      if (appendStub(root, {
-        ts: o.timestamp || nowIso(), event, tool: 'tool_result', signal: sig,
-        command: '', snippet: redact(String(t).slice(-MAX_SNIPPET)),
-      })) logged++
+      // A tool_result without is_error (older hosts) has no status: only a shell
+      // result (or one of unknown origin) may use the strict text fallback.
+      const isError = blk.is_error === true ? true : blk.is_error === false ? false : undefined
+      const r = classify({ tool: origin ? origin.name : undefined, text: t, isError })
+      if (!r) continue
+      if (appendStub(root, stubFor(event, origin ? origin.name : 'tool_result', r, {
+        command: origin ? origin.command : '', text: t, ts: o.timestamp, tuid: blk.tool_use_id,
+      }))) logged++
     }
 
     // Codex rollout line: {type:'response_item', payload:{type:'function_call'|'function_call_output', …}}
     const cp = o.type === 'response_item' && o.payload && typeof o.payload === 'object' ? o.payload : null
     if (cp && cp.type === 'function_call' && cp.call_id) {
       let cmd = ''
-      try { cmd = JSON.parse(cp.arguments).cmd || '' } catch { cmd = '' }
-      callCmdById.set(cp.call_id, cmd)
+      try { const a = JSON.parse(cp.arguments); cmd = a.cmd || a.command || '' } catch { cmd = '' }
+      if (Array.isArray(cmd)) cmd = cmd.join(' ')
+      callById.set(cp.call_id, { name: cp.name || 'exec_command', command: String(cmd || '') })
     } else if (cp && cp.type === 'function_call_output') {
+      const call = callById.get(cp.call_id) || { name: 'exec_command', command: '' }
       const t = typeof cp.output === 'string' ? cp.output : resultText(cp.output)
-      const sig = failureSignal(t, false) // Codex rollout has no is_error; signatures incl. the exit-code marker
-      if (sig && appendStub(root, {
-        ts: o.timestamp || nowIso(), event, tool: 'exec_command', signal: sig,
-        command: redact(String(callCmdById.get(cp.call_id) || '').replace(/\s+/g, ' ').slice(0, 300)),
-        snippet: redact(String(t).slice(-MAX_SNIPPET)),
-      })) logged++
+      const codes = [...String(t).matchAll(/Process exited with code (\d+)/g)]
+      const exitCode = codes.length ? Number(codes[codes.length - 1][1]) : undefined
+      const r = classify({ tool: call.name, text: t, exitCode })
+      if (r && appendStub(root, stubFor(event, call.name, r, {
+        command: call.command, text: t, ts: o.timestamp, tuid: cp.call_id,
+      }))) logged++
     }
   }
 
@@ -375,68 +508,40 @@ export function scanTranscript(root, tp, event) {
   return logged
 }
 
-// PreCompact: drain the transcript tail before compaction.
-function handlePreCompact(root, payload) {
+function drain(root, payload, event) {
   const tp = payload.transcript_path || payload.transcriptPath
   if (!tp || !fs.existsSync(tp)) return 0
-  return scanTranscript(root, tp, 'PreCompact')
+  return scanTranscript(root, tp, event)
 }
 
-// SessionEnd: the UNCONDITIONAL end-of-session drain — catches the "real work,
-// no compaction, then quit" case PreCompact misses. Fire-and-forget (no nudge).
-function handleSessionEnd(root, payload) {
-  const tp = payload.transcript_path || payload.transcriptPath
-  if (!tp || !fs.existsSync(tp)) return 0
-  return scanTranscript(root, tp, 'SessionEnd')
-}
-
-// Stop: Codex has no SessionEnd; its per-turn Stop is the drain (carries
-// transcript_path). Silent, non-blocking — scans the rollout tail, never blocks.
-function handleStop(root, payload) {
-  const tp = payload.transcript_path || payload.transcriptPath
-  if (!tp || !fs.existsSync(tp)) return 0
-  return scanTranscript(root, tp, 'Stop')
-}
-
-// --- nudge text -------------------------------------------------------------
+// --- context text -----------------------------------------------------------
 const HOW =
-  'capture it now — Claude Code: `/strata:capture` · Codex / other tools: ' +
-  "`Skill(name='strata', args='capture')` — writing it straight to `.strata/`"
+  "`/strata:capture` (Codex and other tools: `Skill(name='strata', args='capture')`)"
 
-function inboxNote(root) {
-  const n = unpromotedCount(root)
-  return n > 0
-    ? ` ⚠ ${n} un-promoted finding${n === 1 ? '' : 's'} are staged in \`.strata/inbox/captures.jsonl\` (auto-logged tool failures) — review them and promote the real ones to issues/learnings at your next \`/strata:capture\` or \`/strata:save\`, then clear the file.`
-    : ''
+function pendingNote(root) {
+  const parts = []
+  const j = journalCount(root)
+  if (j) parts.push(`${j} pending capture${j === 1 ? '' : 's'} in the journal`)
+  const sum = summarizeStubs(readStubs(root))
+  if (sum.total) parts.push(summaryLine(sum).replace(/^Inbox: /, 'inbox: ').replace(/\.$/, ''))
+  return parts.length ? ` Waiting for the next /strata:save: ${parts.join('; ')}.` : ''
 }
 
-function messageFor(event, root, logged) {
-  switch (event) {
-    case 'SessionStart':
-      return (
-        'This project uses strata for repo-owned memory (`.strata/`). Follow the ' +
-        'immediate-capture rule: the moment something worth keeping appears — a ' +
-        'failure, retry, or workaround; a bug, gotcha, or reusable lesson; a decision ' +
-        'you settled and why; a change of direction; how an outside system actually ' +
-        'works; or the reasoning behind a requirement — ' + HOW +
-        ', routed to its home (an issue, a learning, a decision record under ' +
-        '`docs/decisions/`, or a runbook/spec/PRD under `docs/`). Do not defer to ' +
-        'session end — compaction can erase what lives only in the conversation.' +
-        inboxNote(root)
-      )
-    case 'PostToolUse':
-      return (
-        `⚠ That command failed (${logged > 0 ? 'logged' : 'signal'}). A raw stub was saved to ` +
-        '`.strata/inbox/captures.jsonl` as a backstop. If the cause or the fix is a reusable lesson ' +
-        '(not a typo), ' + HOW + ' now while it is fresh.'
-      )
-    default:
-      return (
-        'If there are unsaved findings, gotchas, lessons, or decisions from this ' +
-        'session, ' + HOW + ' so they reach `.strata/` before context is lost.' +
-        inboxNote(root)
-      )
+function messageFor(event, root, res) {
+  if (event === 'SessionStart') {
+    return (
+      'This project keeps its memory in `.strata/` (strata). Capture each important moment as soon ' +
+      'as it is clear: a failure and its fix, a gotcha, a reusable lesson, a decision and why, a ' +
+      'change of direction, an operator answer, how an outside system works, a requirement. Run ' +
+      HOW + '; it appends to the pending-capture journal at once, with no commit needed, and ' +
+      '`/strata:save` files it into issues, learnings, decision records and docs. Do not keep a ' +
+      'parallel log in Claude or Codex memory.' + pendingNote(root)
+    )
   }
+  return (
+    `That command failed (${res.category}, logged to the strata inbox). If the cause or the fix ` +
+    'is worth keeping, capture it with ' + HOW + ' while it is fresh.'
+  )
 }
 
 async function main() {
@@ -450,23 +555,24 @@ async function main() {
     // Inbox, cursors and counts live in the shared root (the main worktree).
     const root = roots.shared
 
-    let logged = 0
-    if (event === 'PostToolUse') logged = handlePostToolUse(root, payload)
-    else if (event === 'PreCompact') logged = handlePreCompact(root, payload)
-    else if (event === 'SessionEnd') logged = handleSessionEnd(root, payload)
-    else if (event === 'Stop') logged = handleStop(root, payload)
+    let res = { logged: 0 }
+    if (event === 'PostToolUse') res = handlePostToolUse(root, payload)
+    else if (event === 'PostToolUseFailure') res = handlePostToolUseFailure(root, payload)
+    else if (event === 'PreCompact' || event === 'SessionEnd' || event === 'Stop') {
+      drain(root, payload, event)
+      process.exit(0) // silent drains: PreCompact rejects additionalContext, Stop fires every turn
+    }
 
-    // These lifecycle drains do not inject context. In particular, PreCompact
-    // accepts only top-level decision control; hookSpecificOutput is invalid there.
-    if (event === 'PreCompact' || event === 'SessionEnd' || event === 'Stop') process.exit(0)
-    if (event === 'PostToolUse' && logged === 0) process.exit(0)
+    if (event === 'PostToolUse' || event === 'PostToolUseFailure') {
+      const nudge = process.env.STRATA_FAILURE_NUDGE === '1' && res.logged > 0 && res.category === 'failure'
+      if (!nudge) process.exit(0)
+    } else if (event !== 'SessionStart') {
+      process.exit(0)
+    }
 
     const out = {
       continue: true,
-      hookSpecificOutput: {
-        hookEventName: event,
-        additionalContext: messageFor(event, root, logged),
-      },
+      hookSpecificOutput: { hookEventName: event, additionalContext: messageFor(event, root, res) },
     }
     process.stdout.write(JSON.stringify(out), () => process.exit(0))
   } catch {

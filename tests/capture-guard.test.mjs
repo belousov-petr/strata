@@ -85,8 +85,9 @@ function inboxLines(root) {
   } catch { return [] }
 }
 
-function runHook(payload) {
-  const env = { ...process.env }
+function runHook(payload, extraEnv = {}) {
+  const env = { ...process.env, ...extraEnv }
+  if (!('STRATA_FAILURE_NUDGE' in extraEnv)) delete env.STRATA_FAILURE_NUDGE
   // A nested Node process otherwise inherits the test runner's internal context
   // and reports through the parent instead of behaving like a CLI entry point.
   delete env.NODE_TEST_CONTEXT
@@ -133,7 +134,7 @@ test('SessionStart entry point still emits its supported context response', () =
   const output = JSON.parse(got.stdout)
   assert.equal(output.continue, true)
   assert.equal(output.hookSpecificOutput.hookEventName, 'SessionStart')
-  assert.match(output.hookSpecificOutput.additionalContext, /immediate-capture rule/)
+  assert.match(output.hookSpecificOutput.additionalContext, /pending-capture journal/)
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -173,13 +174,13 @@ test('scanTranscript ignores a text signature from a successful NON-Bash tool_re
   fs.rmSync(root, { recursive: true, force: true })
 })
 
-test('scanTranscript still logs a Bash failure detected only by signature (is_error false)', () => {
+test('scanTranscript trusts is_error false over failure words in Bash output (ADR-0017)', () => {
   const root = tmpRoot()
   const tp = writeTranscript(root, [
     { message: { content: [{ type: 'tool_use', id: 'u2', name: 'Bash' }] } },
     { message: { content: [{ type: 'tool_result', tool_use_id: 'u2', is_error: false, content: 'ELIFECYCLE could not complete' }] } },
   ])
-  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 1)
+  assert.equal(guard.scanTranscript(root, tp, 'PreCompact'), 0)
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -216,7 +217,8 @@ test('scanTranscript detects a failed Codex exec_command via the rollout exit-co
   assert.equal(n, 1)
   assert.equal(got[0].tool, 'exec_command')
   assert.match(got[0].command, /ls \/nope/)        // correlated by call_id
-  assert.match(got[0].signal, /Process exited with code 2/)
+  assert.equal(got[0].signal, 'exit code 2')
+  assert.equal(got[0].category, 'failure')
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -244,4 +246,130 @@ test('scanTranscript stamps the Stop event (Codex per-turn drain)', () => {
   assert.equal(guard.scanTranscript(root, tp, 'Stop'), 1)
   assert.equal(inboxLines(root)[0].event, 'Stop')
   fs.rmSync(root, { recursive: true, force: true })
+})
+
+// --- 0.1.0: status first, categories, quiet by default (ADR-0017) ------------
+
+const fixture = (name) => fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url))
+
+function counts(root) {
+  return guard.summarizeStubs(inboxLines(root))
+}
+
+test('recorded Claude session: only real failures count as failures', () => {
+  const root = tmpRoot()
+  const tp = path.join(root, 'claude-session.jsonl')
+  fs.copyFileSync(fixture('claude-session.jsonl'), tp)
+  guard.scanTranscript(root, tp, 'PreCompact')
+  const sum = counts(root)
+  assert.deepEqual(sum.counts, { failure: 3, policy: 4, 'tool-error': 2, interrupted: 1 })
+  assert.equal(sum.repeated.length, 1)
+  assert.equal(sum.repeated[0].command, 'npm test')
+  assert.equal(sum.repeated[0].count, 2)
+  const cmds = inboxLines(root).map((x) => x.command)
+  assert.ok(!cmds.some((c) => c.startsWith('grep -n')), 'a successful grep of the hook source is not a failure')
+  assert.ok(!cmds.includes('cat logs/last-run.log'), 'a successful cat of a traceback is not a failure')
+  assert.ok(!cmds.includes('grep -rn TODO src/'), 'grep with no matches is a success')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('recorded Codex rollout: exit codes decide, refusals are policy', () => {
+  const root = tmpRoot()
+  const tp = path.join(root, 'codex-rollout.jsonl')
+  fs.copyFileSync(fixture('codex-rollout.jsonl'), tp)
+  guard.scanTranscript(root, tp, 'Stop')
+  const got = inboxLines(root)
+  assert.deepEqual(got.map((x) => [x.command, x.category, x.signal]), [
+    ['rg -n "Permission denied" src', 'failure', 'exit code 1'],
+    ['ls /nope', 'failure', 'exit code 2'],
+    ['rm -rf dist', 'policy', 'rejected by user'],
+  ])
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('Claude PostToolUse is a success even when stdout holds failure words', () => {
+  const root = tmpRoot()
+  const got = runHook({
+    hook_event_name: 'PostToolUse', cwd: root, tool_name: 'Bash', tool_use_id: 'toolu_a',
+    tool_input: { command: 'grep -n "Permission denied" hooks/strata-capture-guard.mjs' },
+    tool_response: { stdout: 'Exit code 1\nbash: x: Permission denied\nnpm ERR! code 1\n', stderr: '', interrupted: false, isImage: false },
+  })
+  assert.equal(got.status, 0)
+  assert.equal(got.stdout, '')
+  assert.equal(inboxLines(root).length, 0)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('Codex PostToolUse (no status) uses the strict line-anchored fallback', () => {
+  const root = tmpRoot()
+  runHook({ hook_event_name: 'PostToolUse', cwd: root, tool_name: 'Bash', tool_input: { command: 'pyhton x.py' }, tool_response: 'bash: line 1: pyhton: command not found\n' })
+  runHook({ hook_event_name: 'PostToolUse', cwd: root, tool_name: 'Bash', tool_input: { command: 'grep -n denied src/hook.mjs' }, tool_response: "src/hook.mjs:12:  /\\bPermission denied\\b/,\nsrc/hook.mjs:13:  /(^|\\n)fatal: /,\n" })
+  const got = inboxLines(root)
+  assert.equal(got.length, 1)
+  assert.equal(got[0].category, 'failure')
+  assert.match(got[0].signal, /command not found/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('PostToolUseFailure logs a failure quietly; the nudge is opt-in', () => {
+  const root = tmpRoot()
+  const payload = {
+    hook_event_name: 'PostToolUseFailure', cwd: root, tool_name: 'Bash', tool_use_id: 'toolu_f1',
+    tool_input: { command: 'npm test' }, error: "Exit code 1\nError: Cannot find module 'express'", is_interrupt: false,
+  }
+  const quiet = runHook(payload)
+  assert.equal(quiet.status, 0)
+  assert.equal(quiet.stdout, '')
+  const got = inboxLines(root)
+  assert.equal(got.length, 1)
+  assert.deepEqual([got[0].category, got[0].signal, got[0].command, got[0].tuid], ['failure', 'Exit code 1', 'npm test', 'toolu_f1'])
+
+  const loud = runHook({ ...payload, tool_use_id: 'toolu_f2' }, { STRATA_FAILURE_NUDGE: '1' })
+  const o = JSON.parse(loud.stdout)
+  assert.equal(o.hookSpecificOutput.hookEventName, 'PostToolUseFailure')
+  assert.match(o.hookSpecificOutput.additionalContext, /strata:capture/)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('an interrupted call is counted as interrupted and never nudges', () => {
+  const root = tmpRoot()
+  const r = runHook({ hook_event_name: 'PostToolUseFailure', cwd: root, tool_name: 'Bash', tool_use_id: 'toolu_i', tool_input: { command: 'sleep 100' }, error: 'aborted', is_interrupt: true }, { STRATA_FAILURE_NUDGE: '1' })
+  assert.equal(r.stdout, '')
+  assert.equal(inboxLines(root)[0].category, 'interrupted')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('the live event and the transcript scan agree on one stub per tool_use_id', () => {
+  const root = tmpRoot()
+  runHook({ hook_event_name: 'PostToolUseFailure', cwd: root, tool_name: 'Bash', tool_use_id: 'toolu_same', tool_input: { command: 'make' }, error: 'Exit code 2\nmake: *** [all] Error 1' })
+  const tp = writeTranscript(root, [
+    { message: { content: [{ type: 'tool_use', id: 'toolu_same', name: 'Bash', input: { command: 'make' } }] } },
+    { message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_same', is_error: true, content: 'Exit code 2\nmake: *** [all] Error 1' }] } },
+  ])
+  assert.equal(guard.scanTranscript(root, tp, 'SessionEnd'), 0)
+  assert.equal(inboxLines(root).length, 1)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('SessionStart reports pending captures and inbox counts', () => {
+  const root = tmpRoot()
+  fs.mkdirSync(path.join(root, '.strata', 'inbox'), { recursive: true })
+  fs.writeFileSync(path.join(root, '.strata', 'inbox', 'journal.jsonl'), '{"id":"j1","kind":"decision","title":"x"}\n{"id":"j2","kind":"note","title":"y"}\n')
+  runHook({ hook_event_name: 'PostToolUseFailure', cwd: root, tool_name: 'Bash', tool_use_id: 't1', tool_input: { command: 'npm test' }, error: 'Exit code 1' })
+  const o = JSON.parse(runHook({ hook_event_name: 'SessionStart', cwd: root, source: 'startup' }).stdout)
+  assert.match(o.hookSpecificOutput.additionalContext, /2 pending captures in the journal; inbox: 1 capture: 1 failure\./)
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('stubs written before 0.1.0 (no category) are read as failure or policy', () => {
+  assert.equal(guard.stubCategory({ signal: 'Exit code 1', snippet: 'boom' }), 'failure')
+  assert.equal(guard.stubCategory({ signal: 'is_error', snippet: 'Permission for this action was denied by the Claude Code auto mode classifier.' }), 'policy')
+})
+
+test('classify follows status before text', () => {
+  assert.equal(guard.classify({ tool: 'Bash', text: 'Exit code 1', isError: false }), null)
+  assert.equal(guard.classify({ tool: 'Bash', text: 'all fine', exitCode: 3 }).category, 'failure')
+  assert.equal(guard.classify({ tool: 'Read', text: 'File does not exist.', isError: true }).category, 'tool-error')
+  assert.equal(guard.classify({ tool: 'Bash', text: 'x', isError: true, interrupted: true }).category, 'interrupted')
+  assert.equal(guard.classify({ tool: 'Bash', text: 'ok\n  fatal: indented, not a git error' }), null)
 })

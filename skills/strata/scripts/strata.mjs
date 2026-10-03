@@ -15,6 +15,7 @@ import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted } from './lib/views.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
+import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
 
@@ -22,6 +23,8 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   journal list [--json]
   journal clear (--all | --id <id>...)
   status [--json]                 load-time summary: pending captures, inbox, views
+  inbox summary [--json]          inbox counts by category and repeated failures
+  inbox clear                     clear the inbox after promotion (cursors are kept)
   where [--json]                  print the project root, shared root and inbox path
   hot-rules [--check] [--install] refresh the hot-rules block in CLAUDE.md / AGENTS.md
   views [--check]                 regenerate ACTIVE/OPEN/PARKED, learnings INDEX, the MEMORY table, hot rules
@@ -120,13 +123,38 @@ const commands = {
     return 0
   },
 
+  inbox(argv) {
+    const [sub, ...rest] = argv
+    const args = parseArgs(rest, { bools: ['json'] })
+    const r = resolveRoots(args.root)
+    if (sub === 'summary' || !sub) {
+      const sum = inboxSummary(r.shared)
+      out(args, sum, formatInbox(sum))
+      return 0
+    }
+    if (sub === 'clear') {
+      const res = clearInbox(r.shared)
+      out(args, res, `inbox: cleared ${res.cleared} stub${res.cleared === 1 ? '' : 's'}` + (res.pruned ? `, pruned ${res.pruned} stale cursor${res.pruned === 1 ? '' : 's'}` : '') + '.')
+      return 0
+    }
+    throw new UsageError('strata inbox: use summary or clear')
+  },
+
   status(argv) {
     const args = parseArgs(argv, { bools: ['json'] })
     const r = resolveRoots(args.root)
     const entries = journal.readJournal(r.shared)
-    const lines = [journal.journalSummaryLine(entries)]
-    out(args, { roots: r, journal: { pending: entries.length, kinds: Object.fromEntries(journal.kindCounts(entries)) } },
-      lines.join('\n'))
+    const sum = inboxSummary(r.shared)
+    const views = syncViews(r.project, { check: true })
+    const stale = drifted(views)
+    const lines = [journal.journalSummaryLine(entries), formatInbox(sum, { limit: 5 })]
+    lines.push(stale.length ? `Views: ${stale.length} differ from a fresh render (${stale.join(', ')}); /strata:save regenerates them.` : 'Views: current.')
+    out(args, {
+      roots: r,
+      journal: { pending: entries.length, kinds: Object.fromEntries(journal.kindCounts(entries)) },
+      inbox: { total: sum.total, counts: sum.counts, repeated: sum.repeated },
+      views: { drifted: stale },
+    }, lines.join('\n'))
     return 0
   },
 }
