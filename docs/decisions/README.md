@@ -44,6 +44,10 @@ Rules:
 | [ADR-0013](ADR-0013-layout-version-integer.md) | Layout version is an integer (`layout_version: 3`), named distinctly from the plugin release | implemented |
 | [ADR-0014](ADR-0014-precompact-silent-evidence-drain.md) | `PreCompact` scans evidence silently; context nudges stay on supported events | implemented |
 | [ADR-0015](ADR-0015-hot-tier-curated-subset.md) | Hot tier (`MEMORY.md` table) is a curated `hot:true` subset; `INDEX.md` stays complete; graceful default + advisory budget guard | implemented |
+| [ADR-0016](ADR-0016-pending-capture-journal.md) | Capture goes to a git-ignored pending journal first, and the inbox and journal are shared across worktrees | accepted |
+| [ADR-0017](ADR-0017-capture-guard-decides-by-status.md) | The capture guard decides by real status, files refusals as `policy`, and drops the per-failure nudge by default | accepted |
+| [ADR-0018](ADR-0018-strata-script-for-mechanical-chores.md) | A bundled, dependency-free Node script runs views, checks, save chores, the merge driver, id allocation and the drift list | accepted |
+| [ADR-0019](ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md) | Hot rules go into a generated block in `CLAUDE.md` and `AGENTS.md`; Claude auto memory holds only a pointer | accepted |
 
 ## Provenance
 
