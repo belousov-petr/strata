@@ -31,7 +31,7 @@ State the detected mode.
 2. `.strata/memory/MEMORY.md` — live pointers + rules-by-trigger table.
 3. `.strata/issues/ACTIVE.md` — what's in flight.
 4. `.strata/memory/project_state.md` — current + last completed session only.
-5. `.strata/inbox/captures.jsonl` — count only (do not bulk-read); promote per the skill §5a.
+5. Run `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs" status` (Codex: `node <skill folder>/scripts/strata.mjs status`). Its first line is the number of pending captures in the journal; then the inbox counts. Do not bulk-read the journal or the inbox here; `/strata:save` routes them (skill §5a).
 
 Stop early if the user's task is already clear. On demand only: `issues/OPEN.md` filtered by the task's area; the specific issue file being resumed; warm docs the task touches.
 
@@ -51,9 +51,10 @@ State files are hints; the repo is truth.
 
 Conflicts → tell the user ("state says X, repo shows Y"), trust git, never silently act on stale state.
 
-### 5. Present the orientation (≤6 lines)
+### 5. Present the orientation (≤8 lines, pending captures first)
 
 ```
+**Pending captures:** <n> in the journal (kinds), or "none"
 **Last session (<date>):** <1-sentence summary>
 **Next up:** <immediate next action — issue id if any>
 **Active:** <n> in progress (<ids>)

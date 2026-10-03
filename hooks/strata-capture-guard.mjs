@@ -55,7 +55,7 @@ function readStdin() {
 }
 
 // Walk up from `startDir` looking for a `.strata/` directory.
-function findStrataRoot(startDir) {
+export function findStrataRoot(startDir) {
   let dir = startDir
   for (let i = 0; i < 40 && dir; i++) {
     try {
@@ -66,6 +66,15 @@ function findStrataRoot(startDir) {
     dir = parent
   }
   return null
+}
+
+// The two roots shared by the hook and the strata script:
+//   project: where tracked memory lives (the nearest .strata/ at or above cwd)
+//   shared:  where untracked scratch lives (inbox, journal, cursors, state)
+export function resolveRoots(cwd) {
+  const project = findStrataRoot(cwd)
+  if (!project) return null
+  return { project, shared: project }
 }
 
 // --- failure detection ------------------------------------------------------
