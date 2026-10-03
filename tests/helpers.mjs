@@ -72,7 +72,7 @@ export function scaffold(dir, { name = 'Test Project', date = '2026-10-03' } = {
   for (const f of ['INDEX.md', '_TEMPLATE.md']) copy(`memory/learnings/${f}`, `.strata/memory/learnings/${f}`)
   for (const f of ['ARCHIVE.md', 'action_log.md']) copy(`memory/archive/${f}`, `.strata/memory/archive/${f}`)
   for (const f of ['README.md', '_TEMPLATE.md', 'ACTIVE.md', 'OPEN.md', 'PARKED.md']) copy(`issues/${f}`, `.strata/issues/${f}`)
-  fs.mkdirSync(path.join(dir, '.strata', 'issues', 'archive'), { recursive: true })
+  copy('issues/archive/INDEX.md', '.strata/issues/archive/INDEX.md')
   copy('inbox/.gitignore', '.strata/inbox/.gitignore')
   copy('docs/ARCHITECTURE.md', '.strata/docs/ARCHITECTURE.md')
   for (const d of ['product', 'architecture', 'decisions', 'reference', 'ops']) copy(`docs/${d}/README.md`, `.strata/docs/${d}/README.md`)

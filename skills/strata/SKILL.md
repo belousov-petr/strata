@@ -132,20 +132,22 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 
 ## 6. `/strata:save` — preview-execute contract
 
-**A — Scan** the session into buckets: resumption point · issue events (new captures — verify the mid-session ones hit disk; status changes; resolutions) · learnings (both origins) · ADR candidates (file any not already written mid-session) · durable-doc impact · external completions · rollover (state beyond current + last completed) — also promote any un-promoted `.strata/inbox/` stubs (§5a) and clear the inbox.
+**A. Scan.** Start from the pending journal (`strata journal list`) and the mechanical plan (`strata save --prepare --dry-run`, which also reports inbox counts, repeated failures, the drift list, parked triggers, and check findings). Sort them and the session into buckets: resumption point · issue events (journal findings, status changes, resolutions, repeated failures) · learnings (both origins) · decision records (journal decisions, direction changes, answers) · durable-doc impact (the drift list is a prompt) · external completions · rollover.
 
-**B — Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / MOVES / DELETIONS (section-only) / REGENERATED / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
+**B. Preview**: ONE block listing every proposed change under `NEW FILES / APPENDS / UPDATES / FROM strata save --prepare / CLEARED / DRIFT / SKIP`, then continue automatically. The preview is an audit record, not a confirmation gate. Empty plan → "no changes proposed", stop.
 
-**C — Safeguards** (before preview):
+**C. Safeguards** (before preview):
 
-- **Git-dirty check** — files to MOVE or DELETE-FROM with uncommitted edits go under SKIP, untouched.
-- **ADR collision guard** — next number = highest existing + 1 (scan `docs/decisions/`).
+- **Moves keep content.** Archive moves use `git mv` (or a plain rename when untracked), so uncommitted edits travel with the file and the report says so; a file with an unresolved merge conflict is never moved.
+- **Collision-free numbers.** Issue ids from `strata new-issue`, decision numbers from `strata next-adr`: both scan the tree, every worktree, recent branches, and recent reservations.
 - **Section-only deletions** — never remove whole files without explicit instruction.
-- **Idempotent** — re-run with no new work proposes nothing.
+- **Idempotent** — re-run with no new work proposes nothing; `strata save --prepare` on an unchanged tree changes nothing.
 
-**D — Execute** immediately after the preview, in order: writes → appends → updates (frontmatter/status) → moves → deletions → clear inbox (truncate captures.jsonl + drop cursor files — the physical clear; promotion happens in step A) → **regenerate all views last** (`ACTIVE/OPEN/PARKED`, `learnings/INDEX`, MEMORY trigger table; sync `MEMORY.md` pointers + `ARCHIVE.md`).
+**D. Execute** immediately after the preview, in order: your writes → appends → updates (frontmatter/status) → `strata save --prepare` (archive moves with `issues/archive/INDEX.md` rows, session rollover with an `ARCHIVE.md` row, **regenerate all views last**: `ACTIVE/OPEN/PARKED`, `learnings/INDEX`, the MEMORY trigger table, the hot-rules blocks; plus the auto-memory pointer and the save marker) → `strata journal clear` + `strata inbox clear` once everything is routed. Sync `MEMORY.md` live pointers by hand. Leave it all for one commit.
 
-**E — Verify & report**: budgets hold (§1); views match frontmatter; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim — report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
+**E. Verify & report**: `strata check` passes (budgets §1, vocabularies, unique ids, links, no view drift); the journal is empty; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim — report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
+
+A project that renders views with its own tool sets `generated_views: external` in the `MANIFEST.md` frontmatter; strata then leaves the views alone (the hot-rules blocks are still strata's).
 
 ## 7. `/strata:load` — orientation contract
 
@@ -188,7 +190,7 @@ Invoked via `/strata:init` (Claude Code), `Skill(name='strata', args='init')` (C
 | `templates/memory/project_state.md` | `.strata/memory/project_state.md` | always |
 | `templates/memory/learnings/{INDEX,_TEMPLATE}.md` | `.strata/memory/learnings/` | always |
 | `templates/memory/archive/{ARCHIVE,action_log}.md` | `.strata/memory/archive/` | always |
-| `templates/issues/{README,_TEMPLATE,ACTIVE,OPEN,PARKED}.md` | `.strata/issues/` (+ create `issues/archive/`) | always |
+| `templates/issues/{README,_TEMPLATE,ACTIVE,OPEN,PARKED}.md` + `templates/issues/archive/INDEX.md` | `.strata/issues/` and `.strata/issues/archive/` | always |
 | `templates/docs/ARCHITECTURE.md` + `templates/docs/{product,architecture,decisions,reference,ops}/README.md` | `.strata/docs/…` | code projects |
 | `templates/inbox/.gitignore` | `.strata/inbox/.gitignore` | always |
 
@@ -253,4 +255,7 @@ Next:
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
+| `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
+| `check [--json]` | budgets, frontmatter vocabularies, unique ids, links, view drift; exit 1 on errors |
+| `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment |
 
