@@ -3,7 +3,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseFrontmatter, labelLine, firstHeading } from './frontmatter.mjs'
+import { parseFrontmatter, labelLine, labelParagraph, firstParagraph, firstHeading } from './frontmatter.mjs'
 import { walk, relPosix, readLf } from './core.mjs'
 
 export const ISSUE_VIEW_FILES = new Set(['ACTIVE.md', 'OPEN.md', 'PARKED.md', 'README.md', '_TEMPLATE.md', 'INDEX.md'])
@@ -56,7 +56,7 @@ export function readLearnings(project) {
     const text = readLf(file)
     if (text == null) continue
     const fm = parseFrontmatter(text)
-    const lesson = labelLine(fm.body, 'Lesson') || fm.body.trim().split('\n').find((l) => l.trim()) || ''
+    const lesson = labelParagraph(fm.body, 'Lesson') || firstParagraph(fm.body)
     out.push({
       file, name, slug: name.replace(/\.md$/, ''), frontmatter: fm.present,
       trigger: fm.data.trigger || '', appliesWhen: fm.data['applies-when'] || '',

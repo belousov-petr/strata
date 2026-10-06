@@ -9,9 +9,13 @@ import { readLearnings, hotSubset, firstSentence } from './model.mjs'
 export const BEGIN = '<!-- strata:hot-rules:begin -->'
 export const END = '<!-- strata:hot-rules:end -->'
 export const ADAPTERS = ['CLAUDE.md', 'AGENTS.md']
-export const BUDGET = { rules: 25, chars: 4000 }
+// The rule cap is the real limit: 25 lines with a trigger of at most 160
+// characters and a first sentence of at most 220 fit in 12,000 characters, so
+// the character budget only stops a pathological block.
+export const BUDGET = { rules: 25, chars: 12000, trigger: 160 }
 
 function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : s }
+function shorten(s, max) { return s.length > max ? s.slice(0, max - 1).trimEnd() + '…' : s }
 
 export const HEAD_LINES = [
   '## Hot rules from strata',
@@ -39,16 +43,21 @@ function byRule(a, b) {
   return x[0] !== y[0] ? (x[0] < y[0] ? -1 : 1) : x[1] < y[1] ? -1 : x[1] > y[1] ? 1 : 0
 }
 
-export function innerFromRules(ruleLines) {
+export const OVERFLOW_RE = /^- \d+ more hot rules?: see /
+export function isOverflowLine(line) { return OVERFLOW_RE.test(line) }
+
+// `overflow` is the "N more hot rules" line a version carried; the merge driver
+// keeps it, and the next refresh makes its count exact.
+export function innerFromRules(ruleLines, overflow = null) {
   const sorted = ruleLines.slice().sort(byRule)
-  return [...HEAD_LINES, ...(sorted.length ? sorted : [EMPTY_LINE])].join('\n')
+  return [...HEAD_LINES, ...(sorted.length ? sorted : [EMPTY_LINE]), ...(overflow ? [overflow] : [])].join('\n')
 }
 
 // The inner text of the block (between the marker lines), LF, no trailing newline.
 export function renderHotRules(project) {
   const hot = hotSubset(readLearnings(project))
   const all = hot.map((l) => {
-    const trigger = capitalize(String(l.trigger || l.slug).replace(/\s+/g, ' ').trim())
+    const trigger = capitalize(shorten(String(l.trigger || l.slug).replace(/\s+/g, ' ').trim(), BUDGET.trigger))
     return `- **${trigger}:** ${firstSentence(l.lesson)} ([rule](.strata/memory/learnings/${l.name}))`
   }).sort(byRule)
   const lines = [...HEAD_LINES]

@@ -21,7 +21,7 @@ Separately, Claude Code keeps its own auto memory per repository. Strata said no
 
 ## Decision
 
-- `CLAUDE.md` and `AGENTS.md` carry a block between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->`: one line per hot learning, with its trigger, the first sentence of the lesson, and a link. Strata writes only between the markers. `init` adds the markers, `save` refreshes the block, and the block is capped at 25 rules and 4,000 characters, with an overflow line pointing at `MEMORY.md`.
+- `CLAUDE.md` and `AGENTS.md` carry a block between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->`: one line per hot learning, with its trigger, the first sentence of the lesson, and a link. Strata writes only between the markers. `init` adds the markers, `save` refreshes the block, and the block is capped at 25 rules, with an overflow line pointing at `MEMORY.md`. Amended in 0.1.1: the character backstop rose from 4,000 to 12,000 and triggers over 160 characters are shortened. Real rule lines average about 340 characters, so the old budget cut a 25-rule set to about 12, picked by alphabet.
 - The set is the `MEMORY.md` hot subset from [ADR-0015](ADR-0015-hot-tier-curated-subset.md), including its graceful default.
 - The rule for Claude auto memory: it holds only a pointer to `.strata/`. `/strata:save` writes or refreshes one file, `strata-pointer.md`, and one index line in that folder's `MEMORY.md`, when the folder exists. It writes nothing else there and skips silently when the folder is missing. Findings, decisions and lessons go to the strata journal instead.
 
@@ -29,7 +29,7 @@ Separately, Claude Code keeps its own auto memory per repository. Strata said no
 
 - Hot rules reach subagents and Codex without any prompt changes.
 - The adapters are no longer pure pointers. The block is generated and bounded, so the drift risk ADR-0001 guarded against does not return.
-- The block can load twice in Claude Code when both adapters exist. The cap keeps that cost small.
+- The block can load twice in Claude Code when both adapters exist. The 25-rule cap keeps that cost bounded, at most about 3,000 tokens per copy.
 - A Claude user who opens auto memory finds one pointer to the repo record instead of a competing log.
 - A custom `autoMemoryDirectory` setting is not detected, and then no pointer is written.
 

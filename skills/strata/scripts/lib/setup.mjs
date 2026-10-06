@@ -8,18 +8,19 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readLf, writeText, exists, git, gitOut, inGit, SCRIPT_PATH } from './core.mjs'
 import { syncHotRules } from './adapters.mjs'
+import { viewsExternal } from './views.mjs'
 
 export const DRIVER = 'strata-views'
 const BEGIN = '# >>> strata generated views (merge by rows; /strata:save regenerates them)'
 const END = '# <<< strata generated views'
+export const ADAPTER_FILES = ['/CLAUDE.md', '/AGENTS.md']
 export const VIEW_FILES = [
   '.strata/issues/ACTIVE.md',
   '.strata/issues/OPEN.md',
   '.strata/issues/PARKED.md',
   '.strata/memory/learnings/INDEX.md',
   '.strata/memory/MEMORY.md',
-  '/CLAUDE.md',
-  '/AGENTS.md',
+  ...ADAPTER_FILES,
 ]
 
 const fwd = (p) => p.replace(/\\/g, '/')
@@ -31,14 +32,17 @@ export function driverCommand() {
   return `${quote(process.execPath)} ${quote(SCRIPT_PATH)} views --merge-driver %O %A %B %P`
 }
 
-export function attributesBlock() {
-  return [BEGIN, ...VIEW_FILES.map((f) => `${f} merge=${DRIVER}`), END].join('\n')
+// With generated_views: external the project's own generator owns the views,
+// so the block routes only the adapters (their hot-rules block is strata's).
+export function attributesBlock({ external = false } = {}) {
+  const files = external ? ADAPTER_FILES : VIEW_FILES
+  return [BEGIN, ...files.map((f) => `${f} merge=${DRIVER}`), END].join('\n')
 }
 
 function installAttributes(project, dryRun) {
   const file = path.join(project, '.gitattributes')
   const cur = readLf(file)
-  const block = attributesBlock()
+  const block = attributesBlock({ external: viewsExternal(project) })
   if (cur == null) {
     if (!dryRun) writeText(file, block + '\n')
     return 'created'

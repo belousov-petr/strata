@@ -2,6 +2,16 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.1.1 - 2026-10-06
+
+**Four fixes found while running `/strata:init` on a large project that renders its own views.** No memory-layout change and no migration. Projects with `generated_views: external` run `/strata:init` once more after updating, so setup can shrink their `.gitattributes` block.
+
+### Fixed
+- **The merge driver honours `generated_views: external`.** It used to re-render every view in strata's own table layout during a merge, even when nothing changed, which rewrote the headers, columns and row order of a project's own views. Now setup routes only `CLAUDE.md` and `AGENTS.md` through the driver for such a project, and the driver gives any other view a plain three-way text merge. That also covers clones still carrying the 0.1.0 block.
+- **The whole lesson reaches the hot-rules block.** The block took only the first physical line of a `**Lesson:**` paragraph, so a wrapped lesson was cut mid-sentence. It now reads the whole paragraph. A learning with no Lesson line shows its title without the `#` marker.
+- **Twenty-five hot rules fit the block.** The 4,000-character budget cut a 25-rule set to about 12 rules, chosen by alphabet, because real rule lines average about 340 characters. The rule cap of 25 is now the limit. Triggers longer than 160 characters are shortened in the block, and a 12,000-character backstop only stops a pathological block.
+- **A merge keeps the "N more hot rules" line.** The adapters' row merge dropped that line, so a merged `CLAUDE.md` or `AGENTS.md` differed from a fresh render until the next save.
+
 ## 0.1.0 - 2026-10-03
 
 **Capture and save that hold up in big repos: slow commit gates, night commit bans, one worktree per task, parallel branches.** No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Run `/strata:init` once after updating (it runs `strata setup`; details below). Plan and spec: [`docs/specs/0.1.0-capture-and-save.md`](docs/specs/0.1.0-capture-and-save.md). Decisions: [ADR-0016](docs/decisions/ADR-0016-pending-capture-journal.md) to [ADR-0019](docs/decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md).
