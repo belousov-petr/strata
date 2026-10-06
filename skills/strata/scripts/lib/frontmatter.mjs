@@ -46,6 +46,38 @@ export function labelLine(body, label) {
   return m ? m[1].trim() : ''
 }
 
+// A line that starts a new block, so it ends the paragraph before it: a heading,
+// a list item, a table row, a quote, a code fence, or another bold label.
+const BLOCK_START = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|\||>|```|~~~|\*\*[^*]+:\*\*)/
+
+function paragraphFrom(lines, i, first) {
+  const parts = [first]
+  for (let j = i + 1; j < lines.length; j++) {
+    if (!lines[j].trim() || BLOCK_START.test(lines[j])) break
+    parts.push(lines[j])
+  }
+  return parts.map((s) => s.trim()).join(' ').trim()
+}
+
+// The whole labelled paragraph: the text after `**Label:**` plus the lines it
+// wraps onto, up to a blank line or the next block. labelLine keeps only the
+// first physical line.
+export function labelParagraph(body, label) {
+  const lines = String(body || '').split('\n')
+  const re = new RegExp(`^\\*\\*${label}:\\*\\*[ \\t]*(.*)$`)
+  const i = lines.findIndex((l) => re.test(l))
+  return i < 0 ? '' : paragraphFrom(lines, i, re.exec(lines[i])[1])
+}
+
+// The first paragraph of a body, or the text of a heading when the body opens with one.
+export function firstParagraph(body) {
+  const lines = String(body || '').split('\n')
+  const i = lines.findIndex((l) => l.trim())
+  if (i < 0) return ''
+  const h = /^#{1,6}[ \t]+(.+)$/.exec(lines[i])
+  return h ? h[1].trim() : paragraphFrom(lines, i, lines[i])
+}
+
 export function firstHeading(body) {
   const m = /^#{1,3}[ \t]+(.+)$/m.exec(String(body || ''))
   return m ? m[1].trim() : ''

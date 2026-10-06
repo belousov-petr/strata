@@ -73,3 +73,36 @@ test('CRLF adapters keep CRLF line endings', () => {
   assert.ok(!/[^\r]\n/.test(t), 'every newline stays CRLF')
   rm(dir)
 })
+
+test('a lesson wrapped over several lines reaches the block as a whole sentence', () => {
+  const dir = gitProject()
+  write(dir, '.strata/memory/learnings/wrapped.md', '---\ntrigger: before a long lesson\norigin: failure\nhot: true\n---\n\n**Lesson:** Stop only when you can name the mechanism, the line,\nthe path or the arithmetic that produces the number. Then fix it.\n\n**Why:** more text.\n')
+  run(['hot-rules'], { cwd: dir })
+  assert.match(read(dir, 'CLAUDE.md'), /- \*\*Before a long lesson:\*\* Stop only when you can name the mechanism, the line, the path or the arithmetic that produces the number\. \(\[rule\]/)
+  rm(dir)
+})
+
+test('a learning with no Lesson line shows its title without the heading marker', () => {
+  const dir = gitProject()
+  write(dir, '.strata/memory/learnings/titled.md', '---\ntrigger: before a titled rule\norigin: failure\nhot: true\n---\n\n# Check the live config, not the issue that described it\n\nLong story.\n')
+  run(['hot-rules'], { cwd: dir })
+  const t = read(dir, 'CLAUDE.md')
+  assert.match(t, /- \*\*Before a titled rule:\*\* Check the live config, not the issue that described it \(\[rule\]/)
+  assert.ok(!t.includes(':** #'), 'no heading marker in the block')
+  rm(dir)
+})
+
+test('twenty-five realistic rules all fit, and an overlong trigger is shortened', () => {
+  const dir = gitProject()
+  const long = 'before reading any file or generated runtime tree that may hold credentials, such as shell profiles, environment files, service unit environment targets, nested tool homes or managed shell snapshots'
+  const lesson = 'Never print the matching lines, because the output lands in a saved transcript that other tools read later and a printed value has to be rotated. Count matches instead.'
+  for (let i = 0; i < 25; i++) learning(dir, { slug: `rule-${String(i).padStart(2, '0')}`, trigger: `${long} ${String(i).padStart(2, '0')}`, hot: true, lesson })
+  const r = runJson(['hot-rules'], { cwd: dir }).json
+  assert.equal(r.total, 25)
+  assert.equal(r.shown, 25)
+  assert.equal(r.overflow, 0)
+  const lines = read(dir, 'CLAUDE.md').split('\n').filter((l) => l.startsWith('- **'))
+  assert.equal(lines.length, 25)
+  for (const l of lines) assert.ok(/^- \*\*[^*]{1,160}:\*\*/.test(l) && l.includes('…:**'), 'trigger shortened to 160 characters')
+  rm(dir)
+})

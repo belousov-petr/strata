@@ -25,7 +25,7 @@ Three more problems need code. Generated views conflict on every parallel branch
 - Views render in a fixed order. A git merge driver merges view tables by row and re-renders them, and `strata setup` installs it through `.gitattributes` and the local git config.
 - Ids are picked after scanning the working tree, every worktree, recent local and remote-tracking branches, and a reservation list in the shared state file.
 - The save report includes a drift list: commits since the last save that no decision record, doc, issue or learning mentions by path, folder, hash, branch or id.
-- A project that renders views with its own tool sets `generated_views: external` in `MANIFEST.md`, and strata leaves its views alone.
+- A project that renders views with its own tool sets `generated_views: external` in `MANIFEST.md`, and strata leaves its views alone. Since 0.1.1 that includes merges: setup routes only the adapters through the driver, and the driver gives any other view a plain text merge.
 
 ## Consequences
 
