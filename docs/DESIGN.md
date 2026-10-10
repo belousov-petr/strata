@@ -107,7 +107,7 @@ The load discipline, end to end. "Auto" means without anyone asking.
 | `/strata:load` step 3 | `.strata/issues/ACTIVE.md` | What's in flight right now |
 | `/strata:load` step 4 | `.strata/memory/project_state.md` | Current + last completed session only |
 | Picking new work | `.strata/issues/OPEN.md`, filtered by area | On demand |
-| About to perform operation X | The one or two `learnings/<slug>.md` whose `trigger:` matches | Fired via the by-trigger table; retrieve few (k≈1) |
+| About to perform operation X | The one or two `learnings/<slug>.md` whose `trigger:` matches | Fired via the by-trigger table, or shown by the lesson-trigger hook when `match:` or `paths:` fit the call (§14); retrieve few (k≈1) |
 | Task touches a topic | The specific `.strata/docs/**` file | Warm, by relevance |
 | Working an issue | That `issues/<id>-<slug>.md` | Full diagnostics live in the item |
 | Explicit history question | `memory/archive/**`, `issues/archive/**` — via grep | Cold |
@@ -147,6 +147,8 @@ severity: high | med | low
 area: <path-or-module>       # e.g. src/router, docs, ops/deploy
 created: YYYY-MM-DD
 revive-when: <trigger>       # parked only — a concrete condition, not "later"
+revive-on: YYYY-MM-DD        # parked, optional — a date a machine can check (§8.1)
+due: YYYY-MM-DD              # optional — a deadline; status and save flag it when it comes
 ---
 
 **What:** <the item in 1–3 sentences>
@@ -173,10 +175,16 @@ trigger: <when this applies — operation-keyed, e.g. "before pushing to a share
 applies-when: <glob or area, optional — e.g. "**/*.ps1">
 origin: success | failure
 hot: <true | false, optional — true loads the rule into MEMORY.md every session; default false = INDEX.md only>
+match:                       # optional: regexes tested against a Bash command (§14)
+  - '<regex>'
+paths:                       # optional: globs tested against the files a call touches (§14)
+  - '<glob>'
 ---
 
 **Lesson:** <1–3 sentences. Imperative. What to do or avoid, and the one-line why.>
 ```
+
+`match:` and `paths:` turn the trigger into something a hook can test. When either matches, the lesson is shown to the agent right before the command or edit runs (§14). Quote regexes in single quotes so YAML keeps backslashes as written.
 
 Small on purpose: a learning is a distilled strategy or pitfall, not an essay. If it needs more than three sentences, the surplus is probably reference material (`docs/reference/`) or a procedure (`docs/ops/`).
 
@@ -256,9 +264,10 @@ MADR-derived, same format as strata's own records: Status/Date · Context and Pr
 
 - `issues/ACTIVE.md` — every item with `status: in-progress`: `| id | type | sev | area | what |` rows + link.
 - `issues/OPEN.md` — every `status: open`, grouped by `area:`, sorted severity-first.
-- `issues/PARKED.md` — every `status: parked`: id, what, **revive-when** verbatim.
+- `issues/PARKED.md` — every `status: parked`: id, what, **revive-when** verbatim, with `on or after <date>` first when the item has `revive-on:`.
 - `learnings/INDEX.md` — every learning: `| trigger | applies-when | origin | file |`.
-- The hot-rules block in `CLAUDE.md` / `AGENTS.md`, between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->`: the same hot subset, one line per rule (trigger, first sentence of the lesson, link), at most 25 rules, triggers shortened to 160 characters, with a 12,000-character backstop. Text outside the markers is never touched ([ADR-0019](decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md)).
+- The hot-rules block in `CLAUDE.md` / `AGENTS.md`, between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->`: the same hot subset, one line per rule (trigger, first sentence of the lesson, link), at most 25 rules, triggers shortened to 160 characters, with a 12,000-character backstop. Text outside the markers is never touched ([ADR-0019](decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md)). The block opens with the capture rule, so subagents and Codex read it too: capture with `strata journal add` (the `/strata:capture` skill), never in a tool's private auto-memory ([ADR-0027](decisions/ADR-0027-capture-rule-in-the-adapters.md)).
+- `.strata/inbox/lesson-triggers.json` — the compiled `match:` and `paths:` of every learning, read by the lesson-trigger hook (§14). A git-ignored cache in the worktree's own inbox, not a view: it is never reported as drift.
 - `MEMORY.md` rules-by-trigger table — the **hot subset**: learnings with `hot: true`, trimmed to trigger + link. *Graceful default:* until any learning sets `hot:`, all appear (legacy behavior); once one does, the table filters to `hot: true` while `INDEX.md` stays complete. New learnings default `hot: false`, so the ≤80 hot table stays bounded as learnings accumulate. If regeneration would breach ≤80, `/strata:save` flags it and suggests curating — it never auto-picks the set ([ADR-0015](decisions/ADR-0015-hot-tier-curated-subset.md)).
 
 Each generated file carries the header comment `<!-- GENERATED at /strata:save — do not hand-edit; edit item frontmatter instead -->`.
@@ -329,7 +338,7 @@ Transition rules:
 - **Capture is immediate and complete.** The moment a finding/bug surfaces mid-task: write `issues/<id>-<slug>.md` with full rationale and diagnostics (Tried/Error/Hypothesis/Repro), `status: open` — *then return to the task*. Context compaction cannot eat what is on disk. Don't fix it unless it blocks the current task; don't hold it in your head until save time.
 - **Status changes are frontmatter edits** — no file moves between folders while an item is alive.
 - **Closing** fills **Resolution**, links the ADR/learning if the close produced durable knowledge, and the file moves to `issues/archive/` at the next `/strata:save`.
-- **Parking requires a concrete `revive-when:`** ("next time the dispatcher misroutes", not "someday"). `/strata:save` checks parked triggers against the session and revives matches.
+- **Parking requires a concrete `revive-when:`** ("next time the dispatcher misroutes", not "someday") **or a `revive-on: YYYY-MM-DD` date.** A `revive-when:` that is only a date ("on or after 2026-10-12") counts as a date. `strata status` and `/strata:save` list the dates that have come and the text triggers, which the agent checks against the session; future dates are counted, not listed, and `strata due` shows them ([ADR-0023](decisions/ADR-0023-dated-revive-and-due.md)). An issue may also carry `due:`; overdue and due-today items are listed the same way.
 - **Dedup at triage:** before a new id is assigned at save time, near-duplicates are merged (the newer evidence folds into the older item).
 
 ### 8.2 Session lifecycle (what updates when)
@@ -338,7 +347,7 @@ Transition rules:
 - **`/strata:capture` / mid-session (continuous):** every important moment (finding, gotcha, decision with lineage, operator answer, requirement, runbook note) is appended to the pending-capture journal, `.strata/inbox/journal.jsonl`, at once. That needs no commit, so a slow commit gate or a commit ban never delays it ([ADR-0016](decisions/ADR-0016-pending-capture-journal.md)). The agent may also file the record right away and mark the entry filed. Generated views stay untouched until `/strata:save`. The capture-guard hook (§12) logs failed commands to `.strata/inbox/captures.jsonl` on its own.
 - **`/strata:save`** (preview, then automatic execution; the mechanical steps run through `strata save --prepare`, §13):
   1. session block → `project_state.md`; sessions older than current+last roll to `archive/`;
-  2. issue triage: every journal entry is routed to its store, new issues get ids from `strata new-issue`, dedup, status updates; repeated inbox failures are promoted, then the journal and the inbox are cleared (§12); resolved/wont-fix move to `archive/` with an `archive/INDEX.md` row; **regenerate ACTIVE/OPEN/PARKED**;
+  2. issue triage: every journal entry is routed to its store, new issues get ids from `strata new-issue`, dedup, status updates; entries captured with `--route append` are appended to their issue by the script as dated updates ([ADR-0022](decisions/ADR-0022-journal-append-route.md)); repeated inbox failures are promoted, refusals are handed to the operator, then the journal and the inbox are cleared (§12); resolved/wont-fix move to `archive/` with a row in the archive index (`archive_index:` in the MANIFEST, else an existing `README.md` or `INDEX.md` table, else `INDEX.md`; [ADR-0021](decisions/ADR-0021-configurable-archive-index.md)); **regenerate ACTIVE/OPEN/PARKED**;
   3. learnings written/updated; **regenerate `learnings/INDEX.md`, the MEMORY.md by-trigger table, and the hot-rules block in `CLAUDE.md` / `AGENTS.md`**;
   4. shipped decisions promote to ADRs (number from `strata next-adr`, which also checks worktrees and recent branches); sources archive as `source-adr-*`;
   5. durable-doc sync — fix docs the session made wrong, in place;
@@ -410,7 +419,9 @@ It decides from the real status of a result, never from words in successful outp
 - Codex rollout `function_call_output`: `Process exited with code N` decides.
 - Codex `PostToolUse`: no status, so a strict text fallback applies, anchored to the start of a line and limited to the last 60 lines (shell "command not found", tracebacks, git `fatal:`, npm/pnpm/yarn failures, TypeScript errors, the Windows "is not recognized" forms).
 
-Categories: `failure` (a shell command that really failed), `policy` (a permission refusal: the auto mode classifier, the built-in safety check, a harness block, a user rejection), `tool-error` (a non-shell tool error), `interrupted`. `PreCompact`, a non-blocking `SessionEnd` (Claude) and a per-turn `Stop` (Codex) scan the transcript tail on a per-transcript byte cursor, so nothing is missed or logged twice, and a stub keyed by `tuid` is never written twice.
+Categories: `failure` (a shell command that really failed), `policy` (a permission refusal: the auto mode classifier, the built-in safety check, a harness block, a user rejection), `tool-error` (a non-shell tool error), `interrupted`.
+
+Exit code 1 is an answer, not an error, for `grep`, `egrep`, `fgrep`, `rg`, `ag`, `test`, `[`, `[[`, `diff`, `cmp`, `command -v` and `which`. Such a benign exit is counted in `.strata/inbox/benign.json`, once per tool call, and never stored as a stub. The guard reads the shell command to find which command set the status: the last list only (unless the command sets `errexit`), the last element of a pipeline (unless `pipefail`), and every command that could have set the status must be benign or a safe builtin such as `echo` or `cd` ([ADR-0024](decisions/ADR-0024-benign-exits-and-refusals.md)). Benign stubs written by older versions are read as benign. `PreCompact`, a non-blocking `SessionEnd` (Claude) and a per-turn `Stop` (Codex) scan the transcript tail on a per-transcript byte cursor, so nothing is missed or logged twice, and a stub keyed by `tuid` is never written twice.
 
 The hook is quiet while the agent works: the per-failure nudge is opt-in (`STRATA_FAILURE_NUDGE=1`). `SessionStart` injects the capture rule and what is waiting: pending journal captures and inbox counts. Outside a strata project it is silent. Any error exits 0 with no output, so it can never block or stall the host.
 
@@ -424,7 +435,7 @@ The hook is quiet while the agent works: the per-failure nudge is opt-in (`STRAT
 
 ### 12.3 Read side (route and clear)
 
-`/strata:save` routes every journal entry, and the inbox failures worth keeping (repeated ones first), into issues, learnings, decision records and docs (the §6 routing), then runs `strata journal clear` and `strata inbox clear`. Clearing the inbox keeps live transcript cursors, so cleared failures are not logged again. `/strata:load` reports pending captures first, then the inbox counts by category and any repeated failures. The contract lives once in `SKILL.md §5a`; the commands point at it. A lint check (`tests/lint.sh §2d`) fails the build if the commands ever drop the inbox reference.
+`/strata:save` routes every journal entry, and the inbox failures worth keeping (repeated ones first), into issues, learnings, decision records and docs (the §6 routing), then runs `strata journal clear` and `strata inbox clear`. Clearing the inbox keeps live transcript cursors, so cleared failures are not logged again. `/strata:load` reports pending captures first, then the inbox counts by category, any repeated failures, the benign-exit count, and the permission refusals grouped by command as steps refused for the agent, to hand to the operator. The contract lives once in `SKILL.md §5a`; the commands point at it. A lint check (`tests/lint.sh §2d`) fails the build if the commands ever drop the inbox reference.
 
 ### 12.4 Both agents
 
@@ -439,10 +450,30 @@ The honest scope: a hook can write the evidence but cannot reason. Distilling a 
 `skills/strata/scripts/strata.mjs` runs the mechanical half of strata ([ADR-0018](decisions/ADR-0018-strata-script-for-mechanical-chores.md)). It uses only Node's built-in modules, calls git with argument lists, keeps each file's line endings, and is tested on Windows, macOS and Linux. It lives inside the skill folder so every install path ships it. The full behaviour of each part is in the [0.1.0 spec](specs/0.1.0-capture-and-save.md).
 
 - **Views.** `strata views` renders ACTIVE, OPEN, PARKED, `learnings/INDEX.md`, the `MEMORY.md` rules table, and the hot-rules block in `CLAUDE.md` / `AGENTS.md` ([ADR-0019](decisions/ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md)) in a fixed order: severity, then id, then file name; OPEN grouped by area; learnings by trigger. Each view keeps its own header up to the `GENERATED` marker. A project with its own renderer sets `generated_views: external` in the MANIFEST frontmatter.
-- **Merge driver.** `strata setup` routes those files through the `strata-views` git merge driver (a `.gitattributes` block plus the clone's local git config). The driver merges table rows three ways, keyed by issue id or learning file, renders them in the same order, and lets `git merge-file` merge the hand-written text around them. Without the driver, git merges them as plain text. With `generated_views: external` the project owns the view layout, so setup routes only the adapters and the driver merges any other view as plain text.
-- **Checks.** `strata check` validates the layout stamp, the hot budgets, frontmatter vocabularies, unique ids, parked triggers, relative links and view drift.
-- **Save chores.** `strata save --prepare` archives closed issues with index rows, rolls old sessions out of `project_state.md` with an `ARCHIVE.md` row, regenerates every view, refreshes the auto-memory pointer and the merge driver path, records the save marker, and reports what is left for judgment: pending captures, inbox counts, the drift list, parked triggers, check findings.
+- **Merge driver.** `strata setup` routes those files through the `strata-views` git merge driver (a `.gitattributes` block plus the clone's local git config). The config line runs a launcher in the clone's git folder, `.git/strata/merge-driver.mjs`, which finds the current strata install at merge time, so a plugin update that removes an old version's folder does not break merges; with no install found it merges as plain text ([ADR-0026](decisions/ADR-0026-version-independent-merge-driver.md)). The driver merges table rows three ways, keyed by issue id or learning file, renders them in the same order, and lets `git merge-file` merge the hand-written text around them. Without the driver, git merges them as plain text. With `generated_views: external` the project owns the view layout, so setup routes only the adapters and the driver merges any other view as plain text.
+- **Checks.** `strata check` validates the layout stamp, the hot budgets, frontmatter vocabularies, unique ids, parked triggers, dates, `match:` and `paths:` patterns, relative links, view drift and the merge driver's paths. `strata check --baseline` records the current warnings in `.strata/check-baseline.json`; later runs list only new warnings and one count line for the known ones, and `--all` lists everything. Errors are never baselined ([ADR-0025](decisions/ADR-0025-check-warnings-baseline.md)).
+- **Save chores.** `strata save --prepare` appends journal entries routed to an issue, archives closed issues with rows in the archive index, rolls old sessions out of `project_state.md` with an `ARCHIVE.md` row, regenerates every view and the lesson-trigger index, refreshes the auto-memory pointer and the merge driver, records the save marker, and reports what is left for judgment: pending captures, inbox counts, steps refused for the agent, the drift list, parked items whose date has come or whose trigger is text, due dates, check findings.
+- **Dates.** `strata due [--days N]` lists parked `revive-on` dates and `due:` dates up to N days ahead, default 7, dates already passed first.
+- **Lesson triggers.** `strata triggers` rebuilds the lesson-trigger index; with `--command` or `--path` it shows which lessons would fire (§14).
 - **Ids.** `strata new-issue` and `strata next-adr` scan the tree, every worktree, recent branch tips and a reservation list before picking a number.
 - **Drift.** `strata drift` lists the commits since the last save that no decision record, doc, issue, learning, changelog or pending capture mentions.
 - **Auto-memory pointer.** Claude Code's per-repository auto memory holds only `strata-pointer.md` and one index line, written when that folder exists.
+
+---
+
+## 14. Operation-triggered lessons
+
+A learning is keyed by the operation it applies to (§5.2), and until 0.2.0 that key was prose the agent had to match in its head. It often did not, and a lesson on record failed to show up at the moment it mattered ([ADR-0020](decisions/ADR-0020-operation-triggered-lessons.md)).
+
+A learning may add `match:` (regexes tested against a Bash command) and `paths:` (globs tested against files). The `PreToolUse` hook `hooks/strata-lesson-trigger.mjs` runs before every Bash, Edit, Write, MultiEdit and NotebookEdit call in Claude Code, and before Bash and `apply_patch` in Codex:
+
+1. It finds the project (the nearest `.strata/` at or above the call's working directory) and reads `.strata/inbox/lesson-triggers.json`. When the index is missing, or its signature (names, sizes and modification times of the learning files) no longer matches, it rebuilds the index once and writes it back.
+2. For Bash it tests every `match:` regex against the whole command, and every `paths:` glob against the path-like words of the command (words with a slash, a leading `~` or `.`, or a file extension) and against the files named in a patch body. For an edit it tests the globs against the edited file. Each path is tried as written, relative to the project root, and absolute.
+3. It drops lessons already shown in this session within the repeat window (30 minutes, `STRATA_LESSON_REPEAT_MINUTES`; the state is `.strata/inbox/lessons-shown.json`), keeps the first three in file order, and returns them as `hookSpecificOutput.additionalContext`: the title (an opening heading, else the trigger), the first sentence of the lesson, and the file.
+
+It returns no permission decision and no changed input, so it can never block or alter a call. It is silent when nothing matches, outside a strata project, and on any error. `STRATA_LESSON_TRIGGERS=0` turns it off.
+
+Glob rules: relative to the project root; `*` stays inside one folder, `**` crosses folders, `?` is one character, `{a,b}` and `[abc]` work as usual; a glob without a slash matches a file name in any folder; a trailing slash means everything below. A regex may start with `(?i)` to ignore case.
+
+Cost: one Node start per call. On a small, busy server Node starts in about 70 ms and the hook's own work is about 30 ms, most of it loading two modules; matching 60 learnings takes under 1 ms.
 

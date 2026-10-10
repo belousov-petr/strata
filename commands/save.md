@@ -29,7 +29,7 @@ State the detected mode before proceeding.
 ### 2. Read what is pending
 
 - `strata journal list`: every pending capture. Each one is routed this save.
-- `strata save --prepare --dry-run`: the mechanical plan (archive moves, session rollover, regenerated views and hot-rules blocks), the inbox counts and repeated failures, the drift list, parked triggers, and check findings.
+- `strata save --prepare --dry-run`: the mechanical plan (journal entries it will append to their issues, archive moves, session rollover, regenerated views and hot-rules blocks), the inbox counts, repeated failures and steps refused for the agent, the drift list, parked items whose date has come or whose trigger is text, due dates, and check findings.
 - `memory/MEMORY.md`, `memory/project_state.md`, `issues/ACTIVE.md`, plus any issue files touched this session. Do not bulk-read learnings, archives, or the whole backlog.
 
 ### 3. Inventory the session
@@ -37,13 +37,14 @@ State the detected mode before proceeding.
 Sort the journal entries and what actually happened into the buckets:
 
 - **Resumption point**: last completed, immediate next action (point at an issue id when one exists), prerequisites, uncommitted scope, background processes. The single most important capture; write it so a fresh session starts without questions.
-- **Issue events**: journal `finding` entries, findings that slipped through (write them with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked triggers that fired. Repeated failures from the inbox become issues or learnings; one-off failures and policy refusals stay counts.
+- **Issue events**: journal `finding` entries, findings that slipped through (write them with full Tried/Error/Hypothesis/Repro), status changes, items resolved or rejected this session, parked items whose date has come or whose text trigger fired this session (future dates are only counted; `strata due` lists them), overdue items. Repeated failures from the inbox become issues or learnings; one-off failures, benign exits and policy refusals stay counts.
+- **Steps for the operator**: the permission refusals that `save --prepare` lists as steps refused for the agent. Put them in the report and the resumption point so the operator can run or approve them.
 - **Learnings**: `gotcha` and `learning` entries, strategies that worked (`origin: success`) and pitfalls that burned (`origin: failure`), distilled to trigger + 1–3 sentence lesson.
 - **Decisions**: `decision`, `direction` and `answer` entries with non-obvious rationale become decision records, with their lineage (a direction change supersedes the old record).
 - **Durable-doc impact**: `runbook` and `requirement` entries, and architecture/reference/ops/product files this session made wrong or incomplete. Use the drift list as a prompt: each listed commit either gets a record or is fine as it is.
 - **External completions**: PRs, emails, posted comments, durable URLs → action-log candidates.
 
-Entries marked `filed` are already in their store; check them and move on.
+Entries marked `filed` are already in their store; check them and move on. Entries captured with `--route append` are appended to their issue by `strata save --prepare` and marked filed there; you only check them.
 
 ### 4. Build the preview (one block, then execute)
 
@@ -94,7 +95,7 @@ Leave everything for one commit. If the project gates commits, say what is ready
 
 ### 7. Verify
 
-- `strata check` passes: budgets (`MEMORY.md` ≤80 lines, `project_state.md` ≤200), frontmatter vocabularies, unique ids, links, no view drift. If the `MEMORY.md` rules table would breach ≤80, don't auto-trim; report it and suggest curating the hot subset (flag the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`), per skill §4/§6E.
+- `strata check` passes: budgets (`MEMORY.md` ≤80 lines, `project_state.md` ≤200), frontmatter vocabularies, unique ids, links, no view drift. Warnings recorded with `strata check --baseline` show as one count line; fix or report any new warning. If the `MEMORY.md` rules table would breach ≤80, don't auto-trim; report it and suggest curating the hot subset (flag the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`), per skill §4/§6E.
 - `strata journal list` shows no pending captures.
 - Resumption point is specific enough to act on without questions.
 - No contradiction left between hot memory and the warm docs touched this session.

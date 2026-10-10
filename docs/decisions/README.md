@@ -47,7 +47,15 @@ Rules:
 | [ADR-0016](ADR-0016-pending-capture-journal.md) | Capture goes to a git-ignored pending journal first, and the inbox and journal are shared across worktrees | implemented |
 | [ADR-0017](ADR-0017-capture-guard-decides-by-status.md) | The capture guard decides by real status, files refusals as `policy`, and drops the per-failure nudge by default | implemented |
 | [ADR-0018](ADR-0018-strata-script-for-mechanical-chores.md) | A bundled, dependency-free Node script runs views, checks, save chores, the merge driver, id allocation and the drift list | implemented |
-| [ADR-0019](ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md) | Hot rules go into a generated block in `CLAUDE.md` and `AGENTS.md`; Claude auto memory holds only a pointer | implemented |
+| [ADR-0019](ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md) | Hot rules go into a generated block in `CLAUDE.md` and `AGENTS.md`; Claude auto memory holds only a pointer | implemented (block header extended by ADR-0027) |
+| [ADR-0020](ADR-0020-operation-triggered-lessons.md) | Learnings carry `match:` and `paths:`; a `PreToolUse` hook shows the matching lessons before the command or edit | implemented |
+| [ADR-0021](ADR-0021-configurable-archive-index.md) | The archive index file is configurable (`archive_index:`), then detected, then `INDEX.md` | implemented |
+| [ADR-0022](ADR-0022-journal-append-route.md) | `journal add --refs <id> --route append`: save appends the entry to that issue as a dated update | implemented |
+| [ADR-0023](ADR-0023-dated-revive-and-due.md) | `revive-on:` and `due:` dates; load, status and save list only dates that have come; `strata due` | implemented |
+| [ADR-0024](ADR-0024-benign-exits-and-refusals.md) | Benign exit codes are counted, not stored; permission refusals are listed as steps for the operator | implemented |
+| [ADR-0025](ADR-0025-check-warnings-baseline.md) | `strata check --baseline` records known warnings; later runs show only new ones | implemented |
+| [ADR-0026](ADR-0026-version-independent-merge-driver.md) | The merge driver runs through a launcher in the clone's git folder, so plugin updates do not break it | implemented |
+| [ADR-0027](ADR-0027-capture-rule-in-the-adapters.md) | The capture rule opens the hot-rules block, so subagents capture to the journal too | implemented |
 
 ## Provenance
 

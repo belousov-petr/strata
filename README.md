@@ -13,11 +13,15 @@ Strata is a plugin for Claude Code and Codex. It writes everything to plain Mark
 - Captures decisions, requirements, and specs as they form, so the architecture on record matches the architecture you built.
 - Tracks findings, bugs, tasks, and ideas in one backlog that opens, updates, closes, and archives items as the work moves.
 - Saves runbooks and lessons the moment you learn them, so the next session does not rediscover how a system behaves.
+- Shows a lesson right before the command or edit it is about. A learning can name the commands (regexes) and files (globs) it applies to, and a hook hands it to the agent at that moment.
 - Holds session memory in layers: recent state every session, deeper docs on demand, old history on request.
 - Takes a capture in one instant, git-ignored step, so it never waits on a slow commit gate, and files it properly at save.
-- Writes failures to disk the moment they happen, through a hook, before the context window compacts and drops them. Permission refusals and one-off typos are counted, not treated as findings.
+- Writes failures to disk the moment they happen, through a hook, before the context window compacts and drops them. A `grep` that finds nothing or a `test` that is false is counted, not logged as a failure. Permission refusals are listed as steps for you to run or approve.
+- Files the routine captures itself: a capture marked as an update on an issue is appended to that issue at save.
+- Checks dates for you: parked work with a revive date and issues with a due date show up at load and save only when the date comes. `strata due` lists what is coming.
+- Keeps `strata check` readable in an old project: record today's warnings once as a baseline, and later runs show only new ones.
 - Keeps one capture journal per repository, shared by every git worktree.
-- Puts the hot rules into `CLAUDE.md` and `AGENTS.md`, so subagents and Codex see them too.
+- Puts the hot rules and the capture rule into `CLAUDE.md` and `AGENTS.md`, so subagents and Codex see them too and capture to the journal instead of a tool's private memory.
 - Brings all of it current on one command, `/strata:save`, when you close a session.
 - Sets up a new project, or upgrades older memory, in one command.
 - Uses plain Markdown and grep, plus one bundled Node script with no dependencies that does the mechanical chores the same way every time.
@@ -62,7 +66,7 @@ Anything you can read straight from the repo (the code, `git log`, the folder la
 
 One store holds findings, bugs, tasks, and ideas: `.strata/issues/`, one file per item, keyed by frontmatter. Capture is immediate. The moment a finding shows up mid-task, `/strata:capture` writes the file with full notes (What, Why, and for bugs Tried, Error, Hypothesis, Repro), marks it `open`, and the work continues. Compaction cannot delete what is already on disk.
 
-Types are `bug | improvement | debt | task | feature | initiative`. Statuses are `open | in-progress | parked | resolved | wont-fix`. An item opens, changes status by a frontmatter edit, and moves to `issues/archive/` when it closes, where it stays searchable. Parked work carries a required `revive-when:` trigger that `/strata:save` checks against each session. The `ACTIVE`, `OPEN`, and `PARKED` views rebuild from item frontmatter at every `/strata:save`, so the list always matches the items.
+Types are `bug | improvement | debt | task | feature | initiative`. Statuses are `open | in-progress | parked | resolved | wont-fix`. An item opens, changes status by a frontmatter edit, and moves to `issues/archive/` when it closes, where it stays searchable. Parked work carries a required `revive-when:` trigger that `/strata:save` checks against each session, or a `revive-on:` date that the script checks for you. Any issue can carry a `due:` date. Load and save list only the dates that have come and count the rest. The `ACTIVE`, `OPEN`, and `PARKED` views rebuild from item frontmatter at every `/strata:save`, so the list always matches the items.
 
 `action_log.md` is separate on purpose. It is an append-only record of things that left the repo: a PR, an email, a posted comment with a real URL. An issue tracks work. The action log records that something reached the outside world.
 
@@ -78,10 +82,14 @@ Procedures you run, incident patterns, and the way an outside system actually be
 ---
 trigger: before pushing to a shared branch
 origin: failure
+match:
+  - 'git push'
 ---
 **Lesson:** Run the repo lint first. The hook catches secrets, not broken
 cross-references.
 ```
+
+The optional `match:` line makes the lesson fire on its own. Before every Bash command and every file edit, a hook checks the learnings' `match:` regexes against the command and their `paths:` globs against the files, and shows the agent up to three that fit, right before the call runs. It never blocks anything, and it stays quiet when nothing matches. `strata triggers --command "git push origin main"` shows what would fire.
 
 When you find out how a website paginates, or why a deploy needs a manual step, this is where it lands, so the next session reads it rather than learning it again. The trigger keys the lesson to an operation rather than a date, so the by-trigger table in `MEMORY.md` keeps lookups fast. Mark a broad, often-used rule `hot: true` and it rides in that always-loaded table, and in a generated block in `CLAUDE.md` and `AGENTS.md` so subagents and Codex agents, which never open `.strata/memory/`, see it too; everything else stays one grep away in `learnings/INDEX.md`, so the cheat sheet the agent reads every session stays short no matter how many lessons pile up (new lessons default to index-only). If it ever does bloat past its budget, `/strata:save` tells you and suggests trimming. It never quietly drops a rule you flagged.
 
@@ -137,7 +145,7 @@ Everything strata owns lives under `.strata/`. Like a lockfile, the folder names
 
 Sets up strata in a project, or upgrades an older layout. In Claude Code it is `/strata:init`; in Codex, `Skill(name='strata', args='init')`. A fresh project answers two questions (the project name, and whether it is a code or knowledge project), then gets the tree above, with `AGENTS.md` and `CLAUDE.md` written only if they are missing. If memory already exists in an older layout, init runs the matching step from [MIGRATIONS.md](MIGRATIONS.md) and archives the source before writing anything new.
 
-On a project that already has the current layout, init runs `strata setup` and nothing else: it adds the merge driver for the generated views and the hot-rules block in `CLAUDE.md` and `AGENTS.md`. Run it once after updating to 0.1.0, and once in each other clone of the repo.
+On a project that already has the current layout, init runs `strata setup` and nothing else: it adds the merge driver for the generated views and the hot-rules block in `CLAUDE.md` and `AGENTS.md`. Run it once after updating to 0.1.0 or later, and once in each other clone of the repo. What each release asks for is in [MIGRATIONS.md](MIGRATIONS.md).
 
 ### `/strata:save`
 
@@ -190,9 +198,9 @@ You can still file a record straight away when that is cheap; the entry is then 
 
 The hook writes at a few moments. The instant a command fails, it logs it (Claude Code's `PostToolUseFailure` event). Before the context window compacts, it reads back through the recent transcript and saves any failures it has not logged yet, so the compaction cannot drop them. When a session ends without compacting, it runs that same scan one last time. On Codex it scans after every turn instead, the way Codex works. All of these passes share one cursor, so the same failure is never logged twice.
 
-Each line in the holding file is one failed tool call: the command and a short piece of its output. The hook decides from the real exit status, never from words in the output, so a grep that prints "Permission denied" is not a failure. A refusal from your own permission setup is filed as `policy`, not as a failure, and so on for tool errors and interrupts. Git ignores the file, and the hook masks anything shaped like a secret before it writes. The hook stays quiet while you work; `/strata:load` and `/strata:save` report the counts and list only failures that repeated. `/strata:save` turns the ones worth keeping into issues or learnings and clears the file.
+Each line in the holding file is one failed tool call: the command and a short piece of its output. The hook decides from the real exit status, never from words in the output, so a grep that prints "Permission denied" is not a failure. A refusal from your own permission setup is filed as `policy`, not as a failure, and so on for tool errors and interrupts. A `grep` with no match, a false `test`, a `diff` that found a difference and the like are counted but not logged, because exit code 1 is their answer. Git ignores the file, and the hook masks anything shaped like a secret before it writes. The hook stays quiet while you work; `/strata:load` and `/strata:save` report the counts, list only failures that repeated, and list the refused commands as steps for you to run or approve. `/strata:save` turns the ones worth keeping into issues or learnings and clears the file.
 
-One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) does all of this, on Claude Code and Codex, on Windows, macOS, and Linux. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall or block a session.
+One shared Node script ([`hooks/strata-capture-guard.mjs`](hooks/strata-capture-guard.mjs)) does all of this, on Claude Code and Codex, on Windows, macOS, and Linux. A second one, [`hooks/strata-lesson-trigger.mjs`](hooks/strata-lesson-trigger.mjs), runs before each command or edit and shows the matching lessons. It says nothing outside a strata project, and if it errors it exits cleanly, so it cannot stall or block a session.
 
 - Claude Code: it ships in the plugin (`hooks/hooks.json`, picked up when the plugin is on). Nothing to set up. Turn it off with `/plugin disable strata`.
 - Codex: plugins cannot carry hooks, so copy [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) to `~/.codex/hooks.json` (every project on the machine) or to a committed `<project>/.codex/hooks.json` (travels with the repo). Set the `commandWindows` field on Windows.
@@ -203,10 +211,12 @@ The honest limit: a hook reacts to mechanical signals, so the one moment it can 
 
 The commands lean on one bundled script, [`skills/strata/scripts/strata.mjs`](skills/strata/scripts/strata.mjs). It needs only Node, which the hook already needs, and runs the same on Windows, macOS, and Linux. The agent keeps the judgment: what to capture, where it belongs, how to word it. The script does the parts that should come out the same every time:
 
-- `journal add / list / clear`: the pending-capture journal
+- `journal add / list / clear`: the pending-capture journal; `add --refs <issue-id> --route append` has save append the entry to that issue
 - `status`: what `/strata:load` shows first
-- `views`, `check`, `save --prepare`: regenerate the views and the hot-rules block, validate budgets, frontmatter, ids and links, and run every mechanical save step with a report of what is left for judgment
-- `setup`: the one-time merge driver and hot-rules block
+- `views`, `check`, `save --prepare`: regenerate the views and the hot-rules block, validate budgets, frontmatter, ids and links, and run every mechanical save step with a report of what is left for judgment. `check --baseline` records the warnings a project already has, so later runs show only new ones
+- `due`: parked items and issues with a date in the next days
+- `triggers`: rebuild the lesson-trigger index and test which lessons fire for a command or a file
+- `setup`: the one-time merge driver and hot-rules block. The driver runs through a small launcher in the clone's git folder, so a plugin update does not break merges
 - `new-issue`, `next-adr`: ids and decision numbers that do not collide across branches and worktrees
 - `drift`: commits since the last save that no record mentions
 - `pointer`: the one-line pointer strata keeps in Claude's own auto memory, so that folder does not grow into a second log

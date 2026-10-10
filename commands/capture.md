@@ -58,7 +58,9 @@ EOF
 | `runbook` | how a system behaves, or a procedure | `docs/ops/` or `docs/architecture/` |
 | `note` | anything else worth keeping | wherever save routes it |
 
-Put the lineage on decisions and direction changes (`--lineage "supersedes ADR-0007"`, or `"answers 20261003-02"`). Keep the text concise: no raw logs, transcripts, or secret values. Secret-shaped values are masked on write as a backstop, not as permission.
+Put the lineage on decisions and direction changes (`--lineage "supersedes ADR-0007"`, or `"answers 20261003-02"`).
+
+When the capture is news on an issue that already exists, name it and let save file it: `--refs 20261003-02 --route append`. `/strata:save` then appends it to that issue as a dated `**Update …:**` paragraph before the Resolution line and marks the entry filed, with no routing judgment needed. Keep the text concise: no raw logs, transcripts, or secret values. Secret-shaped values are masked on write as a backstop, not as permission.
 
 ### 3. Optionally file it now
 

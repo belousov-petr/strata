@@ -1,6 +1,11 @@
-# Strata capture-guard hook
+# Strata hooks
 
-A small lifecycle hook that puts failed tool calls on disk before compaction can drop them, and reminds the agent to capture what matters. One script, shared by **Claude Code** and **Codex CLI**, on **Windows, macOS, and Linux**.
+Two small hooks, each one script shared by **Claude Code** and **Codex CLI**, on **Windows, macOS, and Linux**:
+
+- [`strata-capture-guard.mjs`](strata-capture-guard.mjs) puts failed tool calls on disk before compaction can drop them, and reminds the agent to capture what matters.
+- [`strata-lesson-trigger.mjs`](strata-lesson-trigger.mjs) shows the lessons that match a command or an edit right before it runs ([below](#lesson-trigger-pretooluse)).
+
+# Capture guard
 
 ## What it does
 
@@ -31,10 +36,12 @@ The hook decides from the real status of a tool result ([ADR-0017](../docs/decis
 | Codex rollout `function_call_output` | `Process exited with code N` | `N` decides |
 | Codex `PostToolUse` | none | strict text fallback |
 
+Exit code 1 from `grep`, `egrep`, `fgrep`, `rg`, `ag`, `test`, `[`, `[[`, `diff`, `cmp`, `command -v` and `which` is an answer, not an error. Such a benign exit is counted in `.strata/inbox/benign.json`, once per tool call, and never stored as a stub ([ADR-0024](../docs/decisions/ADR-0024-benign-exits-and-refusals.md)). The guard reads the shell command to find which command set the status, so `cat log | grep -q x` and `[ -f out ] && echo yes` are benign while `npm test && grep x log` is still a failure.
+
 Every stub carries a category:
 
 - `failure`: a shell command that really failed.
-- `policy`: a permission refusal, not a failure. Covers the auto mode classifier (a denial, or no verdict), the built-in safety check, a harness block, and a user rejecting a tool call.
+- `policy`: a permission refusal, not a failure. Covers the auto mode classifier (a denial, or no verdict), the built-in safety check, a harness block, and a user rejecting a tool call. `strata status` and `strata save --prepare` list these by command as steps refused for the agent, to hand to the operator.
 - `tool-error`: a non-shell tool that returned an error, such as a missing file or an edit whose text did not match.
 - `interrupted`: a call cut short.
 
@@ -96,13 +103,24 @@ Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 > - **`PreCompact` / `Stop` rollout scan** — the guard parses the Codex session rollout
 >   (`~/.codex/sessions/**/rollout-*.jsonl`) and detects failures deterministically by the
 >   `Process exited with code N` marker in `function_call_output` entries. This is
->   exit-code-deterministic, so it also captures benign non-zero exits (e.g. grep/rg/test
->   no-match). Those are one-off `failure` stubs: counted at save, not listed unless they
->   repeat, and not promoted unless they matter.
+>   exit-code-deterministic. Benign exits (grep, rg or test with no match, and the like) are
+>   counted, not stored, the same as on Claude.
 >
 > The sample config wires **SessionStart + PostToolUse(Bash) + PreCompact + Stop**.
 > Codex uses `Stop` (per-turn) rather than `SessionEnd`; both rollout drains are silent
 > (no stdout) and share the per-transcript cursor so they never double-log.
+
+# Lesson trigger (PreToolUse)
+
+[`strata-lesson-trigger.mjs`](strata-lesson-trigger.mjs) runs before every Bash, Edit, Write, MultiEdit and NotebookEdit call in Claude Code, and before Bash and `apply_patch` in Codex ([ADR-0020](../docs/decisions/ADR-0020-operation-triggered-lessons.md)). It looks up the learnings whose `match:` regexes fit the command or whose `paths:` globs fit a file the call touches, and returns at most three of them as `additionalContext`: the title, the first sentence of the lesson, and the file to read.
+
+- It reads `.strata/inbox/lesson-triggers.json`, which `strata views` and `/strata:save` compile. When the learnings changed since then, it rebuilds the index once. It never parses the markdown on an ordinary call.
+- It never blocks or changes a call: no permission decision, no updated input. It is silent when nothing matches, outside a strata project, and on any error.
+- A lesson already shown in a session is not shown again in that session for 30 minutes. Set `STRATA_LESSON_REPEAT_MINUTES` to change that (0 repeats every time).
+- `STRATA_LESSON_TRIGGERS=0` turns it off.
+- `strata triggers --command "<command>"` or `strata triggers --path <file>` shows what would fire.
+
+Claude Code gets it with the plugin (`hooks.json`, matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`). Codex users copy the `PreToolUse` entry from [`codex-hooks.sample.json`](codex-hooks.sample.json) (matcher `Bash|apply_patch|Edit|Write`).
 
 ## Cross-platform notes
 
@@ -117,6 +135,7 @@ Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 ## Disabling it
 
 - **Claude:** `claude plugin disable strata` (disables the whole plugin), or remove
-  `hooks/hooks.json` from your install.
+  `hooks/hooks.json` from your install. To turn off only the lesson trigger, set
+  `STRATA_LESSON_TRIGGERS=0`.
 - **Codex:** delete the hook entry from `~/.codex/hooks.json` (or the project's
   `.codex/hooks.json`).
