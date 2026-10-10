@@ -251,10 +251,13 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   }
 
   const inbox = inboxSummary(roots.shared)
-  ctx.info.inbox = { total: inbox.total, counts: inbox.counts, repeated: inbox.repeated }
-  if (inbox.total) {
+  ctx.info.inbox = { total: inbox.total, counts: inbox.counts, repeated: inbox.repeated, benign: inbox.benign, refused: inbox.refused }
+  if (inbox.total || inbox.benign.total) {
     const rep = inbox.repeated.slice(0, 5).map((g) => `${g.count}x ${g.command || g.signal}`).join('; ')
     ctx.judgment.push(`${inbox.line}${rep ? ` Repeated: ${rep}.` : ''} Promote what is worth keeping, then run strata inbox clear.`)
+  }
+  if (inbox.refused.length) {
+    ctx.judgment.push(`steps refused for the agent; hand them to the operator: ${inbox.refused.slice(0, 10).map((g) => `${g.command || '(command not recorded)'} (${g.signal}${g.count > 1 ? `, ${g.count}x` : ''})`).join('; ')}${inbox.refused.length > 10 ? `; ${inbox.refused.length - 10} more` : ''}`)
   }
 
   // Dated items (ADR-0023): only reached dates and text triggers are listed.
