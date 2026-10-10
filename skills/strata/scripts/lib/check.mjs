@@ -10,6 +10,7 @@ import {
 } from './model.mjs'
 import { syncViews } from './views.mjs'
 import { buildTriggerIndex } from './triggers.mjs'
+import { validArchiveIndexName } from './archive-index.mjs'
 import { driverState, DRIVER } from './setup.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
@@ -57,6 +58,7 @@ export function runCheck(project) {
   if (manifest == null) add('error', 'no-manifest', '.strata/MANIFEST.md', 'missing; run /strata:init')
   else {
     const fm = parseFrontmatter(manifest).data
+    if (fm.archive_index && !validArchiveIndexName(String(fm.archive_index).trim())) add('error', 'manifest-archive-index', '.strata/MANIFEST.md', `archive_index '${fm.archive_index}' must be a file name in .strata/issues/archive/, such as README.md`)
     if (String(fm.layout_version || '') !== '3') {
       if (fm.strata_version) add('error', 'legacy-stamp', '.strata/MANIFEST.md', `strata_version: ${fm.strata_version}; migrate with MIGRATIONS.md Rung 3`)
       else add('error', 'layout-version', '.strata/MANIFEST.md', 'no layout_version: 3 in the frontmatter')
