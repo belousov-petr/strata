@@ -39,7 +39,8 @@ export function readIssues(project, { includeArchive = false } = {}) {
       ...fm.data,
       id: fm.data.id || '', status: fm.data.status || '', type: fm.data.type || '',
       severity: fm.data.severity || '', area: fm.data.area || '', what,
-      revive: fm.data['revive-when'] || '',
+      revive: String(fm.data['revive-when'] || ''),
+      reviveOn: String(fm.data['revive-on'] || '').trim(), due: String(fm.data.due || '').trim(),
     })
   }
   return out

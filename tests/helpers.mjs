@@ -122,9 +122,11 @@ export function write(dir, rel, text) {
 
 export function read(dir, rel) { return fs.readFileSync(path.join(dir, rel), 'utf8') }
 
-export function issue(dir, { id, slug = 'item', type = 'bug', status = 'open', severity = 'med', area = 'src', what = 'Something', revive, archive = false }) {
+export function issue(dir, { id, slug = 'item', type = 'bug', status = 'open', severity = 'med', area = 'src', what = 'Something', revive, reviveOn, due, archive = false }) {
   const fm = [`id: ${id}`, `type: ${type}`, `status: ${status}`, `severity: ${severity}`, `area: ${area}`, 'created: 2026-10-03']
   if (revive) fm.push(`revive-when: ${revive}`)
+  if (reviveOn) fm.push(`revive-on: ${reviveOn}`)
+  if (due) fm.push(`due: ${due}`)
   const rel = `.strata/issues/${archive ? 'archive/' : ''}${id}-${slug}.md`
   return write(dir, rel, `---\n${fm.join('\n')}\n---\n\n**What:** ${what}\n\n**Why:** because.\n`)
 }

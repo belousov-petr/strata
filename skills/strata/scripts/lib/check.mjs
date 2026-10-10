@@ -11,6 +11,7 @@ import {
 import { syncViews } from './views.mjs'
 import { buildTriggerIndex } from './triggers.mjs'
 import { validArchiveIndexName } from './archive-index.mjs'
+import { validDate } from './dates.mjs'
 import { driverState, DRIVER } from './setup.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
@@ -96,7 +97,11 @@ export function runCheck(project) {
       if (!ids.has(i.id)) ids.set(i.id, [])
       ids.get(i.id).push(where)
     }
-    if (i.status === 'parked' && !i.revive) add('error', 'parked-no-revive', where, 'parked without a revive-when: trigger')
+    if (i.status === 'parked' && !i.revive && !i.reviveOn) add('error', 'parked-no-revive', where, 'parked without a revive-when: trigger or a revive-on: date')
+    for (const k of ['reviveOn', 'due']) {
+      const key = k === 'reviveOn' ? 'revive-on' : 'due'
+      if (i[k] && !validDate(i[k])) add('error', 'bad-date', where, `${key}: '${i[k]}' is not a YYYY-MM-DD date`)
+    }
     if (!i.archived && TERMINAL.includes(i.status)) add('warn', 'terminal-not-archived', where, `${i.status}; strata save --prepare moves it to issues/archive/`)
     if (i.archived && LIVE.includes(i.status)) add('warn', 'live-in-archive', where, `status ${i.status} inside issues/archive/`)
   }

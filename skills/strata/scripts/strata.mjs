@@ -21,7 +21,8 @@ import { writePointers } from './lib/pointer.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
-import { findIssue } from './lib/model.mjs'
+import { findIssue, readIssues } from './lib/model.mjs'
+import { datedLines, dueList, formatDue } from './lib/dates.mjs'
 import { writeTriggerIndex, buildTriggerIndex, matchLessons, formatLessons, pathForms, subjectOf } from './lib/triggers.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
@@ -43,6 +44,7 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   next-adr [--dir <d>] [--dry-run]   next free decision-record number
   drift [--since <rev>] [--json]  commits since the last save that no record mentions
   pointer [--dry-run]             write or refresh the Claude auto-memory pointer (only when the folder exists)
+  due [--days N] [--json]         dated items: parked revive-on dates and due dates, next N days (default 7)
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
   triggers [--command <c>] [--path <p>]...   rebuild the lesson-trigger index; with a command
                                   or paths, show which learnings would fire before that call
@@ -160,6 +162,16 @@ const commands = {
     return res.errors.length ? 1 : 0
   },
 
+  due(argv) {
+    const args = parseArgs(argv, { bools: ['json'] })
+    const r = resolveRoots(args.root)
+    const days = args.days === undefined ? 7 : Number(args.days)
+    if (!Number.isInteger(days) || days < 0) throw new UsageError('strata due: --days takes a whole number of days, 0 or more')
+    const res = dueList(r.project, { days })
+    out(args, res, formatDue(res))
+    return 0
+  },
+
   check(argv) {
     const args = parseArgs(argv, { bools: ['json'] })
     const r = resolveRoots(args.root)
@@ -245,6 +257,8 @@ const commands = {
     const views = syncViews(r.project, { check: true })
     const stale = drifted(views)
     const lines = [journal.journalSummaryLine(entries), formatInbox(sum, { limit: 5 })]
+    const dated = datedLines(readIssues(r.project))
+    lines.push(...dated.lines)
     lines.push(stale.length ? `Views: ${stale.length} differ from a fresh render (${stale.join(', ')}); /strata:save regenerates them.` : 'Views: current.')
     // Projects initialized before 0.1.0 lack the merge driver and the hot-rules block.
     const missing = []
@@ -257,6 +271,14 @@ const commands = {
       journal: { pending: entries.length, kinds: Object.fromEntries(journal.kindCounts(entries)) },
       inbox: { total: sum.total, counts: sum.counts, repeated: sum.repeated },
       views: { drifted: stale },
+      dated: {
+        reached: dated.parked.reached.map((e) => ({ id: e.issue.id, date: e.date })),
+        text: dated.parked.text.map((e) => ({ id: e.issue.id, revive: e.issue.revive })),
+        later: dated.parked.later.length,
+        overdue: dated.due.overdue.map((e) => ({ id: e.issue.id, date: e.date })),
+        today: dated.due.today.map((e) => e.issue.id),
+        dueLater: dated.due.later.length,
+      },
       setup: { missing: lines.filter((l) => l.startsWith('Setup:')) },
     }, lines.join('\n'))
     return 0
