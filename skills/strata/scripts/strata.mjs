@@ -18,7 +18,7 @@ import { setup, formatSetup, driverState } from './lib/setup.mjs'
 import { newIssue, nextAdr } from './lib/ids.mjs'
 import { driftList, formatDrift } from './lib/drift.mjs'
 import { writePointers } from './lib/pointer.mjs'
-import { runCheck, formatCheck } from './lib/check.mjs'
+import { runCheck, formatCheck, writeBaseline, BASELINE_FILE } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
 import { findIssue, readIssues } from './lib/model.mjs'
@@ -46,6 +46,8 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   pointer [--dry-run]             write or refresh the Claude auto-memory pointer (only when the folder exists)
   due [--days N] [--json]         dated items: parked revive-on dates and due dates, next N days (default 7)
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
+  check --baseline                record today's warnings; later runs show only new ones as findings
+  check --all                     ignore the baseline and list every warning
   triggers [--command <c>] [--path <p>]...   rebuild the lesson-trigger index; with a command
                                   or paths, show which learnings would fire before that call
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
@@ -173,9 +175,17 @@ const commands = {
   },
 
   check(argv) {
-    const args = parseArgs(argv, { bools: ['json'] })
+    const args = parseArgs(argv, { bools: ['json', 'baseline', 'all'] })
     const r = resolveRoots(args.root)
-    const res = runCheck(r.project)
+    if (args.baseline) {
+      const res = runCheck(r.project, { baseline: false })
+      const n = writeBaseline(r.project, res.findings)
+      out(args, { ...res, baselineWritten: n, file: BASELINE_FILE },
+        `strata check: baseline written: ${plural(n, 'warning')} in ${BASELINE_FILE}. Later runs show only new warnings.` +
+        (res.errors ? `\nErrors are never baselined. Fix ${res.errors === 1 ? 'this one' : `these ${res.errors}`}:\n` + formatCheck({ ...res, findings: res.findings.filter((f) => f.level === 'error') }).split('\n').slice(1).join('\n') : ''))
+      return res.ok ? 0 : 1
+    }
+    const res = runCheck(r.project, { baseline: !args.all })
     out(args, res, formatCheck(res))
     return res.ok ? 0 : 1
   },

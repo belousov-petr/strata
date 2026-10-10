@@ -3,7 +3,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { readLf, walk, relPosix, exists } from './core.mjs'
+import { readLf, walk, relPosix, exists, writeText, today } from './core.mjs'
 import { parseFrontmatter } from './frontmatter.mjs'
 import {
   readIssues, readLearnings, TYPES, STATUSES, SEVERITIES, ORIGINS, TERMINAL, LIVE,
@@ -49,7 +49,44 @@ function brokenLinks(file) {
   return out
 }
 
-export function runCheck(project) {
+// --- baseline (ADR-0025) ------------------------------------------------------
+// `strata check --baseline` records today's warnings; later runs report only
+// warnings that are new and fold the known ones into one count line. Errors are
+// never baselined.
+export const BASELINE_FILE = '.strata/check-baseline.json'
+
+export function findingKey(f) { return `${f.code}|${String(f.path).replace(/:\d+$/, '')}|${f.detail}` }
+
+export function readBaseline(project) {
+  try {
+    const j = JSON.parse(fs.readFileSync(path.join(project, BASELINE_FILE), 'utf8'))
+    const list = Array.isArray(j.warnings) ? j.warnings : []
+    return { created: j.created || '', count: list.length, keys: new Set(list.map(findingKey)) }
+  } catch { return null }
+}
+
+export function writeBaseline(project, findings) {
+  const seen = new Set()
+  const warnings = []
+  for (const f of findings.filter((x) => x.level === 'warn')) {
+    const w = { code: f.code, path: String(f.path).replace(/:\d+$/, ''), detail: f.detail }
+    const k = findingKey(w)
+    if (seen.has(k)) continue
+    seen.add(k)
+    warnings.push(w)
+  }
+  warnings.sort((a, b) => (findingKey(a) < findingKey(b) ? -1 : 1))
+  const body = {
+    version: 1,
+    created: today(),
+    note: 'Known strata check warnings. strata check reports only warnings that are not listed here. Rewrite with strata check --baseline; delete the file to see every warning again.',
+    warnings,
+  }
+  writeText(path.join(project, BASELINE_FILE), JSON.stringify(body, null, 2) + '\n')
+  return warnings.length
+}
+
+export function runCheck(project, { baseline = true } = {}) {
   const findings = []
   const add = (level, code, where, detail) => findings.push({ level, code, path: where, detail })
   const sd = path.join(project, '.strata')
@@ -153,8 +190,18 @@ export function runCheck(project) {
     if (st.inGit && !st.configured) add('warn', 'merge-driver-missing', '.gitattributes', `this clone has no merge.${DRIVER}.driver; run strata setup once`)
   }
 
-  const errors = findings.filter((f) => f.level === 'error').length
-  return { ok: errors === 0, errors, warnings: findings.length - errors, findings }
+  let shown = findings
+  let baselined = 0
+  const base = baseline ? readBaseline(project) : null
+  if (base) {
+    shown = findings.filter((f) => f.level !== 'warn' || !base.keys.has(findingKey(f)))
+    baselined = findings.length - shown.length
+  }
+  const errors = shown.filter((f) => f.level === 'error').length
+  return {
+    ok: errors === 0, errors, warnings: shown.length - errors, findings: shown,
+    baselined, baseline: base ? { file: BASELINE_FILE, created: base.created } : null,
+  }
 }
 
 export function formatCheck(res, { limit = 0 } = {}) {
@@ -164,5 +211,6 @@ export function formatCheck(res, { limit = 0 } = {}) {
   const list = limit ? res.findings.slice(0, limit) : res.findings
   const lines = [head, ...list.map((f) => `  [${f.level}] ${f.path}: ${f.detail}`)]
   if (limit && res.findings.length > limit) lines.push(`  … ${res.findings.length - limit} more (run strata check)`)
+  if (res.baselined) lines.push(`  ${res.baselined} known warning${res.baselined === 1 ? '' : 's'} not shown (baselined in ${res.baseline.file}${res.baseline.created ? ` on ${res.baseline.created}` : ''}; strata check --all lists them)`)
   return lines.join('\n')
 }

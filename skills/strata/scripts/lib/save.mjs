@@ -275,6 +275,7 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   const findings = chk.findings.filter((f) => !(dryRun && (f.code === 'view-drift' || f.code === 'hot-rules-drift' || f.code === 'terminal-not-archived' || (f.code === 'budget-state' && ctx.changed.some((c) => c.startsWith('roll '))))))
   ctx.check = { errors: findings.filter((f) => f.level === 'error').length, warnings: findings.filter((f) => f.level === 'warn').length, findings }
   for (const f of findings) ctx.judgment.push(`check [${f.level}] ${f.path}: ${f.detail}`)
+  if (chk.baselined) ctx.info.baselined = chk.baselined
   return ctx
 }
 
