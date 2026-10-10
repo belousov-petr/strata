@@ -53,6 +53,13 @@ const NO_AREA = '(no area)'
 
 function issueLink(i) { return `[${cell(i.id || path.basename(i.rel, '.md'))}](${i.rel})` }
 
+// The Revive-when cell: a revive-on date first, then any trigger text.
+function reviveText(i) {
+  const on = String(i.reviveOn || '').trim()
+  if (!on) return i.revive
+  return [`on or after ${on}`, i.revive && !i.revive.includes(on) ? i.revive : ''].filter(Boolean).join('; ')
+}
+
 export function issueRows(kind, issues) {
   const status = { active: 'in-progress', open: 'open', parked: 'parked' }[kind]
   const sel = issues.filter((i) => !i.archived && i.status === status && i.frontmatter && i.id)
@@ -61,7 +68,7 @@ export function issueRows(kind, issues) {
     let line
     if (kind === 'active') line = `| ${issueLink(i)} | ${cell(i.type)} | ${cell(i.severity)} | ${cell(i.area)} | ${cell(i.what, 140)} |`
     else if (kind === 'open') line = `| ${issueLink(i)} | ${cell(i.type)} | ${cell(i.severity)} | ${cell(i.what, 140)} |`
-    else line = `| ${issueLink(i)} | ${cell(i.what, 140)} | ${cell(i.revive, 160)} |`
+    else line = `| ${issueLink(i)} | ${cell(i.what, 140)} | ${cell(reviveText(i), 160)} |`
     return { key: i.id || i.rel, line, group: kind === 'open' ? (String(i.area || '').replace(/\s+/g, ' ').trim() || NO_AREA) : undefined }
   })
 }

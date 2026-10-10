@@ -13,6 +13,7 @@ import { inboxSummary } from './inbox.mjs'
 import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
 import { writePointers } from './pointer.mjs'
+import { datedLines } from './dates.mjs'
 
 
 // --- 1. archive terminal issues ---------------------------------------------------
@@ -256,9 +257,15 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
     ctx.judgment.push(`${inbox.line}${rep ? ` Repeated: ${rep}.` : ''} Promote what is worth keeping, then run strata inbox clear.`)
   }
 
-  const issues = readIssues(project)
-  const parked = issues.filter((i) => i.status === 'parked')
-  if (parked.length) ctx.judgment.push(`parked: check each revive-when against this session: ${parked.map((i) => `${i.id} (${i.revive || 'no trigger'})`).join('; ')}`)
+  // Dated items (ADR-0023): only reached dates and text triggers are listed.
+  const dated = datedLines(readIssues(project), today(), { textLimit: 1000 })
+  const p = dated.parked
+  if (p.reached.length) ctx.judgment.push(`parked: revive date reached, revive or re-park: ${p.reached.map((e) => `${e.issue.id} (${e.source} ${e.date})`).join('; ')}`)
+  if (p.text.length) ctx.judgment.push(`parked: check each revive-when against this session: ${p.text.map((e) => `${e.issue.id} (${e.issue.revive || 'no trigger'})`).join('; ')}`)
+  if (p.later.length) ctx.judgment.push(`parked: ${plural(p.later.length, 'item')} wait for a later date (next ${p.later[0].date}); strata due lists them`)
+  const d = dated.due
+  if (d.overdue.length || d.today.length) ctx.judgment.push(`due: ${[...d.overdue.map((e) => `${e.issue.id} overdue since ${e.date}`), ...d.today.map((e) => `${e.issue.id} due today`)].join('; ')}`)
+  ctx.info.dated = { reached: p.reached.length, text: p.text.length, later: p.later.length, overdue: d.overdue.length, dueToday: d.today.length, dueLater: d.later.length }
 
   const chk = runCheck(project)
   // After a dry run the views are expected to differ; do not report that twice.
