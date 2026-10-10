@@ -85,3 +85,17 @@ test('next-adr falls back to a root docs/decisions folder', () => {
   assert.equal(r.dir, 'docs/decisions')
   rm(dir)
 })
+
+test('new-issue writes revive-on and due only when given, and validates them', () => {
+  const dir = gitProject()
+  const a = runJson(['new-issue', '--slug', 'plain'], { cwd: dir }).json
+  const plain = fs.readFileSync(path.join(dir, a.file), 'utf8')
+  assert.ok(!/revive-on:|due:/.test(plain), plain)
+  const b = runJson(['new-issue', '--slug', 'later', '--status', 'parked', '--revive-on', '2026-11-01', '--due', '2026-12-01'], { cwd: dir }).json
+  const later = fs.readFileSync(path.join(dir, b.file), 'utf8')
+  assert.match(later, /\nrevive-on: 2026-11-01\n/)
+  assert.match(later, /\ndue: 2026-12-01\n/)
+  assert.equal(run(['new-issue', '--slug', 'bad', '--due', 'soon'], { cwd: dir }).status, 2)
+  assert.equal(runJson(['check'], { cwd: dir }).json.findings.filter((f) => f.code === 'bad-date').length, 0)
+  rm(dir)
+})

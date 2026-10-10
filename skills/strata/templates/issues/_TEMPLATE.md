@@ -6,6 +6,8 @@ severity: high | med | low
 area: <path-or-module>
 created: YYYY-MM-DD
 revive-when: <concrete trigger — parked items only; delete this line otherwise>
+revive-on: YYYY-MM-DD   # parked items, optional: a date the script checks for you; delete otherwise
+due: YYYY-MM-DD         # optional deadline; status and save flag it when it comes; delete otherwise
 ---
 
 **What:** <the item in 1–3 sentences>

@@ -17,6 +17,7 @@ export function parseFrontmatter(text) {
     const kv = /^([A-Za-z0-9_.-]+)[ \t]*:(?:[ \t]+(.*)|[ \t]*)$/.exec(line)
     if (!kv) continue
     let v = kv[2] == null ? '' : kv[2]
+    if (/^#/.test(v.trim())) v = '' // `key:   # comment` has an empty value
     if (!v.trim() && i + 1 < lines.length && /^\s*-(\s|$)/.test(lines[i + 1])) {
       // A block list: `key:` then `- item` lines (indented or not).
       const items = []
