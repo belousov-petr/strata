@@ -145,6 +145,22 @@ if [ -n "$pver" ] && [ "$pver" = "$cver" ]; then
 else
   fail "plugin version mismatch: Claude=$pver Codex=$cver"
 fi
+mver=$(grep -m1 '"version"' .claude-plugin/marketplace.json | sed -E 's/.*"version"[^"]*"([^"]+)".*/\1/')
+if [ -n "$mver" ] && [ "$mver" = "$pver" ]; then
+  ok "marketplace.json version ($mver) matches plugin.json"
+else
+  fail "marketplace version mismatch: marketplace=$mver plugin=$pver"
+fi
+if grep -qF "## $pver " CHANGELOG.md; then
+  ok "CHANGELOG.md has a $pver section"
+else
+  fail "CHANGELOG.md has no '## $pver' section"
+fi
+if grep -qF 'strata-lesson-trigger.mjs' hooks/hooks.json && grep -qF 'strata-lesson-trigger.mjs' hooks/codex-hooks.sample.json; then
+  ok "hooks wire the lesson trigger (Claude + Codex sample)"
+else
+  fail "hooks.json or the Codex sample does not wire strata-lesson-trigger.mjs"
+fi
 
 # the three commands resolve to /strata:save | /strata:load | /strata:capture
 for c in init save load capture; do
@@ -198,7 +214,7 @@ fi
 SCRIPT="$SKILL_DIR/scripts/strata.mjs"
 if [ -f "$SCRIPT" ]; then ok "$SCRIPT present"; else fail "$SCRIPT missing"; fi
 if command -v node >/dev/null 2>&1; then
-  for f in hooks/strata-capture-guard.mjs "$SCRIPT" "$SKILL_DIR"/scripts/lib/*.mjs; do
+  for f in hooks/strata-capture-guard.mjs hooks/strata-lesson-trigger.mjs "$SCRIPT" "$SKILL_DIR"/scripts/lib/*.mjs; do
     if node --check "$f" >/dev/null 2>&1; then ok "node --check $f"; else fail "node --check $f"; fi
   done
 fi

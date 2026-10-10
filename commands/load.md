@@ -59,9 +59,9 @@ Conflicts → tell the user ("state says X, repo shows Y"), trust git, never sil
 **Next up:** <immediate next action — issue id if any>
 **Active:** <n> in progress (<ids>)
 **Prerequisites:** <env/services, or "none">
-**Parked triggers:** <any revive-when that looks fired, or "none">
+**Parked and due:** <parked items whose date has come, text triggers that look fired, overdue or due-today items (from `strata status`), or "none">
 **Drift:** <state-vs-git mismatches, or "none">
-**Inbox:** <n> failures (<n> repeated), <n> policy refusals, or "empty"
+**Inbox:** <n> failures (<n> repeated), or "empty"; steps refused for the agent, to hand to the operator: <commands>, or "none"
 **Setup:** only when `strata status` says the project lacks the 0.1.0 add-ons: "run /strata:init once"
 ```
 

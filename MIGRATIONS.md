@@ -145,6 +145,29 @@ Plugin release 0.1.0 adds the pending-capture journal, the strata script, the ge
 
 The one step: run `/strata:init` (Codex: `Skill(name='strata', args='init')`) once. On a current-layout project it runs `strata setup` and nothing else, which adds the `.gitattributes` block and the local git config line for the merge driver, and appends the hot-rules block to existing `CLAUDE.md` / `AGENTS.md`. It is idempotent. Each other clone runs it once too, because git config is not committed. Skipping it is safe: views then merge as plain text, as before, and the hot rules stay in `MEMORY.md` only.
 
+## Plugin 0.2.0: no rung, a few adoption steps
+
+Plugin release 0.2.0 changes no layout: projects stay on `layout_version: 3`. Everything new is optional or regenerates itself. In order:
+
+1. **Update and set up.** Update the plugin, start a new session, and run `/strata:init` once in each clone (Codex: `Skill(name='strata', args='init')`). On a current-layout project it runs `strata setup` and nothing else: it moves the views merge driver to the launcher in the clone's git folder, so later plugin updates no longer break it ([ADR-0026](docs/decisions/ADR-0026-version-independent-merge-driver.md)). The next `/strata:save` does the same if you skip this.
+2. **Regenerate.** Run `/strata:save` or `strata views`. The hot-rules block in `CLAUDE.md` and `AGENTS.md` gains the capture rule ([ADR-0027](docs/decisions/ADR-0027-capture-rule-in-the-adapters.md)), and the lesson-trigger index is written to `.strata/inbox/lesson-triggers.json`, which the inbox already ignores. Commit the two adapters. Until this step `strata check` reports the block as stale.
+3. **Codex only.** Copy the new `PreToolUse` entry from [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) into your Codex hooks file. Claude Code gets it with the plugin.
+4. **Optional: a warnings baseline.** In a project with many legacy warnings, run `strata check --baseline` and commit `.strata/check-baseline.json`. Later runs show only new warnings ([ADR-0025](docs/decisions/ADR-0025-check-warnings-baseline.md)).
+5. **Optional: the archive index.** If your closed-issue table lives in `issues/archive/README.md` or another file, add `archive_index: README.md` to the `MANIFEST.md` frontmatter. Without the key, save detects an existing `README.md` or `INDEX.md` that holds the table. If an earlier save created a second `INDEX.md` beside your own table, move its rows over and delete it ([ADR-0021](docs/decisions/ADR-0021-configurable-archive-index.md)).
+6. **Optional: fire lessons at the action.** Add `match:` or `paths:` to the learnings you most need at the moment of the action, then test them with `strata triggers --command "<command>"` or `strata triggers --path <file>` ([ADR-0020](docs/decisions/ADR-0020-operation-triggered-lessons.md)). Quote regexes in single quotes, so YAML keeps backslashes as written:
+
+   ```yaml
+   match:
+     - 'pgrep\s+-f'
+   paths:
+     - 'skills/**/SKILL.md'
+   ```
+
+   A learning whose `applies-when:` is a glob is a good candidate for `paths:`.
+7. **Optional: dates.** Change parked triggers that are dates into `revive-on: YYYY-MM-DD`, and add `due:` where an issue has a deadline. A `revive-when:` that is only a date already counts as one ([ADR-0023](docs/decisions/ADR-0023-dated-revive-and-due.md)).
+
+Nothing to do for the inbox: benign exit codes are counted from now on, and benign stubs already in the inbox are read as benign ([ADR-0024](docs/decisions/ADR-0024-benign-exits-and-refusals.md)).
+
 ## Future rungs
 
 A later generation gets detected by `layout_version` alone (one file read), and its rung documents detect → transform → rollback in this same shape before anything ships. That is the standing rule, not an aspiration.

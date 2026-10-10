@@ -2,6 +2,34 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.2.0 - 2026-10-10
+
+**Lessons that fire at the moment of the action, and saves that stay short in a big project.** Found over five days of heavy use on a large project: lessons on record that did not show up when they mattered, archive rows written to the wrong file, dozens of journal entries routed by hand, thirty parked triggers per save, an inbox full of `grep` exit codes, and 215 legacy warnings hiding new ones. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-020-no-rung-a-few-adoption-steps). Decisions: [ADR-0020](docs/decisions/ADR-0020-operation-triggered-lessons.md) to [ADR-0027](docs/decisions/ADR-0027-capture-rule-in-the-adapters.md).
+
+### Added
+- **Operation-triggered lessons.** A learning may carry `match:` (regexes tested against a Bash command) and `paths:` (globs tested against the files an Edit, Write, MultiEdit or Codex `apply_patch` call touches, and against the path-like words of a Bash command). A new `PreToolUse` hook, `hooks/strata-lesson-trigger.mjs`, shows at most three matching lessons as additional context right before the call: title, first sentence, file. It reads a compiled index (`.strata/inbox/lesson-triggers.json`, git-ignored) that `strata views` and `/strata:save` write, and rebuilds it once when the learnings changed. It never blocks or changes a call, is silent when nothing matches, does not repeat a lesson within a session for 30 minutes (`STRATA_LESSON_REPEAT_MINUTES`), and `STRATA_LESSON_TRIGGERS=0` turns it off. Shipped in the Claude plugin's `hooks.json` and in the Codex sample.
+- `strata triggers [--command <c>] [--path <p>]` rebuilds the index and shows which lessons would fire. `strata check` reports a pattern that does not compile.
+- **`journal add --refs <issue-id> --route append`.** `save --prepare` appends such an entry to the named issue, before its Resolution line, as `**Update <date> (journal <id>):** <title>. <text>`, marks it filed and reports it. Entries without the route stay for judgment.
+- **Dated items.** Parked issues may carry `revive-on: YYYY-MM-DD`, live issues `due: YYYY-MM-DD`, and a `revive-when:` text that is only a date counts as one. `strata status` and `save --prepare` list only the dates that have come (and text triggers, as before) and count the future ones. `strata due [--days N]` lists dated items in the next N days, default 7.
+- **`strata check --baseline`** writes `.strata/check-baseline.json` with the current warnings. Later runs show only new warnings plus one count line; `--all` shows everything. Errors are never baselined.
+- **`archive_index:`** in the `MANIFEST.md` frontmatter names the archive index file, for example `README.md`.
+
+### Changed
+- **The archive index.** `save --prepare` appends archive rows to the file `archive_index:` names; without it, to an existing `README.md` or `INDEX.md` in `issues/archive/` that already holds an archive table; otherwise to `INDEX.md`. Rows go after the table's last row, in that table's columns, and no second index is created.
+- **Benign exits are counted, not stored.** Exit code 1 from `grep`, `egrep`, `fgrep`, `rg`, `ag`, `test`, `[`, `[[`, `diff`, `cmp`, `command -v` and `which` goes to a count in `.strata/inbox/benign.json` instead of the failure inbox. The guard reads the shell command to see which command set the status, so `npm test && grep x log` still counts as a failure. Benign stubs stored by older versions are read as benign. The four categories are unchanged.
+- **Refusals go to the operator.** `strata status` and `save --prepare` list permission refusals, grouped by command, as steps refused for the agent to hand to the operator.
+- **The capture rule reaches every agent.** The generated hot-rules block in `CLAUDE.md` and `AGENTS.md` opens with: capture with `strata journal add` (the `/strata:capture` skill), never in a tool's private auto-memory, subagents included. The adapter templates and the `SessionStart` note say the same.
+- `PARKED.md` shows `on or after <date>` for a `revive-on` item. `strata check` accepts `revive-on` as a parked item's trigger.
+- The frontmatter reader understands lists (`- item` lines or `[a, b]`).
+
+### Fixed
+- **The merge driver survives plugin updates.** git config used to name the strata script inside the versioned plugin cache folder, which an update removes; merges of the views then failed until the next save. Setup now points git at a launcher in the clone's git folder (`.git/strata/merge-driver.mjs`) that finds the current install at merge time and falls back to a plain text merge when there is none. `strata status` and `strata check` name a driver whose files are gone.
+
+### Upgrading
+- Update the plugin and start a new session. Run `/strata:save` (or `strata views`) once: it regenerates the hot-rules block with the capture rule, writes the lesson-trigger index and moves the merge driver to the launcher. Until then `strata check` reports the hot-rules block as stale.
+- Codex: add the new `PreToolUse` entry from `hooks/codex-hooks.sample.json` to your hooks file.
+- Optional: `strata check --baseline` in a project with many legacy warnings, `archive_index:` when your archive table lives in another file, and `match:` / `paths:` on the learnings you most need at the moment of the action.
+
 ## 0.1.1 - 2026-10-06
 
 **Four fixes found while running `/strata:init` on a large project that renders its own views.** No memory-layout change and no migration. Projects with `generated_views: external` run `/strata:init` once more after updating, so setup can shrink their `.gitattributes` block.

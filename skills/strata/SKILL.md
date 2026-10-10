@@ -67,7 +67,7 @@ Operational rules:
 
 1. **Capture immediately and completely.** The moment a finding surfaces mid-task: journal it (§5), or write `issues/<id>-<slug>.md` (id `YYYYMMDD-NN`, allocated by `strata new-issue`, which checks other branches and worktrees) from `_TEMPLATE.md`: What/Why, and for bugs Tried/Error/Hypothesis/Repro *at capture time*, status `open`, then return to the task. Compaction cannot eat what is on disk. Don't fix it unless it blocks the current task.
 2. **Status changes are frontmatter edits.** No file moves while an item is alive.
-3. **`parked` requires a concrete `revive-when:`** trigger; `/strata:save` checks triggers against the session and revives matches.
+3. **`parked` requires a concrete `revive-when:`** trigger **or a `revive-on: YYYY-MM-DD` date**; any live issue may carry `due: YYYY-MM-DD`. A `revive-when:` that is only a date counts as one. `strata status` and `/strata:save` list the dates that have come and the text triggers (check those against the session and revive matches); future dates are counted, and `strata due` lists them.
 4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata:save`.
 5. **Dedup at triage:** fold new evidence into an existing item instead of filing a near-duplicate.
 6. **Views are generated, never hand-edited:** `ACTIVE.md` (in-progress), `OPEN.md` (open, by area, severity first), `PARKED.md` (+triggers) — regenerated from frontmatter at every `/strata:save`.
@@ -82,6 +82,8 @@ trigger: <when this applies — operation-keyed>
 applies-when: <glob/area, optional>
 origin: success | failure
 hot: <true|false, optional — true loads the rule into MEMORY.md every session>
+match: ['<regex tested against a Bash command>']     # optional
+paths: ['<glob tested against edited or named files>'] # optional
 ---
 **Lesson:** <1–3 sentences>
 ```
@@ -90,6 +92,7 @@ hot: <true|false, optional — true loads the rule into MEMORY.md every session>
 - `learnings/INDEX.md` (every learning) and the `MEMORY.md` rules-by-trigger table (the **hot subset**) are regenerated from frontmatter at `/strata:save`.
 - **Hot subset.** The MEMORY table lists learnings marked `hot: true` — the broad/frequent rules worth loading every session. *Graceful default:* a project with **no** `hot:` flag anywhere keeps all learnings in the table (legacy, unchanged); the first `hot:` flag opts it into filtering. New learnings default `hot: false` (INDEX-only), so the hot table stays bounded as learnings accumulate — promote to `hot: true` only when a rule proves broadly triggered. Never auto-pick the set; `/strata:save` only *flags* an over-budget table and suggests curating (§6E).
 - **Adapter block (reaches every agent).** Subagents and Codex read `CLAUDE.md` / `AGENTS.md` but never open `.strata/memory/`, so the same hot subset is mirrored into a generated block between `<!-- strata:hot-rules:begin -->` and `<!-- strata:hot-rules:end -->` in each adapter: one line per rule (trigger, first sentence of the lesson, link). `strata views` and `/strata:save` refresh it; text outside the markers is never touched. Budget 25 rules. A trigger longer than 160 characters is shortened in the block, and a 12,000-character backstop adds an overflow line pointing at `MEMORY.md`. The lesson shown is the first sentence of the whole `**Lesson:**` paragraph, or the title when a learning has none.
+- **Lessons that fire on their own.** Give a learning `match:` (regexes, tested against a Bash command; quote them in single quotes) or `paths:` (globs relative to the project root, tested against the file an edit touches and the paths a command names) when the moment it matters can be recognised mechanically. A `PreToolUse` hook then shows it, with at most two others, right before that call, and not again in the same session for 30 minutes. `strata views` and `/strata:save` compile the index; `strata triggers --command "<c>"` or `--path <p>` tests a pattern. Read the named file when a lesson appears. `STRATA_LESSON_TRIGGERS=0` turns the hook off.
 - **Retrieval discipline:** consult the trigger table, open the one or two matching files at operation time. Never bulk-read the folder; never re-read at load.
 - If a lesson needs more than 3 sentences, the surplus is reference or ops material — route it there.
 
@@ -99,7 +102,7 @@ Invoked via `Skill(name='strata', args='capture')`, `/strata:capture`, or any mo
 
 **Trigger:** a failed command/tool/API, retry loop, or workaround; surprising repo behavior or a brittle environment step; a bug, finding, or doc drift; a rule future agents should know before an operation; **a decision you settled** (with the rationale and the options you rejected); **a change of direction** that overturns a prior decision or spec; **an operator answer** future sessions need; **how an outside system actually works**; or **a requirement, or the reasoning behind it**.
 
-**Journal first.** The capture is one entry in the pending-capture journal (§5a): `strata journal add --kind <kind> --title "…" --text -` with the full text on stdin. It is instant, git-ignored, needs no commit, survives compaction, and is shared by every worktree of the repo. Kinds: `decision`, `direction`, `answer`, `finding`, `gotcha`, `learning`, `requirement`, `runbook`, `note`. Give decisions and direction changes their lineage (`--lineage "supersedes ADR-0007"`).
+**Journal first.** The capture is one entry in the pending-capture journal (§5a): `strata journal add --kind <kind> --title "…" --text -` with the full text on stdin. It is instant, git-ignored, needs no commit, survives compaction, and is shared by every worktree of the repo. Kinds: `decision`, `direction`, `answer`, `finding`, `gotcha`, `learning`, `requirement`, `runbook`, `note`. Give decisions and direction changes their lineage (`--lineage "supersedes ADR-0007"`). When the capture is an update on an issue that already exists, add `--refs <issue-id> --route append`: `strata save --prepare` appends it to that issue as `**Update <date> (journal <id>):** …` before its Resolution line and marks it filed, with no judgment needed at save.
 
 **Route at save** (`/strata:save` files each entry; this is where it lands):
 
@@ -124,11 +127,13 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 
 - `journal.jsonl` holds what the agent captured (§5). Entries `{id, ts, kind, title, text, lineage, refs, filed, branch, worktree}`, redacted on write.
 - `captures.jsonl` holds what the hook auto-logged: raw tool-result stubs `{ts, event, tool, category, signal, command, snippet, h}`. Categories: `failure` (a shell command that really failed), `policy` (a permission refusal), `tool-error` (a non-shell tool error), `interrupted`. **Raw evidence, not finished memory.**
+- `benign.json` counts benign exits instead of storing them: exit code 1 from `grep`, `egrep`, `fgrep`, `rg`, `ag`, `test`, `[`, `[[`, `diff`, `cmp`, `command -v` or `which`, when that command set the status.
 
 **Route and clear** (the read side, run by the commands, no extra agent turn):
 - `/strata:save`: route every journal entry and every real, repeated, or reusable failure into its store (dedup against the backlog, drop secrets/stack-traces per §2), then `strata journal clear --all` and `strata inbox clear`. The last cleared journal batch stays in `journal.routed.jsonl` until the next clear.
 - `/strata:load`: report pending captures first, then the inbox counts by category and any repeated failures (`strata status`).
-- A typo, a one-off failure, or a policy refusal is counted, not promoted. Promotion is the authoritative dedup.
+- **Refusals are steps for the operator.** `strata status` and `save --prepare` list permission refusals grouped by command as "steps refused for the agent; hand them to the operator". Report them to the operator; do not retry them another way.
+- A typo, a one-off failure, a benign exit, or a policy refusal is counted, not promoted. Promotion is the authoritative dedup.
 
 ## 6. `/strata:save`: preview-execute contract
 
@@ -145,7 +150,9 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 
 **D. Execute** immediately after the preview, in order: your writes → appends → updates (frontmatter/status) → `strata save --prepare` (archive moves with `issues/archive/INDEX.md` rows, session rollover with an `ARCHIVE.md` row, **regenerate all views last**: `ACTIVE/OPEN/PARKED`, `learnings/INDEX`, the MEMORY trigger table, the hot-rules blocks; plus the auto-memory pointer and the save marker) → `strata journal clear` + `strata inbox clear` once everything is routed. Sync `MEMORY.md` live pointers by hand. Leave it all for one commit.
 
-**E. Verify & report**: `strata check` passes (budgets §1, vocabularies, unique ids, links, no view drift); the journal is empty; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim; report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
+**E. Verify & report**: `strata check` passes (budgets §1, vocabularies, unique ids, links, no view drift); new warnings get fixed or reported (warnings recorded with `strata check --baseline` show as one count line); the journal is empty; resumption point actionable; hot memory and touched warm docs agree. **If the regenerated `MEMORY.md` would breach ≤80, don't auto-trim; report it and suggest curating the hot subset** (opt in by flagging the most-triggered learnings `hot: true`; the rest stay in `INDEX.md`, §4). Then a concise summary of what went where.
+
+Archive rows go to the file named by `archive_index:` in the `MANIFEST.md` frontmatter (for example `README.md`); without it, to an existing `issues/archive/README.md` or `INDEX.md` that holds an archive table, else `INDEX.md`.
 
 A project that renders views with its own tool sets `generated_views: external` in the `MANIFEST.md` frontmatter; strata then leaves the views alone (the hot-rules blocks are still strata's). Its `.gitattributes` block routes only `CLAUDE.md` and `AGENTS.md` through the merge driver, and the driver gives every other view a plain text merge.
 
@@ -164,7 +171,7 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Start with `strata status`**: pending journal captures, inbox counts by category with repeated failures, view drift, and a setup hint for projects initialized before 0.1.0.
 
-**Present** ≤8 lines, pending captures first: pending captures · last session · next up (issue id) · active count · prerequisites · fired parked-triggers · inbox counts (failures, repeated, policy) · drift. Then ask: continue or something else?
+**Present** ≤8 lines, pending captures first: pending captures · last session · next up (issue id) · active count · prerequisites · parked items whose date has come or whose text trigger fired, and overdue or due-today items · inbox counts (failures, repeated) and steps refused for the agent, to hand to the operator · drift. Then ask: continue or something else?
 
 ## 8. `init` — scaffold or migrate a project
 
@@ -256,17 +263,19 @@ Next:
 
 | Subcommand | Does |
 |---|---|
-| `journal add / list / clear` | the pending-capture journal (§5, §5a) |
+| `journal add / list / clear` | the pending-capture journal (§5, §5a); `add --refs <issue-id> --route append` has save append the entry to that issue |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
 | `views --merge-driver %O %A %B %P` | the git merge driver: merges view rows (and the adapters' hot-rules lines) three ways, renders them in the fixed order, `git merge-file` for the text around them |
-| `check [--json]` | budgets, frontmatter vocabularies, unique ids, links, view drift; exit 1 on errors |
+| `check [--json] [--baseline \| --all]` | budgets, frontmatter vocabularies, unique ids, dates, trigger patterns, links, view drift; exit 1 on errors. `--baseline` records today's warnings so later runs show only new ones; `--all` ignores the baseline |
+| `due [--days N]` | parked `revive-on` and `due:` dates up to N days ahead (default 7), passed dates first |
+| `triggers [--command <c>] [--path <p>]` | rebuild the lesson-trigger index; with a command or path, show which lessons would fire (§4) |
 | `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment |
-| `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver, hot-rules block in existing adapters |
+| `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver (a launcher in the clone's git folder that survives plugin updates), hot-rules block in existing adapters |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
-| `new-issue --slug <s> [--title --type --severity --area --status --revive] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
+| `new-issue --slug <s> [--title --type --severity --area --status --revive --revive-on --due] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
 | `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
 | `drift [--since <rev>]` | commits since the last save (the marker `save --prepare` records) that no decision record, doc, issue, learning, changelog or pending capture mentions by path, folder, hash, branch or id |
 | `pointer [--dry-run]` | write or refresh the Claude auto-memory pointer (§11); silent when the folder does not exist |
