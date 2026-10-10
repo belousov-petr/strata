@@ -106,3 +106,17 @@ test('twenty-five realistic rules all fit, and an overlong trigger is shortened'
   for (const l of lines) assert.ok(/^- \*\*[^*]{1,160}:\*\*/.test(l) && l.includes('…:**'), 'trigger shortened to 160 characters')
   rm(dir)
 })
+
+test('the block and the adapter templates carry the capture rule, subagents included', () => {
+  const dir = gitProject()
+  learning(dir, { slug: 'a', trigger: 'before a', hot: true })
+  run(['hot-rules'], { cwd: dir })
+  for (const f of ['CLAUDE.md', 'AGENTS.md']) {
+    const t = read(dir, f)
+    const block = t.slice(t.indexOf('<!-- strata:hot-rules:begin -->'), t.indexOf('<!-- strata:hot-rules:end -->'))
+    assert.match(block, /subagents included, captures findings, decisions and lessons with `strata journal add` \(the `\/strata:capture` skill/, f)
+    assert.match(block, /never in a tool's private auto-memory\./, f)
+    assert.match(t.slice(0, t.indexOf('<!-- strata:hot-rules:begin -->')), /strata journal add/, `${f} prose`)
+  }
+  rm(dir)
+})

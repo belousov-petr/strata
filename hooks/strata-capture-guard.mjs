@@ -697,7 +697,7 @@ function messageFor(event, root, res) {
       'change of direction, an operator answer, how an outside system works, a requirement. Run ' +
       HOW + '; it appends to the pending-capture journal at once, with no commit needed, and ' +
       '`/strata:save` files it into issues, learnings, decision records and docs. Do not keep a ' +
-      'parallel log in Claude or Codex memory.' + pendingNote(root)
+      'parallel log in Claude or Codex memory, and tell subagents the same.' + pendingNote(root)
     )
   }
   return (
