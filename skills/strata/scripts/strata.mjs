@@ -39,7 +39,7 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   views [--check]                 regenerate ACTIVE/OPEN/PARKED, learnings INDEX, the MEMORY table, hot rules
   views --merge-driver %O %A %B %P   the git merge driver for generated views
   setup [--dry-run]               one-time install: inbox ignore file, merge driver, hot-rules block
-  new-issue --slug <s> [--title <t>] [--type --severity --area --status --revive] [--dry-run]
+  new-issue --slug <s> [--title <t>] [--type --severity --area --status --revive --revive-on --due] [--dry-run]
                                   next free id for today (tree, worktrees, branches), file from _TEMPLATE.md
   next-adr [--dir <d>] [--dry-run]   next free decision-record number
   drift [--since <rev>] [--json]  commits since the last save that no record mentions

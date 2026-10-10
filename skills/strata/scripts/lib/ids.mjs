@@ -14,6 +14,7 @@ import {
 } from './core.mjs'
 import { parseFrontmatter } from './frontmatter.mjs'
 import { TYPES, STATUSES, SEVERITIES } from './model.mjs'
+import { validDate } from './dates.mjs'
 
 const DAY = 24 * 3600
 
@@ -125,6 +126,8 @@ function fillTemplate(tpl, fields, { title, keepRevive }) {
       done.add(k[1])
     } else if (k && k[1] === 'revive-when' && !keepRevive) {
       continue
+    } else if (k && (k[1] === 'revive-on' || k[1] === 'due')) {
+      continue // optional dates: only written when given
     } else {
       out.push(line)
     }
@@ -147,6 +150,14 @@ export function newIssue(roots, opts = {}) {
     severity: pick(opts.severity, SEVERITIES, 'severity', 'med'),
   }
   const slug = slugify(opts.slug || opts.title)
+  const dateOpt = (name) => {
+    const v = opts[name]
+    if (v === undefined || v === true) return ''
+    if (!validDate(v)) throw new UsageError(`strata new-issue: --${name} takes a date, YYYY-MM-DD`)
+    return String(v).trim()
+  }
+  const reviveOn = dateOpt('revive-on')
+  const due = dateOpt('due')
 
   const allocate = (state) => {
     const reserved = (state.issue_reservations || []).filter((r) => String(r.id).startsWith(prefix + '-'))
@@ -172,6 +183,8 @@ export function newIssue(roots, opts = {}) {
   const text = fillTemplate(templateText(project), {
     id, ...fields, area: opts.area && opts.area !== true ? String(opts.area) : '', created: isoDate,
     ...(fields.status === 'parked' && opts.revive && opts.revive !== true ? { 'revive-when': String(opts.revive) } : {}),
+    ...(fields.status === 'parked' && reviveOn ? { 'revive-on': reviveOn } : {}),
+    ...(due ? { due } : {}),
   }, { title: opts.title && opts.title !== true ? String(opts.title) : '', keepRevive: fields.status === 'parked' })
   writeText(file, text, { eol: '\n' })
   return { id, file: relPosix(project, file) }

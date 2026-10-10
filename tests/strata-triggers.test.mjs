@@ -192,3 +192,10 @@ test('the plugin wires the lesson trigger for Claude and the Codex sample', () =
   assert.match(codex.hooks.PreToolUse[0].matcher, /apply_patch/)
   assert.match(codex.hooks.PreToolUse[0].hooks[0].command, /strata-lesson-trigger\.mjs/)
 })
+
+test('the learning template parses: an empty key with a comment still takes a list', () => {
+  const fm = parseFrontmatter(read(repoRoot, 'skills/strata/templates/memory/learnings/_TEMPLATE.md')).data
+  assert.deepEqual(fm.match, ['<regex>'])
+  assert.deepEqual(fm.paths, ['<glob>'])
+  assert.equal(fm.hot, 'false')
+})
