@@ -3,7 +3,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseFrontmatter, labelLine, labelParagraph, firstParagraph, firstHeading } from './frontmatter.mjs'
+import { parseFrontmatter, labelLine, labelParagraph, firstParagraph, firstHeading, firstSentence, asList } from './frontmatter.mjs'
 import { walk, relPosix, readLf } from './core.mjs'
 
 export const ISSUE_VIEW_FILES = new Set(['ACTIVE.md', 'OPEN.md', 'PARKED.md', 'README.md', '_TEMPLATE.md', 'INDEX.md'])
@@ -59,8 +59,9 @@ export function readLearnings(project) {
     const lesson = labelParagraph(fm.body, 'Lesson') || firstParagraph(fm.body)
     out.push({
       file, name, slug: name.replace(/\.md$/, ''), frontmatter: fm.present,
-      trigger: fm.data.trigger || '', appliesWhen: fm.data['applies-when'] || '',
+      trigger: String(fm.data.trigger || ''), appliesWhen: String(fm.data['applies-when'] || ''),
       origin: fm.data.origin || '', hot: Object.prototype.hasOwnProperty.call(fm.data, 'hot') ? String(fm.data.hot).trim().toLowerCase() : null,
+      match: asList(fm.data.match), paths: asList(fm.data.paths),
       lesson,
     })
   }
@@ -102,10 +103,4 @@ export function cell(v, max = 0) {
   return s
 }
 
-export function firstSentence(text, max = 220) {
-  const t = String(text || '').replace(/\s+/g, ' ').trim()
-  const m = /^(.+?[.!?])(?=\s|$)/.exec(t)
-  let s = m ? m[1] : t
-  if (s.length > max) s = s.slice(0, max - 1).trimEnd() + '…'
-  return s
-}
+export { firstSentence }
