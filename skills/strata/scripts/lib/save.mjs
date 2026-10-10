@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { readLf, writeText, exists, relPosix, git, inGit, today, plural } from './core.mjs'
 import { readIssues, TERMINAL, cell } from './model.mjs'
+import { ARCHIVE_INDEX_HEAD, archiveIndexFile, findArchiveTable, archiveRow, cellsOfRow } from './archive-index.mjs'
 import { syncViews } from './views.mjs'
 import { runCheck, BUDGETS } from './check.mjs'
 import { readJournal, journalSummaryLine } from './journal.mjs'
@@ -13,14 +14,6 @@ import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
 import { writePointers } from './pointer.mjs'
 
-const ARCHIVE_INDEX_HEAD = [
-  '# Closed issues',
-  '',
-  'Resolved and wont-fix items, moved here by `/strata:save`. One row per item, in the order they closed. Grep this folder for history.',
-  '',
-  '| Id | Status | Closed | What |',
-  '|---|---|---|---|',
-]
 
 // --- 1. archive terminal issues ---------------------------------------------------
 function trackedState(project, file) {
@@ -37,8 +30,13 @@ function archiveIssues(project, ctx) {
   const issues = readIssues(project).filter((i) => i.frontmatter && i.id && TERMINAL.includes(i.status) && i.topLevel)
   if (!issues.length) return
   const archiveDir = path.join(project, '.strata', 'issues', 'archive')
-  const indexFile = path.join(archiveDir, 'INDEX.md')
+  const target = archiveIndexFile(project)
+  const indexFile = target.file
+  const indexRel = relPosix(project, indexFile)
   let index = readLf(indexFile)
+  const table = index != null ? findArchiveTable(index.split('\n')) : null
+  const header = table ? table.header : cellsOfRow(ARCHIVE_INDEX_HEAD[4])
+  const has = (id) => index != null && (index.includes(`[${id}](`) || index.split('\n').some((l) => /^\s*\|/.test(l) && cellsOfRow(l)[0] === id))
   const rows = []
   for (const i of issues) {
     const st = trackedState(project, i.file)
@@ -58,13 +56,21 @@ function archiveIssues(project, ctx) {
       }
     }
     const id = i.id || path.basename(i.file, '.md')
-    if (!index || !index.includes(`[${id}](`)) rows.push(`| [${cell(id)}](${path.basename(i.file)}) | ${cell(i.status)} | ${today()} | ${cell(i.what, 140)} |`)
+    if (!has(id)) rows.push(archiveRow(header, { id, file: path.basename(i.file), status: i.status, closed: today(), what: i.what }))
   }
   if (rows.length) {
-    ctx.changed.push(`append ${plural(rows.length, 'row')} to .strata/issues/archive/INDEX.md`)
+    ctx.changed.push(`append ${plural(rows.length, 'row')} to ${indexRel}`)
     if (!ctx.dryRun) {
-      const base = index == null ? ARCHIVE_INDEX_HEAD.join('\n') + '\n' : (index.endsWith('\n') ? index : index + '\n')
-      writeText(indexFile, base + rows.join('\n') + '\n')
+      let next
+      if (index == null) next = ARCHIVE_INDEX_HEAD.join('\n') + '\n' + rows.join('\n') + '\n'
+      else if (table) {
+        const lines = index.split('\n')
+        lines.splice(table.end, 0, ...rows)
+        next = lines.join('\n')
+      } else {
+        next = index.replace(/\n*$/, '\n\n') + ARCHIVE_INDEX_HEAD.slice(4).join('\n') + '\n' + rows.join('\n') + '\n'
+      }
+      writeText(indexFile, next)
     }
   }
 }
