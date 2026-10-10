@@ -10,7 +10,7 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { parseArgs, resolveRoots, print, UsageError } from './lib/core.mjs'
+import { parseArgs, resolveRoots, print, UsageError, plural, relPosix } from './lib/core.mjs'
 import * as journal from './lib/journal.mjs'
 import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
@@ -21,6 +21,7 @@ import { writePointers } from './lib/pointer.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
+import { writeTriggerIndex, buildTriggerIndex, matchLessons, formatLessons, pathForms, subjectOf } from './lib/triggers.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
 
@@ -41,6 +42,8 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   drift [--since <rev>] [--json]  commits since the last save that no record mentions
   pointer [--dry-run]             write or refresh the Claude auto-memory pointer (only when the folder exists)
   check [--json]                  validate budgets, frontmatter, ids, links, view drift (exit 1 on errors)
+  triggers [--command <c>] [--path <p>]...   rebuild the lesson-trigger index; with a command
+                                  or paths, show which learnings would fire before that call
   save --prepare [--dry-run]      every mechanical save step, then what needs judgment
 
 kinds: ${journal.KINDS.join(', ')}
@@ -121,6 +124,31 @@ const commands = {
     out(args, { ...res, drifted: stale }, viewsSummary(res) +
       (args.check ? (stale.length ? `\nviews: ${stale.length} differ from a fresh render; run strata views` : '\nviews: current') : ''))
     return args.check && stale.length ? 1 : 0
+  },
+
+  triggers(argv) {
+    const args = parseArgs(argv, { bools: ['json'], multi: ['path'] })
+    const r = resolveRoots(args.root)
+    const res = writeTriggerIndex(r.project)
+    const index = buildTriggerIndex(r.project)
+    const command = typeof args.command === 'string' ? args.command : null
+    const paths = [].concat(args.path || []).filter((p) => typeof p === 'string')
+    const lines = [`lesson triggers: ${plural(res.rules, 'learning')} with match: or paths: (${relPosix(r.project, res.file)}: ${res.state})`]
+    for (const e of res.errors) lines.push(`  [error] ${e.file}: ${e.field} '${e.value}' ${e.reason}`)
+    let hits = null
+    if (command != null || paths.length) {
+      const subject = { tool: command != null ? 'Bash' : 'Edit', command, paths: [] }
+      const forms = new Set()
+      for (const p of paths) for (const f of pathForms(p, { cwd: process.cwd(), project: r.project })) forms.add(f)
+      if (command != null) {
+        for (const f of subjectOf({ tool_name: 'Bash', tool_input: { command }, cwd: process.cwd() }, r.project).paths) forms.add(f)
+      }
+      subject.paths = [...forms]
+      hits = matchLessons(index, subject)
+      lines.push(hits.length ? formatLessons(hits, { tool: subject.tool }) : 'No learning fires for that.')
+    }
+    out(args, { ...res, hits }, lines.join('\n'))
+    return res.errors.length ? 1 : 0
   },
 
   check(argv) {

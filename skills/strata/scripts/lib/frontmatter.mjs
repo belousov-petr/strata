@@ -1,5 +1,6 @@
 // Minimal frontmatter reader for strata files: flat `key: value` scalars, quoted
-// strings, inline `# comments`, and `|` / `>` block scalars. Nested YAML is not
+// strings, inline `# comments`, `|` / `>` block scalars, and lists of scalars
+// (a `- item` block under the key, or an inline `[a, b]`). Nested YAML is not
 // part of the strata schemas, so it is skipped rather than parsed.
 
 const FM = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/
@@ -16,6 +17,20 @@ export function parseFrontmatter(text) {
     const kv = /^([A-Za-z0-9_.-]+)[ \t]*:(?:[ \t]+(.*)|[ \t]*)$/.exec(line)
     if (!kv) continue
     let v = kv[2] == null ? '' : kv[2]
+    if (!v.trim() && i + 1 < lines.length && /^\s*-(\s|$)/.test(lines[i + 1])) {
+      // A block list: `key:` then `- item` lines (indented or not).
+      const items = []
+      while (i + 1 < lines.length && (/^\s*-(\s|$)/.test(lines[i + 1]) || !lines[i + 1].trim())) {
+        const item = /^\s*-\s*(.*)$/.exec(lines[++i])
+        if (item && item[1].trim()) items.push(scalar(item[1]))
+      }
+      data[kv[1]] = items
+      continue
+    }
+    if (/^\[.*\]\s*(#.*)?$/.test(v.trim())) {
+      data[kv[1]] = flowList(v.trim().replace(/\s+#.*$/, ''))
+      continue
+    }
     if (/^[|>][+-]?\s*$/.test(v)) {
       const parts = []
       while (i + 1 < lines.length && (/^\s/.test(lines[i + 1]) || !lines[i + 1].trim())) parts.push(lines[++i].trim())
@@ -26,6 +41,31 @@ export function parseFrontmatter(text) {
     data[kv[1]] = v
   }
   return { present: true, data, body: t.slice(m[0].length) }
+}
+
+// `[a, 'b, c', "d"]`: split on commas outside quotes. Regexes with commas
+// belong in a block list, where each line is one item.
+function flowList(raw) {
+  const inner = raw.slice(raw.indexOf('[') + 1, raw.lastIndexOf(']'))
+  const out = []
+  let cur = ''
+  let q = null
+  for (const ch of inner) {
+    if (q) { cur += ch; if (ch === q) q = null; continue }
+    if (ch === '"' || ch === "'") { q = ch; cur += ch; continue }
+    if (ch === ',') { if (cur.trim()) out.push(scalar(cur)); cur = ''; continue }
+    cur += ch
+  }
+  if (cur.trim()) out.push(scalar(cur))
+  return out
+}
+
+// A frontmatter value as a list: arrays as they are, a non-empty scalar as one item.
+export function asList(v) {
+  if (Array.isArray(v)) return v.map((x) => String(x)).filter((x) => x.trim())
+  if (v == null) return []
+  const s = String(v).trim()
+  return s ? [s] : []
 }
 
 function scalar(raw) {
@@ -81,4 +121,13 @@ export function firstParagraph(body) {
 export function firstHeading(body) {
   const m = /^#{1,3}[ \t]+(.+)$/m.exec(String(body || ''))
   return m ? m[1].trim() : ''
+}
+
+// The first sentence of a text, shortened to `max` characters.
+export function firstSentence(text, max = 220) {
+  const t = String(text || '').replace(/\s+/g, ' ').trim()
+  const m = /^(.+?[.!?])(?=\s|$)/.exec(t)
+  let s = m ? m[1] : t
+  if (s.length > max) s = s.slice(0, max - 1).trimEnd() + '…'
+  return s
 }

@@ -9,6 +9,7 @@ import {
   readIssues, readLearnings, TYPES, STATUSES, SEVERITIES, ORIGINS, TERMINAL, LIVE,
 } from './model.mjs'
 import { syncViews } from './views.mjs'
+import { buildTriggerIndex } from './triggers.mjs'
 import { driverState, DRIVER } from './setup.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
@@ -107,6 +108,7 @@ export function runCheck(project) {
     if (!ORIGINS.includes(l.origin)) add('error', 'learning-bad-origin', where, `origin '${l.origin}' is not one of ${ORIGINS.join(' | ')}`)
     if (l.hot !== null && l.hot !== 'true' && l.hot !== 'false') add('error', 'learning-bad-hot', where, `hot '${l.hot}' must be true or false`)
   }
+  for (const e of buildTriggerIndex(project).errors) add('error', 'learning-bad-match', e.file, `${e.field}: '${e.value}' ${e.reason}`)
 
   // 5. Generated views and hot-rules blocks
   const v = syncViews(project, { check: true })

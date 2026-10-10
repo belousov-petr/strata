@@ -1,5 +1,5 @@
 {
-  "_comment": "Codex CLI capture-guard hooks. Codex plugins cannot ship hooks, so copy this to either ~/.codex/hooks.json (every project on this machine) or <project>/.codex/hooks.json (committed, travels with the repo). Replace the ABSOLUTE path below with the real path to strata's hooks/strata-capture-guard.mjs on each OS. `command` is used on macOS/Linux; `commandWindows` on Windows. Requires `node` on PATH.",
+  "_comment": "Codex CLI capture-guard hooks. Codex plugins cannot ship hooks, so copy this to either ~/.codex/hooks.json (every project on this machine) or <project>/.codex/hooks.json (committed, travels with the repo). Replace the ABSOLUTE paths below with the real path to strata's hooks/ folder on each OS (strata-capture-guard.mjs logs failures; strata-lesson-trigger.mjs shows matching lessons before a command or an edit). `command` is used on macOS/Linux; `commandWindows` on Windows. Requires `node` on PATH.",
   "hooks": {
     "SessionStart": [
       {
@@ -9,6 +9,19 @@
             "command": "node \"/ABSOLUTE/PATH/TO/strata/hooks/strata-capture-guard.mjs\"",
             "commandWindows": "node \"C:\\\\ABSOLUTE\\\\PATH\\\\TO\\\\strata\\\\hooks\\\\strata-capture-guard.mjs\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|apply_patch|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/ABSOLUTE/PATH/TO/strata/hooks/strata-lesson-trigger.mjs\"",
+            "commandWindows": "node \"C:\\\\ABSOLUTE\\\\PATH\\\\TO\\\\strata\\\\hooks\\\\strata-lesson-trigger.mjs\"",
+            "timeout": 5
           }
         ]
       }
