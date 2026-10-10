@@ -4,11 +4,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { readLf, writeText, exists, relPosix, git, inGit, today, plural } from './core.mjs'
-import { readIssues, TERMINAL, cell } from './model.mjs'
+import { readIssues, findIssue, TERMINAL, cell } from './model.mjs'
 import { ARCHIVE_INDEX_HEAD, archiveIndexFile, findArchiveTable, archiveRow, cellsOfRow } from './archive-index.mjs'
 import { syncViews } from './views.mjs'
 import { runCheck, BUDGETS } from './check.mjs'
-import { readJournal, journalSummaryLine } from './journal.mjs'
+import { readJournal, journalSummaryLine, markFiled } from './journal.mjs'
 import { inboxSummary } from './inbox.mjs'
 import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
@@ -73,6 +73,58 @@ function archiveIssues(project, ctx) {
       writeText(indexFile, next)
     }
   }
+}
+
+// --- 0. journal entries routed to an issue (ADR-0022) -------------------------------
+function localDate(ts) {
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return today()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+// `**Update <date> (journal <id>):** <title>. <text>`
+export function updateParagraph(e) {
+  const title = String(e.title || '').trim()
+  let text = String(e.text || '').trim()
+  if (text && title && text.startsWith(title)) text = text.slice(title.length).trim()
+  const head = title && !/[.!?:]$/.test(title) ? `${title}.` : title
+  return `**Update ${localDate(e.ts)} (journal ${e.id}):** ${[head, text].filter(Boolean).join(' ')}`.trim()
+}
+
+// Insert before the Resolution line, or at the end, with blank lines around.
+export function insertUpdate(body, para) {
+  const lines = body.replace(/\n*$/, '').split('\n')
+  const at = lines.findIndex((l) => /^\*\*Resolution:\*\*/.test(l))
+  if (at < 0) return lines.join('\n') + '\n\n' + para + '\n'
+  const before = lines.slice(0, at)
+  while (before.length && !before[before.length - 1].trim()) before.pop()
+  return [...before, '', para, '', ...lines.slice(at)].join('\n') + '\n'
+}
+
+function appendJournalUpdates(roots, ctx) {
+  const { project } = roots
+  const pending = readJournal(roots.shared).filter((e) => e.route === 'append' && !e.filed)
+  const filed = {}
+  for (const e of pending) {
+    const ref = (e.refs || [])[0]
+    const target = findIssue(project, ref)
+    if (!target || target.archived || !target.topLevel) {
+      ctx.judgment.push(`journal ${e.id} asks to be appended to '${ref}', which is not a live issue here; route it by hand`)
+      continue
+    }
+    const rel = relPosix(project, target.file)
+    const cur = readLf(target.file)
+    if (cur == null) continue
+    if (cur.includes(`(journal ${e.id})`)) { filed[e.id] = rel; continue }
+    ctx.changed.push(`append journal ${e.id} to ${rel} as a dated update`)
+    ctx.appended = (ctx.appended || 0) + 1
+    if (!ctx.dryRun) {
+      writeText(target.file, insertUpdate(cur, updateParagraph(e)))
+      filed[e.id] = rel
+    }
+  }
+  if (!ctx.dryRun) markFiled(roots, filed)
 }
 
 // --- 2. roll old sessions out of project_state.md -----------------------------------
@@ -154,6 +206,7 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   const ctx = { dryRun, changed: [], judgment: [], info: {}, opts }
   const { project } = roots
 
+  appendJournalUpdates(roots, ctx)
   archiveIssues(project, ctx)
   rollSessions(project, ctx)
 
@@ -189,7 +242,12 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
 
   const entries = readJournal(roots.shared)
   ctx.info.journal = entries.length
-  if (entries.length) ctx.judgment.unshift(`${journalSummaryLine(entries)} Then run strata journal clear --all.`)
+  if (entries.length) {
+    const n = ctx.appended || 0
+    const verb = ctx.dryRun ? 'would be appended' : n === 1 ? 'was appended' : 'were appended'
+    const appended = n ? ` ${n} ${verb} to ${n === 1 ? 'its issue' : 'their issues'} by save --prepare${ctx.dryRun ? '' : ' and marked filed'}; route the rest.` : ''
+    ctx.judgment.unshift(`${journalSummaryLine(entries)}${appended} Then run strata journal clear --all.`)
+  }
 
   const inbox = inboxSummary(roots.shared)
   ctx.info.inbox = { total: inbox.total, counts: inbox.counts, repeated: inbox.repeated }

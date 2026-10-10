@@ -21,11 +21,13 @@ import { writePointers } from './lib/pointer.mjs'
 import { runCheck, formatCheck } from './lib/check.mjs'
 import { prepare, formatPrepare } from './lib/save.mjs'
 import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
+import { findIssue } from './lib/model.mjs'
 import { writeTriggerIndex, buildTriggerIndex, matchLessons, formatLessons, pathForms, subjectOf } from './lib/triggers.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
 
   journal add --kind <kind> --title <t> [--text <t> | --text - (stdin)] [--lineage <l>] [--ref <path>]... [--filed <path>]
+              [--refs <issue-id> --route append]   save appends it to that issue as a dated update
   journal list [--json]
   journal clear (--all | --id <id>...)
   status [--json]                 load-time summary: pending captures, inbox, views
@@ -72,7 +74,7 @@ const commands = {
 
   journal(argv) {
     const [sub, ...rest] = argv
-    const args = parseArgs(rest, { bools: ['json', 'all'], multi: ['ref', 'id'] })
+    const args = parseArgs(rest, { bools: ['json', 'all'], multi: ['ref', 'refs', 'id'] })
     const r = resolveRoots(args.root)
     if (sub === 'add') {
       // `--text -` reads the text from stdin (a heredoc or a pipe). Stdin is only
@@ -81,7 +83,14 @@ const commands = {
       if (text === '-') text = readStdin()
       const e = journal.addEntry(r, { ...args, text })
       const n = journal.readJournal(r.shared).length
-      out(args, { entry: e, pending: n }, `journal: +1 ${e.kind} (${e.id}). ${n} pending.`)
+      let note = ''
+      if (e.route === 'append') {
+        const target = findIssue(r.project, e.refs[0])
+        note = target && !target.archived
+          ? ` /strata:save appends it to ${target.rel} as a dated update.`
+          : ` Note: no live issue '${e.refs[0]}' in this tree; /strata:save will leave the entry for judgment.`
+      }
+      out(args, { entry: e, pending: n }, `journal: +1 ${e.kind} (${e.id}). ${n} pending.${note}`)
       return 0
     }
     if (sub === 'list') {

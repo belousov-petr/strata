@@ -45,6 +45,17 @@ export function readIssues(project, { includeArchive = false } = {}) {
   return out
 }
 
+// An issue by id, by its path under issues/, or by its file name.
+export function findIssue(project, ref) {
+  const want = String(ref || '').trim().replace(/\\/g, '/').replace(/^\.strata\/issues\//, '')
+  if (!want) return null
+  const all = readIssues(project, { includeArchive: true }).filter((i) => i.frontmatter)
+  const byId = all.filter((i) => i.id === want)
+  const hit = byId.find((i) => !i.archived) || byId[0] ||
+    all.find((i) => i.rel === want || i.rel === `${want}.md` || path.basename(i.rel) === want || path.basename(i.rel, '.md') === want)
+  return hit || null
+}
+
 export function readLearnings(project) {
   const dir = learningsDir(project)
   let names = []

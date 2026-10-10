@@ -82,3 +82,47 @@ test('the script explains what to do outside a strata project', () => {
 })
 
 function spawnGitStatus(dir) { return git(dir, 'status', '--porcelain') }
+
+test('journal add --refs <id> --route append: save appends a dated update before Resolution and marks it filed', async () => {
+  const { issue, read, write } = await import('./helpers.mjs')
+  const dir = gitProject()
+  issue(dir, { id: '20261003-01', slug: 'probe', status: 'in-progress', what: 'Flaky probe' })
+  write(dir, '.strata/issues/20261003-01-probe.md', read(dir, '.strata/issues/20261003-01-probe.md') + '\n**Resolution:** _open_\n')
+  const a = run(['journal', 'add', '--kind', 'finding', '--title', 'Probe fails only on cold start', '--refs', '20261003-01', '--route', 'append', '--text', 'Seen twice after a reboot.'], { cwd: dir })
+  assert.equal(a.status, 0, a.stderr)
+  assert.match(a.stdout, /appends it to 20261003-01-probe\.md as a dated update/)
+  run(['journal', 'add', '--kind', 'decision', '--title', 'Keep the probe'], { cwd: dir })
+  const id = runJson(['journal', 'list'], { cwd: dir }).json.entries[0].id
+
+  const dry = runJson(['save', '--prepare', '--dry-run'], { cwd: dir }).json
+  assert.ok(dry.changed.includes(`append journal ${id} to .strata/issues/20261003-01-probe.md as a dated update`))
+  assert.ok(!read(dir, '.strata/issues/20261003-01-probe.md').includes('Update '), 'dry run writes nothing')
+
+  const res = run(['save', '--prepare'], { cwd: dir })
+  assert.match(res.stdout, /Pending captures: 2 \(1 decision, 1 finding\)\. .*1 was appended to its issue by save --prepare and marked filed; route the rest\./)
+  const body = read(dir, '.strata/issues/20261003-01-probe.md')
+  assert.match(body, new RegExp(`\\n\\n\\*\\*Update \\d{4}-\\d{2}-\\d{2} \\(journal ${id}\\):\\*\\* Probe fails only on cold start\\. Seen twice after a reboot\\.\\n\\n\\*\\*Resolution:\\*\\* _open_\\n$`))
+  const entries = runJson(['journal', 'list'], { cwd: dir }).json.entries
+  assert.equal(entries.find((e) => e.id === id).filed, '.strata/issues/20261003-01-probe.md')
+  assert.equal(entries.find((e) => e.kind === 'decision').filed, null, 'entries without the route stay for judgment')
+
+  const again = runJson(['save', '--prepare'], { cwd: dir }).json
+  assert.ok(!again.changed.some((c) => c.startsWith('append journal')), 'a re-run appends nothing twice')
+  assert.equal(read(dir, '.strata/issues/20261003-01-probe.md'), body)
+  rm(dir)
+})
+
+test('journal --route append needs a ref; an unknown issue is left for judgment', () => {
+  const dir = gitProject()
+  const bad = run(['journal', 'add', '--kind', 'note', '--title', 'x', '--route', 'append'], { cwd: dir })
+  assert.equal(bad.status, 2)
+  assert.match(bad.stderr, /needs the issue id/)
+  assert.equal(run(['journal', 'add', '--kind', 'note', '--title', 'x', '--refs', 'a', '--route', 'elsewhere'], { cwd: dir }).status, 2)
+  const a = run(['journal', 'add', '--kind', 'note', '--title', 'Orphan', '--refs', '20990101-01', '--route', 'append'], { cwd: dir })
+  assert.equal(a.status, 0)
+  assert.match(a.stdout, /no live issue '20990101-01'/)
+  const res = runJson(['save', '--prepare'], { cwd: dir }).json
+  assert.ok(res.judgment.some((j) => /asks to be appended to '20990101-01', which is not a live issue/.test(j)))
+  assert.equal(runJson(['journal', 'list'], { cwd: dir }).json.entries[0].filed, null)
+  rm(dir)
+})
