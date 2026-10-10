@@ -199,3 +199,16 @@ test('the learning template parses: an empty key with a comment still takes a li
   assert.deepEqual(fm.paths, ['<glob>'])
   assert.equal(fm.hot, 'false')
 })
+
+test('a hooks folder copied without the rest of the plugin stays silent', () => {
+  const dir = gitProject()
+  lesson(dir, 'push', { match: ['git push'] })
+  const lone = fs.mkdtempSync(path.join(path.dirname(dir), 'lone-hooks-'))
+  fs.mkdirSync(path.join(lone, 'hooks'))
+  fs.copyFileSync(hookPath, path.join(lone, 'hooks', 'strata-lesson-trigger.mjs'))
+  const r = spawnSync(process.execPath, [path.join(lone, 'hooks', 'strata-lesson-trigger.mjs')], { input: JSON.stringify(bash(dir, 'git push')), encoding: 'utf8', env: cleanEnv() })
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(r.stdout, '')
+  rm(lone)
+  rm(dir)
+})

@@ -19,9 +19,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
-import {
-  loadTriggerIndex, subjectOf, matchLessons, formatLessons, filterShown, recordShown,
-} from '../skills/strata/scripts/lib/triggers.mjs'
+
+// The matcher lives with the strata script. Loaded this way, a hooks folder
+// copied without the rest of the plugin stays silent instead of failing.
+let T = null
+try { T = await import('../skills/strata/scripts/lib/triggers.mjs') } catch { T = null }
 
 const DEFAULT_REPEAT_MINUTES = 30
 
@@ -64,24 +66,24 @@ function readStdin() {
 // The whole decision as a pure function of the payload, for tests.
 // Returns the additionalContext text, or null to stay silent.
 export function lessonsFor(payload, { env = process.env, now = Date.now() } = {}) {
-  if (disabled(env)) return null
+  if (disabled(env) || !T) return null
   const event = payload.hook_event_name || payload.hookEventName
   if (event && event !== 'PreToolUse') return null
   const project = findProject(path.resolve(payload.cwd || process.cwd()))
   if (!project) return null
-  const subject = subjectOf(payload, project)
+  const subject = T.subjectOf(payload, project)
   if (!subject || (subject.command == null && !subject.paths.length)) return null
-  const index = loadTriggerIndex(project)
+  const index = T.loadTriggerIndex(project)
   if (!index.rules.length) return null
-  let hits = matchLessons(index, subject, { max: 50 })
+  let hits = T.matchLessons(index, subject, { max: 50 })
   const sid = payload.session_id || payload.sessionId || ''
   // A session runs in one worktree, so its repeat state sits beside the index.
   const inbox = path.join(project, '.strata', 'inbox')
   const minutes = repeatMinutes(env)
-  hits = filterShown(inbox, sid, hits, minutes, now).slice(0, 3)
+  hits = T.filterShown(inbox, sid, hits, minutes, now).slice(0, 3)
   if (!hits.length) return null
-  try { recordShown(inbox, sid, hits, now) } catch { /* best effort */ }
-  return formatLessons(hits, { tool: subject.tool })
+  try { T.recordShown(inbox, sid, hits, now) } catch { /* best effort */ }
+  return T.formatLessons(hits, { tool: subject.tool })
 }
 
 async function main() {
