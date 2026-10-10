@@ -219,10 +219,16 @@ function recentHashes(file) {
 }
 
 // Append a stub unless a recent identical one exists. Returns true if written.
-function appendStub(root, stub) {
+// A benign exit (grep with no match, a false test, ...) is counted instead of
+// stored (ADR-0024). `command` is the full command when the stub's is cut short.
+function appendStub(root, stub, { command } = {}) {
   try {
     const { dir, file } = inboxPaths(root)
     const h = stubHash(stub)
+    if (stub.category === 'failure') {
+      const name = benignExit(command ?? stub.command, exitCodeOf(stub.signal))
+      if (name) { countBenign(root, name, h); return false }
+    }
     if (recentHashes(file).has(h)) return false
     ensureInbox(dir)
     fs.appendFileSync(file, JSON.stringify({ ...stub, h }) + '\n')
@@ -332,6 +338,120 @@ export function stubCategory(stub) {
   return policySignal(String((stub && stub.snippet) || '')) ? 'policy' : 'failure'
 }
 
+// --- benign exits (ADR-0024) ------------------------------------------------
+// Exit code 1 from these commands is an answer, not a failure: grep found
+// nothing, a test was false, two files differ, a program is not installed.
+export const BENIGN_COMMANDS = ['grep', 'egrep', 'fgrep', 'rg', 'ag', 'test', '[', '[[', 'diff', 'cmp', 'which', 'command -v']
+const BENIGN = new Set(BENIGN_COMMANDS)
+// Commands that do not fail with exit code 1 in practice, so they cannot be
+// the source of that status when they sit next to a benign command.
+const SAFE = new Set(['echo', 'printf', 'true', ':', 'cd', 'pushd', 'popd', 'export', 'unset', 'local', 'declare'])
+const WRAPPERS = new Set(['sudo', 'env', 'nice', 'nohup', 'time', 'builtin', 'exec'])
+
+export function exitCodeOf(signal) {
+  const m = /(?:exit(?:ed with)? code|Process exited with code)\s+(\d+)\s*$/i.exec(String(signal || ''))
+  return m ? Number(m[1]) : null
+}
+
+// Split a shell command at top-level operators, outside quotes and brackets.
+// Returns [{ text, op }] where `op` is the operator after the segment.
+export function splitShell(cmd) {
+  const out = []
+  let cur = ''
+  let q = null
+  let depth = 0
+  const s = String(cmd || '')
+  const push = (op) => { out.push({ text: cur.trim(), op }); cur = '' }
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (q) { cur += c; if (c === '\\' && q === '"') { cur += s[++i] || '' } else if (c === q) q = null; continue }
+    if (c === '\\') { cur += c + (s[++i] || ''); continue }
+    if (c === "'" || c === '"') { q = c; cur += c; continue }
+    if (c === '(' || c === '{') { depth++; cur += c; continue }
+    if ((c === ')' || c === '}') && depth > 0) { depth--; cur += c; continue }
+    if (depth > 0) { cur += c; continue }
+    const two = s.slice(i, i + 2)
+    if (two === '&&' || two === '||') { push(two); i++; continue }
+    if (c === '|' ) { push('|'); continue }
+    if (c === ';' || c === '\n' || (c === '&' && s[i + 1] !== '>' && s[i - 1] !== '>')) { push(';'); continue }
+    cur += c
+  }
+  push('')
+  return out.filter((x) => x.text)
+}
+
+// The command word of one simple command, past assignments and wrappers.
+export function commandName(segment) {
+  const words = String(segment || '').trim().match(/"[^"]*"|'[^']*'|\S+/g) || []
+  let i = 0
+  while (i < words.length) {
+    const w = words[i]
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(w)) { i++; continue }
+    if (WRAPPERS.has(w)) { i++; while (i < words.length && /^-/.test(words[i])) i++; continue }
+    if (w === 'timeout') { i++; while (i < words.length && /^-/.test(words[i])) i++; i++; continue }
+    if (w === 'command') {
+      if (/^-[vV]$/.test(words[i + 1] || '')) return 'command -v'
+      i++
+      continue
+    }
+    break
+  }
+  const w = (words[i] || '').replace(/^['"]|['"]$/g, '')
+  if (!w || w === '!' || /^[({]/.test(w)) return null
+  return w === '[' || w === '[[' ? w : w.split(/[\\/]/).pop()
+}
+
+// The benign command that explains exit code 1 of `command`, or null. Exit
+// status comes from the last list (after the last ; or newline), unless the
+// command sets errexit; in it, every command that could have set the status
+// must be benign or safe, and at least one must be benign.
+export function benignExit(command, exitCode) {
+  if (exitCode !== 1 || !command) return null
+  const cmd = String(command)
+  const segs = splitShell(cmd)
+  if (!segs.length) return null
+  const errexit = /\bset\s+-[a-z]*e|\berrexit\b|\bbash\s+-[a-z]*e/.test(cmd)
+  const pipefail = /\bpipefail\b/.test(cmd)
+  let from = 0
+  if (!errexit) for (let k = segs.length - 2; k >= 0; k--) if (segs[k].op === ';') { from = k + 1; break }
+  let found = null
+  for (let k = from; k < segs.length; k++) {
+    // Without pipefail only the last element of a pipeline sets its status.
+    if (segs[k].op === '|' && !pipefail) continue
+    const name = commandName(segs[k].text)
+    if (!name) return null
+    if (BENIGN.has(name)) { found = found || name; continue }
+    if (!SAFE.has(name)) return null
+  }
+  return found
+}
+
+export function benignPath(root) { return path.join(root, '.strata', 'inbox', 'benign.json') }
+
+export function readBenign(root) {
+  try {
+    const j = JSON.parse(fs.readFileSync(benignPath(root), 'utf8'))
+    return { total: Number(j.total) || 0, counts: j.counts && typeof j.counts === 'object' ? j.counts : {}, recent: Array.isArray(j.recent) ? j.recent : [] }
+  } catch { return { total: 0, counts: {}, recent: [] } }
+}
+
+// Count one benign exit, once per tool call (the live event and a later
+// transcript scan share the hash).
+function countBenign(root, name, h) {
+  const cur = readBenign(root)
+  if (h && cur.recent.includes(h)) return false
+  cur.total++
+  cur.counts[name] = (cur.counts[name] || 0) + 1
+  if (h) cur.recent = [...cur.recent, h].slice(-300)
+  const { dir } = inboxPaths(root)
+  ensureInbox(dir)
+  const file = benignPath(root)
+  const tmp = `${file}.tmp-${process.pid}`
+  fs.writeFileSync(tmp, JSON.stringify(cur) + '\n')
+  fs.renameSync(tmp, file)
+  return true
+}
+
 export function readStubs(root) {
   try {
     return fs.readFileSync(inboxPaths(root).file, 'utf8').split('\n').filter((l) => l.trim())
@@ -341,12 +461,33 @@ export function readStubs(root) {
 
 // Counts by category, plus failures seen at least twice (same command, or the
 // same signal and output tail when there is no command).
-export function summarizeStubs(stubs) {
+// Benign exits stored before 0.2.0 are moved to the benign tally, and
+// permission refusals are grouped by command: steps the agent was not allowed
+// to take, for the operator to run or approve.
+export function summarizeStubs(stubs, benignFile = null) {
   const counts = Object.fromEntries(CATEGORIES.map((c) => [c, 0]))
   const groups = new Map()
+  const benign = { total: 0, counts: {} }
+  const refusedBy = new Map()
+  if (benignFile) {
+    benign.total += benignFile.total
+    for (const [k, v] of Object.entries(benignFile.counts)) benign.counts[k] = (benign.counts[k] || 0) + Number(v || 0)
+  }
   for (const s of stubs) {
     const cat = stubCategory(s)
+    if (cat === 'failure') {
+      const name = benignExit(s.command, exitCodeOf(s.signal))
+      if (name) { benign.total++; benign.counts[name] = (benign.counts[name] || 0) + 1; continue }
+    }
     counts[cat] = (counts[cat] || 0) + 1
+    if (cat === 'policy') {
+      const cmd = String(s.command || '').replace(/\s+/g, ' ').trim().slice(0, 200)
+      const key = cmd || `sig|${s.signal || ''}`
+      const signal = /tool_use_error>\s*Blocked/i.test(String(s.signal || '')) ? 'Blocked by a hook or the harness' : String(s.signal || '')
+      const g = refusedBy.get(key) || { command: cmd, signal, count: 0 }
+      g.count++
+      refusedBy.set(key, g)
+    }
     if (cat !== 'failure') continue
     const cmd = String(s.command || '').replace(/\s+/g, ' ').trim().slice(0, 200)
     const key = cmd ? `cmd|${cmd}` : `sig|${s.signal || ''}|${String(s.snippet || '').replace(/\s+/g, ' ').trim().slice(-80)}`
@@ -357,18 +498,31 @@ export function summarizeStubs(stubs) {
   }
   const repeated = [...groups.values()].filter((g) => g.count >= 2)
     .sort((a, b) => b.count - a.count || (a.command < b.command ? -1 : 1))
-  return { total: stubs.length, counts, repeated }
+  const refused = [...refusedBy.values()].sort((a, b) => b.count - a.count || (a.command < b.command ? -1 : 1))
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  return { total, counts, repeated, benign, refused }
+}
+
+// Stubs plus the benign-exit counter of one inbox.
+export function summarizeInbox(root) {
+  return summarizeStubs(readStubs(root), readBenign(root))
+}
+
+function benignText(b) {
+  const top = Object.entries(b.counts).sort((x, y) => y[1] - x[1] || (x[0] < y[0] ? -1 : 1)).slice(0, 4).map(([k, v]) => `${k} ${v}`)
+  return `${b.total} benign exit${b.total === 1 ? '' : 's'} counted, not stored${top.length ? ` (${top.join(', ')})` : ''}`
 }
 
 export function summaryLine(sum) {
-  if (!sum.total) return 'Inbox: empty.'
+  const b = sum.benign && sum.benign.total ? sum.benign : null
+  if (!sum.total) return b ? `Inbox: no captures; ${benignText(b)}.` : 'Inbox: empty.'
   const parts = []
   const c = sum.counts
   if (c.failure) parts.push(`${c.failure} failure${c.failure === 1 ? '' : 's'}${sum.repeated.length ? ` (${sum.repeated.length} repeated)` : ''}`)
   if (c.policy) parts.push(`${c.policy} policy refusal${c.policy === 1 ? '' : 's'}`)
   if (c['tool-error']) parts.push(`${c['tool-error']} tool error${c['tool-error'] === 1 ? '' : 's'}`)
   if (c.interrupted) parts.push(`${c.interrupted} interrupted`)
-  return `Inbox: ${sum.total} capture${sum.total === 1 ? '' : 's'}: ${parts.join(', ')}.`
+  return `Inbox: ${sum.total} capture${sum.total === 1 ? '' : 's'}: ${parts.join(', ')}.` + (b ? ` ${benignText(b)[0].toUpperCase()}${benignText(b).slice(1)}.` : '')
 }
 
 export function journalCount(root) {
@@ -413,7 +567,7 @@ function handlePostToolUse(root, payload) {
   if (!r) return { logged: 0 }
   const ok = appendStub(root, stubFor('PostToolUse', tool, r, {
     command: input.command, text, tuid: payload.tool_use_id || payload.toolUseId,
-  }))
+  }), { command: input.command })
   return { logged: ok ? 1 : 0, category: r.category }
 }
 
@@ -427,7 +581,7 @@ function handlePostToolUseFailure(root, payload) {
   if (!r) return { logged: 0 }
   const ok = appendStub(root, stubFor('PostToolUseFailure', tool, r, {
     command: input.command, text: err, tuid: payload.tool_use_id || payload.toolUseId,
-  }))
+  }), { command: input.command })
   return { logged: ok ? 1 : 0, category: r.category }
 }
 
@@ -489,7 +643,7 @@ export function scanTranscript(root, tp, event) {
       if (!r) continue
       if (appendStub(root, stubFor(event, tool, r, {
         command: origin ? origin.command : '', text: t, ts: o.timestamp, tuid: blk.tool_use_id,
-      }))) logged++
+      }), { command: origin ? origin.command : '' })) logged++
     }
 
     // Codex rollout line: {type:'response_item', payload:{type:'function_call'|'function_call_output', …}}
@@ -507,7 +661,7 @@ export function scanTranscript(root, tp, event) {
       const r = classify({ tool: call.name, text: t, exitCode })
       if (r && appendStub(root, stubFor(event, call.name, r, {
         command: call.command, text: t, ts: o.timestamp, tuid: cp.call_id,
-      }))) logged++
+      }), { command: call.command })) logged++
     }
   }
 
@@ -531,6 +685,7 @@ function pendingNote(root) {
   if (j) parts.push(`${j} pending capture${j === 1 ? '' : 's'} in the journal`)
   const sum = summarizeStubs(readStubs(root))
   if (sum.total) parts.push(summaryLine(sum).replace(/^Inbox: /, 'inbox: ').replace(/\.$/, ''))
+  if (sum.counts.policy) parts.push(`${sum.counts.policy} step${sum.counts.policy === 1 ? '' : 's'} refused for the agent, to hand to the operator`)
   return parts.length ? ` Waiting for the next /strata:save: ${parts.join('; ')}.` : ''
 }
 

@@ -279,11 +279,12 @@ test('recorded Codex rollout: exit codes decide, refusals are policy', () => {
   fs.copyFileSync(fixture('codex-rollout.jsonl'), tp)
   guard.scanTranscript(root, tp, 'Stop')
   const got = inboxLines(root)
+  // rg exit 1 means "no match": counted as a benign exit, not stored (ADR-0024).
   assert.deepEqual(got.map((x) => [x.command, x.category, x.signal]), [
-    ['rg -n "Permission denied" src', 'failure', 'exit code 1'],
     ['ls /nope', 'failure', 'exit code 2'],
     ['rm -rf dist', 'policy', 'rejected by user'],
   ])
+  assert.deepEqual(guard.readBenign(root).counts, { rg: 1 })
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -387,4 +388,73 @@ test('a result whose tool_use precedes the scan window is classified from its ow
   assert.equal(got[0].category, 'failure')
   assert.equal(got[0].tool, 'Bash')
   fs.rmSync(root, { recursive: true, force: true })
+})
+
+// --- 0.2.0: benign exits are counted, refusals are handed to the operator (ADR-0024)
+
+test('benignExit: exit 1 of a search, test, compare or lookup is an answer, not a failure', () => {
+  const b = guard.benignExit
+  assert.equal(b('grep -rn TODO src/', 1), 'grep')
+  assert.equal(b('rg -n foo | head', 1), null, 'the last element of a pipeline sets the status')
+  assert.equal(b('cat log | grep -c ERROR', 1), 'grep')
+  assert.equal(b('[ -f build/out.js ] && echo built', 1), '[')
+  assert.equal(b('[[ -d x ]]', 1), '[[')
+  assert.equal(b('test -n "$X"', 1), 'test')
+  assert.equal(b('diff -u a.txt b.txt', 1), 'diff')
+  assert.equal(b('cmp a b', 1), 'cmp')
+  assert.equal(b('command -v jq', 1), 'command -v')
+  assert.equal(b('which jq', 1), 'which')
+  assert.equal(b('cd src && LC_ALL=C /usr/bin/grep -q x y', 1), 'grep')
+  assert.equal(b('npm test; grep -q done log', 1), 'grep', 'only the last list sets the status')
+  assert.equal(b('set -e; npm test; grep -q done log', 1), null, 'errexit: an earlier command may have failed')
+  assert.equal(b('npm test && grep x log', 1), null, 'the status may come from npm test')
+  assert.equal(b('set -o pipefail; npm test | grep x', 1), null)
+  assert.equal(b('grep x file', 2), null, 'exit 2 is a real grep error')
+  assert.equal(b('! grep x file', 1), null)
+  assert.equal(b('ls /nope', 2), null)
+  assert.equal(b('echo "a && b" | grep -q "x; y"', 1), 'grep', 'operators inside quotes do not split')
+})
+
+test('a benign exit is counted once, not stored; summaries keep the four categories', () => {
+  const root = tmpRoot()
+  const fail = (id, command, error = 'Exit code 1') => runHook({ hook_event_name: 'PostToolUseFailure', cwd: root, tool_name: 'Bash', tool_use_id: id, tool_input: { command }, error })
+  fail('t1', 'grep -rn nothing-here src/')
+  fail('t1', 'grep -rn nothing-here src/') // the same call again (a later scan)
+  fail('t2', '[ -f out.js ] && echo yes')
+  fail('t3', 'npm test', 'Exit code 1\nnpm ERR! test failed')
+  assert.deepEqual(inboxLines(root).map((x) => x.command), ['npm test'])
+  const sum = guard.summarizeInbox(root)
+  assert.deepEqual(sum.counts, { failure: 1, policy: 0, 'tool-error': 0, interrupted: 0 })
+  assert.deepEqual(sum.benign, { total: 2, counts: { grep: 1, '[': 1 } })
+  assert.equal(guard.summaryLine(sum), 'Inbox: 1 capture: 1 failure. 2 benign exits counted, not stored ([ 1, grep 1).')
+  fs.rmSync(root, { recursive: true, force: true })
+})
+
+test('benign stubs stored before 0.2.0 are read as benign, not as failures', () => {
+  const sum = guard.summarizeStubs([
+    { category: 'failure', signal: 'Exit code 1', command: 'rg -n foo' },
+    { category: 'failure', signal: 'exit code 1', command: 'test -d x' },
+    { category: 'failure', signal: 'Exit code 1', command: 'npm test' },
+  ])
+  assert.equal(sum.counts.failure, 1)
+  assert.equal(sum.total, 1)
+  assert.equal(sum.benign.total, 2)
+})
+
+test('status and save hand permission refusals to the operator', async () => {
+  const { gitProject, run, runJson, rm } = await import('./helpers.mjs')
+  const dir = gitProject()
+  const tp = path.join(dir, '..', path.basename(dir) + '-refusals.jsonl')
+  fs.copyFileSync(fixture('claude-session.jsonl'), tp)
+  guard.scanTranscript(dir, tp, 'PreCompact')
+  const st = run(['status'], { cwd: dir }).stdout
+  assert.match(st, /Steps refused for the agent; hand them to the operator:\n/)
+  assert.match(st, /\n {2}rm -rf build {2}\[denied by the Claude Code auto mode classifier\]\n/)
+  assert.match(st, /\n {2}sleep 60 && make {2}\[Blocked by a hook or the harness\]\n/)
+  const sp = runJson(['save', '--prepare', '--dry-run'], { cwd: dir }).json
+  assert.ok(sp.judgment.some((j) => /^steps refused for the agent; hand them to the operator: .*rm -rf build \(denied by the Claude Code auto mode classifier\)/.test(j)), sp.judgment.join('\n'))
+  const c = runJson(['inbox', 'clear'], { cwd: dir }).json
+  assert.equal(c.cleared, 10)
+  fs.rmSync(tp, { force: true })
+  rm(dir)
 })

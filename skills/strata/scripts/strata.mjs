@@ -200,7 +200,7 @@ const commands = {
     }
     if (sub === 'clear') {
       const res = clearInbox(r.shared)
-      out(args, res, `inbox: cleared ${res.cleared} stub${res.cleared === 1 ? '' : 's'}` + (res.pruned ? `, pruned ${res.pruned} stale cursor${res.pruned === 1 ? '' : 's'}` : '') + '.')
+      out(args, res, `inbox: cleared ${res.cleared} stub${res.cleared === 1 ? '' : 's'}` + (res.benign ? ` and ${res.benign} benign-exit count${res.benign === 1 ? '' : 's'}` : '') + (res.pruned ? `, pruned ${res.pruned} stale cursor${res.pruned === 1 ? '' : 's'}` : '') + '.')
       return 0
     }
     throw new UsageError('strata inbox: use summary or clear')
@@ -269,7 +269,7 @@ const commands = {
     out(args, {
       roots: r,
       journal: { pending: entries.length, kinds: Object.fromEntries(journal.kindCounts(entries)) },
-      inbox: { total: sum.total, counts: sum.counts, repeated: sum.repeated },
+      inbox: { total: sum.total, counts: sum.counts, repeated: sum.repeated, benign: sum.benign, refused: sum.refused },
       views: { drifted: stale },
       dated: {
         reached: dated.parked.reached.map((e) => ({ id: e.issue.id, date: e.date })),
