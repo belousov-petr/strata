@@ -272,8 +272,10 @@ const commands = {
     lines.push(stale.length ? `Views: ${stale.length} differ from a fresh render (${stale.join(', ')}); /strata:save regenerates them.` : 'Views: current.')
     // Projects initialized before 0.1.0 lack the merge driver and the hot-rules block.
     const missing = []
+    const drv = driverState(r.project)
     if (!fs.existsSync(path.join(r.project, '.gitattributes')) || !fs.readFileSync(path.join(r.project, '.gitattributes'), 'utf8').includes('merge=strata-views')) missing.push('views merge driver')
-    else if (driverState(r.project).inGit && !driverState(r.project).configured) missing.push('merge driver in this clone')
+    else if (drv.inGit && !drv.configured) missing.push('merge driver in this clone')
+    else if (drv.inGit && drv.missing.length) lines.push(`Setup: the views merge driver points at a file that no longer exists (${drv.missing[0]}), so git cannot merge the views. Run /strata:init once (Codex: Skill(name='strata', args='init')) to repair it.`)
     if (syncHotRules(r.project, { check: true }).results.some((x) => x.state === 'no-markers')) missing.push('hot-rules block in CLAUDE.md / AGENTS.md')
     if (missing.length) lines.push(`Setup: missing ${missing.join(', ')}. Run /strata:init once (Codex: Skill(name='strata', args='init')); it runs strata setup and changes nothing else.`)
     out(args, {

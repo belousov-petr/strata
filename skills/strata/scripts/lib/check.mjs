@@ -188,6 +188,7 @@ export function runCheck(project, { baseline = true } = {}) {
   if (attrs.includes(`merge=${DRIVER}`)) {
     const st = driverState(project)
     if (st.inGit && !st.configured) add('warn', 'merge-driver-missing', '.gitattributes', `this clone has no merge.${DRIVER}.driver; run strata setup once`)
+    else if (st.inGit && st.missing.length) add('warn', 'merge-driver-broken', '.gitattributes', `merge.${DRIVER}.driver points at a missing file (${st.missing[0]}); run strata setup once`)
   }
 
   let shown = findings

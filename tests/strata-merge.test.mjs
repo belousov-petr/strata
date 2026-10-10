@@ -28,7 +28,7 @@ test('setup installs the attributes block and the local driver, idempotently', (
   const attrs = read(dir, '.gitattributes')
   assert.ok(attrs.startsWith('* text=auto\n'))
   assert.match(attrs, /\.strata\/issues\/ACTIVE\.md merge=strata-views/)
-  assert.match(git(dir, 'config', '--local', '--get', 'merge.strata-views.driver'), /strata\.mjs" views --merge-driver %O %A %B %P$/)
+  assert.match(git(dir, 'config', '--local', '--get', 'merge.strata-views.driver'), /\/strata\/merge-driver\.mjs" %O %A %B %P$/)
   const second = runJson(['setup'], { cwd: dir }).json
   assert.equal(second.gitattributes, 'current')
   assert.equal(second.mergeDriver, 'current')
