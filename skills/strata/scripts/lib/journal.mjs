@@ -9,6 +9,9 @@ import {
 } from './core.mjs'
 
 export const KINDS = ['decision', 'answer', 'finding', 'gotcha', 'learning', 'requirement', 'direction', 'runbook', 'note']
+// `append`: /strata:save appends the entry to the issue named by its first ref
+// as a dated update and marks it filed (ADR-0022).
+export const ROUTES = ['append']
 
 export function journalPaths(shared) {
   const dir = inboxDir(shared)
@@ -57,9 +60,18 @@ export function addEntry({ project, shared }, opts) {
   if (!title && text) title = text.split('\n')[0].slice(0, 120)
   if (!title) throw new UsageError('strata journal add: give --title, or text on --text or stdin')
   const refs = []
-  for (const r of [].concat(opts.ref || [])) {
-    const c = clean(r, 300)
-    if (c) refs.push(c)
+  for (const r of [].concat(opts.ref || [], opts.refs || [])) {
+    if (r === true) continue
+    for (const part of String(r).split(',')) {
+      const c = clean(part, 300)
+      if (c && !refs.includes(c)) refs.push(c)
+    }
+  }
+  let route = null
+  if (opts.route != null && opts.route !== false) {
+    route = String(opts.route).toLowerCase()
+    if (!ROUTES.includes(route)) throw new UsageError(`strata journal add: --route must be one of ${ROUTES.join(', ')}`)
+    if (!refs.length) throw new UsageError('strata journal add: --route append needs the issue id in --refs <issue-id>')
   }
   const now = new Date()
   const entry = {
@@ -70,6 +82,7 @@ export function addEntry({ project, shared }, opts) {
     text: text || null,
     lineage: clean(opts.lineage, 300),
     refs,
+    route,
     filed: clean(opts.filed, 300),
     branch: currentBranch(project),
     worktree: path.resolve(project) === path.resolve(shared) ? null : path.basename(project),
@@ -111,6 +124,32 @@ export function clearEntries({ shared }, { ids, all } = {}) {
   })
 }
 
+// Mark entries filed: `filed` maps entry id -> the file it landed in.
+export function markFiled({ shared }, filed) {
+  const { dir, file, lock } = journalPaths(shared)
+  if (!Object.keys(filed).length || !fs.existsSync(file)) return 0
+  ensureInboxDir(dir)
+  return withLock(lock, () => {
+    const raw = fs.readFileSync(file, 'utf8')
+    let n = 0
+    const out = []
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue
+      let e
+      try { e = JSON.parse(line) } catch { out.push(line); continue }
+      if (Object.prototype.hasOwnProperty.call(filed, e.id) && !e.filed) { e.filed = filed[e.id]; n++ }
+      out.push(JSON.stringify(e))
+    }
+    let body = out.join('\n') + (out.length ? '\n' : '')
+    const now = fs.readFileSync(file, 'utf8')
+    if (now.length > raw.length && now.startsWith(raw)) body += now.slice(raw.length)
+    const tmp = `${file}.tmp-${process.pid}`
+    fs.writeFileSync(tmp, body)
+    fs.renameSync(tmp, file)
+    return n
+  })
+}
+
 export function kindCounts(entries) {
   const m = new Map()
   for (const e of entries) m.set(e.kind, (m.get(e.kind) || 0) + 1)
@@ -135,6 +174,7 @@ export function formatEntries(entries, { file } = {}) {
     const meta = []
     if (e.lineage) meta.push(`lineage: ${e.lineage}`)
     if (e.refs && e.refs.length) meta.push(`refs: ${e.refs.join(', ')}`)
+    if (e.route) meta.push(`route: ${e.route}`)
     if (e.filed) meta.push(`filed: ${e.filed}`)
     if (meta.length) lines.push(`   ${meta.join(' · ')}`)
     if (e.text && e.text !== e.title) {
