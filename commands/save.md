@@ -81,7 +81,7 @@ Empty plan → say "no changes proposed" and stop. Otherwise, continue directly 
 
 ### 5. Safeguards (before showing the preview)
 
-Per the skill: a conflicted file is never moved; deletions are section-only, never whole files; idempotent on re-run. Take new issue ids from `strata new-issue` and decision numbers from `strata next-adr`, which scan every worktree and recent branch so parallel work does not collide. Dedup new issues against the existing backlog: fold new evidence into an existing item rather than filing a near-duplicate.
+Per the skill: a conflicted file is never moved; deletions are section-only, never whole files; idempotent on re-run. Take new issue ids from `strata new-issue` and decision numbers from `strata next-adr`, which scan every worktree and recent branch so parallel work does not collide. Dedup new issues against the existing backlog: fold new evidence into an existing item rather than filing a near-duplicate. `strata new-issue` helps here. It lists up to five open issues whose title, slug or area share two or more words with the new one, on stderr or in the `duplicates` field of `--json`, and `--dry-run` shows the list before any file exists. Read each listed issue before you fill the new body. If one is the same item, fold the evidence into it and delete the new file.
 
 ### 6. Execute
 

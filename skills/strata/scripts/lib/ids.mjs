@@ -13,8 +13,9 @@ import {
   updateState, UsageError, relPosix,
 } from './core.mjs'
 import { parseFrontmatter } from './frontmatter.mjs'
-import { TYPES, STATUSES, SEVERITIES } from './model.mjs'
+import { TYPES, STATUSES, SEVERITIES, readIssues } from './model.mjs'
 import { validDate } from './dates.mjs'
+import { significantWords } from './words.mjs'
 
 const DAY = 24 * 3600
 
@@ -138,6 +139,37 @@ function fillTemplate(tpl, fields, { title, keepRevive }) {
   return `---\n${out.join('\n')}\n---\n${b.startsWith('\n') ? '' : '\n'}${b}`
 }
 
+// --- possible duplicates (ADR-0031) ---------------------------------------------------
+// Open issues whose title, slug or area share at least two significant words
+// with the new issue's. Advisory only: new-issue never refuses.
+export const CLOSED = ['resolved', 'wont-fix', 'rejected', 'closed']
+const DUPLICATES_SHOWN = 5
+
+export function issueSlug(file) {
+  return path.basename(file, '.md').replace(/^\d{8}-\d+-/, '').replace(/^\d+-/, '')
+}
+
+export function possibleDuplicates(project, { title = '', slug = '', area = '' } = {}) {
+  const mine = new Set(significantWords(title, String(slug).replace(/-/g, ' '), area))
+  if (mine.size < 2) return []
+  const out = []
+  for (const i of readIssues(project)) {
+    if (!i.frontmatter || CLOSED.includes(String(i.status).toLowerCase())) continue
+    if (!i.topLevel && !i.id) continue // notes in an initiative's folder are not issues
+    const shared = significantWords(i.what, issueSlug(i.file).replace(/-/g, ' '), i.area).filter((w) => mine.has(w))
+    if (shared.length >= 2) out.push({ id: i.id || issueSlug(i.file), file: relPosix(project, i.file), title: i.what, status: i.status, shared })
+  }
+  out.sort((a, b) => b.shared.length - a.shared.length || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+  return out.slice(0, DUPLICATES_SHOWN)
+}
+
+export function formatDuplicates(list, { dryRun = false, file = '' } = {}) {
+  if (!list.length) return ''
+  const lines = [`Possible duplicates among the open issues. If one fits, fold the new evidence into it ${dryRun ? 'instead of filing a new issue' : `and delete ${file}`}.`]
+  for (const d of list) lines.push(`- ${d.id} [${d.status || 'no status'}] ${d.title} · ${d.shared.join(', ')}`)
+  return lines.join('\n')
+}
+
 export function newIssue(roots, opts = {}) {
   const { project, shared } = roots
   if (!opts.slug && !opts.title) throw new UsageError('strata new-issue: give --slug <slug> (or --title)')
@@ -150,6 +182,10 @@ export function newIssue(roots, opts = {}) {
     severity: pick(opts.severity, SEVERITIES, 'severity', 'med'),
   }
   const slug = slugify(opts.slug || opts.title)
+  const title = opts.title && opts.title !== true ? String(opts.title) : ''
+  const area = opts.area && opts.area !== true ? String(opts.area) : ''
+  // Scanned before the new file exists, so it never matches itself.
+  const duplicates = possibleDuplicates(project, { title, slug, area })
   const dateOpt = (name) => {
     const v = opts[name]
     if (v === undefined || v === true) return ''
@@ -171,7 +207,7 @@ export function newIssue(roots, opts = {}) {
     let st = {}
     try { st = JSON.parse(fs.readFileSync(path.join(shared, '.strata', 'inbox', 'state.json'), 'utf8')) } catch { /* none */ }
     id = allocate(st)
-    return { id, file: null, dryRun: true }
+    return { id, file: null, dryRun: true, duplicates }
   }
   updateState(shared, (st) => {
     id = allocate(st)
@@ -181,13 +217,13 @@ export function newIssue(roots, opts = {}) {
   })
   const file = path.join(project, '.strata', 'issues', `${id}-${slug}.md`)
   const text = fillTemplate(templateText(project), {
-    id, ...fields, area: opts.area && opts.area !== true ? String(opts.area) : '', created: isoDate,
+    id, ...fields, area, created: isoDate,
     ...(fields.status === 'parked' && opts.revive && opts.revive !== true ? { 'revive-when': String(opts.revive) } : {}),
     ...(fields.status === 'parked' && reviveOn ? { 'revive-on': reviveOn } : {}),
     ...(due ? { due } : {}),
-  }, { title: opts.title && opts.title !== true ? String(opts.title) : '', keepRevive: fields.status === 'parked' })
+  }, { title, keepRevive: fields.status === 'parked' })
   writeText(file, text, { eol: '\n' })
-  return { id, file: relPosix(project, file) }
+  return { id, file: relPosix(project, file), duplicates }
 }
 
 // --- decision records -----------------------------------------------------------------

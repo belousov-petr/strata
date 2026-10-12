@@ -339,7 +339,7 @@ Transition rules:
 - **Status changes are frontmatter edits** — no file moves between folders while an item is alive.
 - **Closing** fills **Resolution**, links the ADR/learning if the close produced durable knowledge, and the file moves to `issues/archive/` at the next `/strata:save`.
 - **Parking requires a concrete `revive-when:`** ("next time the dispatcher misroutes", not "someday") **or a `revive-on: YYYY-MM-DD` date.** A `revive-when:` that is only a date ("on or after 2026-10-12") counts as a date. `strata status` and `/strata:save` list the dates that have come and the text triggers, which the agent checks against the session; future dates are counted, not listed, and `strata due` shows them ([ADR-0023](decisions/ADR-0023-dated-revive-and-due.md)). An issue may also carry `due:`; overdue and due-today items are listed the same way.
-- **Dedup at triage:** before a new id is assigned at save time, near-duplicates are merged (the newer evidence folds into the older item).
+- **Dedup at triage:** before a new id is assigned at save time, near-duplicates are merged (the newer evidence folds into the older item). `strata new-issue` lists up to five open issues that share two or more significant words of title, slug or area with the new one, as advice that never blocks ([ADR-0031](decisions/ADR-0031-new-issue-duplicate-hint.md)).
 
 ### 8.2 Session lifecycle (what updates when)
 

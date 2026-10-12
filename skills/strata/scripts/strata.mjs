@@ -15,7 +15,7 @@ import * as journal from './lib/journal.mjs'
 import { syncHotRules } from './lib/adapters.mjs'
 import { syncViews, viewsSummary, drifted, mergeDriver } from './lib/views.mjs'
 import { setup, formatSetup, driverState } from './lib/setup.mjs'
-import { newIssue, nextAdr } from './lib/ids.mjs'
+import { newIssue, nextAdr, formatDuplicates } from './lib/ids.mjs'
 import { driftList, formatDrift } from './lib/drift.mjs'
 import { writePointers } from './lib/pointer.mjs'
 import { runCheck, formatCheck, writeBaseline, BASELINE_FILE } from './lib/check.mjs'
@@ -230,6 +230,9 @@ const commands = {
     const r = resolveRoots(args.root)
     const res = newIssue(r, { ...args, dryRun: Boolean(args['dry-run']) })
     out(args, res, res.dryRun ? res.id : `${res.id}  ${res.file}`)
+    // The advice goes to stderr, so the id stays the only line on stdout.
+    const dup = args.json ? '' : formatDuplicates(res.duplicates, { dryRun: res.dryRun, file: res.file })
+    if (dup) process.stderr.write(dup + '\n')
     return 0
   },
 

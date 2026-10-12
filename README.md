@@ -217,7 +217,7 @@ The commands lean on one bundled script, [`skills/strata/scripts/strata.mjs`](sk
 - `due`: parked items and issues with a date in the next days
 - `triggers`: rebuild the lesson-trigger index and test which lessons fire for a command or a file
 - `setup`: the one-time merge driver and hot-rules block. The driver runs through a small launcher in the clone's git folder, so a plugin update does not break merges
-- `new-issue`, `next-adr`: ids and decision numbers that do not collide across branches and worktrees
+- `new-issue`, `next-adr`: ids and decision numbers that do not collide across branches and worktrees; `new-issue` also lists open issues that look like duplicates
 - `drift`: commits since the last save that no record mentions
 - `pointer`: the one-line pointer strata keeps in Claude's own auto memory, so that folder does not grow into a second log
 

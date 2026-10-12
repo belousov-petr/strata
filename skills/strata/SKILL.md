@@ -69,7 +69,7 @@ Operational rules:
 2. **Status changes are frontmatter edits.** No file moves while an item is alive.
 3. **`parked` requires a concrete `revive-when:`** trigger **or a `revive-on: YYYY-MM-DD` date**; any live issue may carry `due: YYYY-MM-DD`. A `revive-when:` that is only a date counts as one. `strata status` and `/strata:save` list the dates that have come and the text triggers (check those against the session and revive matches); future dates are counted, and `strata due` lists them.
 4. **Closing** fills **Resolution** (link the ADR/learning if the close produced durable knowledge); `resolved`/`wont-fix` files move to `issues/archive/` at the next `/strata:save`.
-5. **Dedup at triage:** fold new evidence into an existing item instead of filing a near-duplicate.
+5. **Dedup at triage:** fold new evidence into an existing item instead of filing a near-duplicate. `strata new-issue` lists up to five open issues that share two or more title, slug or area words with the new one. The list is advice and never blocks.
 6. **Views are generated, never hand-edited:** `ACTIVE.md` (in-progress), `OPEN.md` (open, by area, severity first), `PARKED.md` (+triggers) — regenerated from frontmatter at every `/strata:save`.
 
 ## 4. Learnings — operation-keyed behavioral memory
@@ -277,7 +277,7 @@ Next:
 | `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment; the same version warning as `status` |
 | `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver (a launcher in the clone's git folder that survives plugin updates), hot-rules block in existing adapters |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
-| `new-issue --slug <s> [--title --type --severity --area --status --revive --revive-on --due] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |
+| `new-issue --slug <s> [--title --type --severity --area --status --revive --revive-on --due] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md`; lists up to five open issues that look like duplicates, on stderr and in `--json` |
 | `next-adr [--dir <d>] [--dry-run]` | the next free decision-record number, same scan |
 | `drift [--since <rev>]` | commits since the last save (the marker `save --prepare` records) that no decision record, doc, issue, learning, changelog or pending capture mentions by path, folder, hash, branch or id |
 | `pointer [--dry-run]` | write or refresh the Claude auto-memory pointer (§11); silent when the folder does not exist |

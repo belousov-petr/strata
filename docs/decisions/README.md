@@ -59,6 +59,7 @@ Rules:
 | [ADR-0028](ADR-0028-journal-clear-needs-evidence.md) | `strata journal clear` refuses an entry that shows no sign of being filed, unless `--force` | implemented |
 | [ADR-0029](ADR-0029-session-heading-pattern.md) | `session_heading:` names a project's session headings, so save rolls them without `session N` | implemented |
 | [ADR-0030](ADR-0030-warn-on-newer-installed-version.md) | `strata status` and `save --prepare` warn when a newer strata is installed than the one running | implemented |
+| [ADR-0031](ADR-0031-new-issue-duplicate-hint.md) | `strata new-issue` lists open issues that look like duplicates, as advice that never blocks | implemented |
 
 ## Provenance
 
