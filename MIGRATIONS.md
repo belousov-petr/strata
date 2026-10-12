@@ -178,8 +178,20 @@ Plugin release 0.3.0 changes no layout: projects stay on `layout_version: 3`. In
    ```yaml
    session_heading: '^(CURRENT|LAST COMPLETED)\b'
    ```
+3. **Optional: keep the hot rules out of the adapters.** This is for a project whose agents run in folders below the repository root, where Claude Code also reads `CLAUDE.md` from the parent folders ([ADR-0032](docs/decisions/ADR-0032-hot-rules-at-session-start.md)).
+   1. Add `hot_rules: session` to the `MANIFEST.md` frontmatter. If your runner marks agent runs with environment variables, add them as `agent_env:`, and every strata hook stays silent in those runs:
 
-**A slow first save commit.** The first save on a new strata version regenerates the hot-rules block in `CLAUDE.md` and `AGENTS.md` whenever that version renders the block differently. In a project whose commit gate runs a full test suite when those files change, that one save commit is slow. Later saves touch the block only when a hot rule changes.
+      ```yaml
+      hot_rules: session
+      agent_env: [PAPERCLIP_AGENT_ID, PAPERCLIP_RUN_ID]
+      ```
+   2. Run `strata views`. It writes `.strata/memory/HOT-RULES.md` and puts one pointer line between the hot-rules markers of `CLAUDE.md` and `AGENTS.md`. Then run `strata setup` once, so the `.gitattributes` block also routes `HOT-RULES.md` through the merge driver. `strata check` warns until it does.
+   3. Commit `CLAUDE.md`, `AGENTS.md`, `.strata/memory/HOT-RULES.md` and `.gitattributes`.
+   4. Claude Code sessions get the rules from the plugin's `SessionStart` hook. Codex development sessions get them only when strata's Codex hooks from [`hooks/codex-hooks.sample.json`](hooks/codex-hooks.sample.json) are installed. Without them they rely on the pointer line.
+
+   To switch back, remove the key and run `strata views`, which puts the rules back between the markers. `HOT-RULES.md` then stays as it was, and you can delete it.
+
+**A slow first save commit.** The first save on a new strata version regenerates the hot-rules block in `CLAUDE.md` and `AGENTS.md` whenever that version renders the block differently. In a project whose commit gate runs a full test suite when those files change, that one save commit is slow. Later saves touch the block only when a hot rule changes. Switching to `hot_rules: session` rewrites both adapters the same way, once.
 
 Nothing to do for the journal. From now on `strata journal clear` refuses an entry that shows no sign of being filed, and `/strata:save` files it or passes `--force` on purpose ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
 

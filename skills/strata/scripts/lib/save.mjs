@@ -252,7 +252,7 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
 
   const v = syncViews(project, { check: dryRun })
   const touched = v.views.filter((x) => ['updated', 'created', 'stale'].includes(x.state)).map((x) => x.file)
-  const hotTouched = v.hot.results.filter((h) => ['updated', 'stale', 'installed'].includes(h.state)).map((h) => `${h.file} (hot rules)`)
+  const hotTouched = v.hot.results.filter((h) => ['updated', 'stale', 'installed', 'created'].includes(h.state)).map((h) => `${h.file} (hot rules)`)
   if (touched.length || hotTouched.length) ctx.changed.push(`regenerate ${[...touched, ...hotTouched].join(', ')}`)
   if (v.external) ctx.info.views = 'external'
   if (v.hot.overflow) ctx.judgment.push(`hot rules: ${v.hot.overflow} over the adapter block budget (${v.hot.total} hot); curate the hot set`)

@@ -7,8 +7,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readLf, writeText, exists, git, gitOut, inGit, SCRIPT_PATH } from './core.mjs'
-import { syncHotRules } from './adapters.mjs'
+import { syncHotRules, HOT_RULES_FILE } from './adapters.mjs'
 import { viewsExternal } from './views.mjs'
+import { hotRulesMode } from './manifest.mjs'
 
 export const DRIVER = 'strata-views'
 const BEGIN = '# >>> strata generated views (merge by rows; /strata:save regenerates them)'
@@ -152,15 +153,17 @@ export function missingPaths(command) {
 
 // With generated_views: external the project's own generator owns the views,
 // so the block routes only the adapters (their hot-rules block is strata's).
-export function attributesBlock({ external = false } = {}) {
-  const files = external ? ADAPTER_FILES : VIEW_FILES
+// With hot_rules: session, HOT-RULES.md holds the hot rules and joins either
+// list (ADR-0032).
+export function attributesBlock({ external = false, session = false } = {}) {
+  const files = [...(external ? ADAPTER_FILES : VIEW_FILES), ...(session ? [HOT_RULES_FILE] : [])]
   return [BEGIN, ...files.map((f) => `${f} merge=${DRIVER}`), END].join('\n')
 }
 
 function installAttributes(project, dryRun) {
   const file = path.join(project, '.gitattributes')
   const cur = readLf(file)
-  const block = attributesBlock({ external: viewsExternal(project) })
+  const block = attributesBlock({ external: viewsExternal(project), session: hotRulesMode(project) === 'session' })
   if (cur == null) {
     if (!dryRun) writeText(file, block + '\n')
     return 'created'

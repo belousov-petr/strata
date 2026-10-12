@@ -13,7 +13,8 @@ import { buildTriggerIndex } from './triggers.mjs'
 import { validArchiveIndexName } from './archive-index.mjs'
 import { validDate } from './dates.mjs'
 import { driverState, DRIVER } from './setup.mjs'
-import { sessionHeading } from './manifest.mjs'
+import { sessionHeading, hotRulesSetting, agentEnvSetting } from './manifest.mjs'
+import { HOT_RULES_FILE } from './adapters.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
 
@@ -100,6 +101,10 @@ export function runCheck(project, { baseline = true } = {}) {
     if (fm.archive_index && !validArchiveIndexName(String(fm.archive_index).trim())) add('error', 'manifest-archive-index', '.strata/MANIFEST.md', `archive_index '${fm.archive_index}' must be a file name in .strata/issues/archive/, such as README.md`)
     const sh = sessionHeading(project, fm)
     if (sh && sh.error) add('error', 'manifest-session-heading', '.strata/MANIFEST.md', `session_heading '${sh.source}' is not a valid regular expression. ${sh.error}`)
+    const hr = hotRulesSetting(project)
+    if (hr.error) add('error', 'manifest-hot-rules', '.strata/MANIFEST.md', `${hr.error}; until then strata keeps the hot rules in the adapters`)
+    const ae = agentEnvSetting(project)
+    if (ae.bad.length) add('error', 'manifest-agent-env', '.strata/MANIFEST.md', `agent_env lists ${ae.bad.map((n) => `'${n}'`).join(', ')}, which ${ae.bad.length === 1 ? 'is not an environment variable name' : 'are not environment variable names'}`)
     if (String(fm.layout_version || '') !== '3') {
       if (fm.strata_version) add('error', 'legacy-stamp', '.strata/MANIFEST.md', `strata_version: ${fm.strata_version}; migrate with MIGRATIONS.md Rung 3`)
       else add('error', 'layout-version', '.strata/MANIFEST.md', 'no layout_version: 3 in the frontmatter')
@@ -192,6 +197,7 @@ export function runCheck(project, { baseline = true } = {}) {
     const st = driverState(project)
     if (st.inGit && !st.configured) add('warn', 'merge-driver-missing', '.gitattributes', `this clone has no merge.${DRIVER}.driver; run strata setup once`)
     else if (st.inGit && st.missing.length) add('warn', 'merge-driver-broken', '.gitattributes', `merge.${DRIVER}.driver points at a missing file (${st.missing[0]}); run strata setup once`)
+    if (hotRulesSetting(project).mode === 'session' && !attrs.includes(`${HOT_RULES_FILE} merge=${DRIVER}`)) add('warn', 'merge-driver-hot-rules', '.gitattributes', `${HOT_RULES_FILE} is not routed through the merge driver; run strata setup once`)
   }
 
   let shown = findings

@@ -12,7 +12,8 @@
 //
 // It never blocks or changes a tool call: no permission decision, no updated
 // input. Silent outside a strata project, silent when nothing matches, silent on
-// any error (exit 0, no output). STRATA_LESSON_TRIGGERS=0 turns it off.
+// any error (exit 0, no output). STRATA_LESSON_TRIGGERS=0 turns it off, and so
+// does a variable named in the MANIFEST's `agent_env:` that is set (ADR-0032).
 // A lesson already shown in the same session is not repeated for
 // STRATA_LESSON_REPEAT_MINUTES (default 30; 0 repeats it every time).
 
@@ -24,6 +25,9 @@ import { pathToFileURL } from 'node:url'
 // copied without the rest of the plugin stays silent instead of failing.
 let T = null
 try { T = await import('../skills/strata/scripts/lib/triggers.mjs') } catch { T = null }
+// The capture guard reads `agent_env:` from the MANIFEST (ADR-0032).
+let G = null
+try { G = await import('./strata-capture-guard.mjs') } catch { G = null }
 
 const DEFAULT_REPEAT_MINUTES = 30
 
@@ -71,6 +75,8 @@ export function lessonsFor(payload, { env = process.env, now = Date.now() } = {}
   if (event && event !== 'PreToolUse') return null
   const project = findProject(path.resolve(payload.cwd || process.cwd()))
   if (!project) return null
+  // An unattended agent run named in agent_env: silent, and nothing written.
+  if (!G || G.agentSilenced(project, env)) return null
   const subject = T.subjectOf(payload, project)
   if (!subject || (subject.command == null && !subject.paths.length)) return null
   const index = T.loadTriggerIndex(project)

@@ -1,10 +1,17 @@
 // The "Hot rules from strata" block in CLAUDE.md and AGENTS.md (ADR-0019).
 // Subagents and Codex read the adapters but never open .strata/memory/, so the
 // hot learnings are mirrored there. Only text between the markers is touched.
+//
+// With `hot_rules: session` in the MANIFEST (ADR-0032) the block content goes
+// to .strata/memory/HOT-RULES.md instead, the SessionStart hook hands it to
+// development sessions, and the adapters' markers hold one pointer line. Agents
+// that run below the repository root and read CLAUDE.md from a parent folder
+// then never see the developer rules.
 
 import path from 'node:path'
 import { readLf, writeText, exists } from './core.mjs'
 import { readLearnings, hotSubset, firstSentence } from './model.mjs'
+import { hotRulesMode } from './manifest.mjs'
 
 export const BEGIN = '<!-- strata:hot-rules:begin -->'
 export const END = '<!-- strata:hot-rules:end -->'
@@ -28,6 +35,15 @@ export const HEAD_LINES = [
   '',
 ]
 export const EMPTY_LINE = '- _No hot rules yet. Mark a learning `hot: true` to list it here._'
+
+// Session mode: the generated file, and the one line the adapters keep.
+export const HOT_RULES_FILE = '.strata/memory/HOT-RULES.md'
+export const POINTER = 'Development sessions: the strata session hook shows the hot rules from `.strata/memory/HOT-RULES.md`. If it did not, read that file before working.'
+export function isPointerInner(inner) { return String(inner).trim() === POINTER }
+
+// Links in the adapters start at the project root; HOT-RULES.md sits in
+// .strata/memory/, so its links start there.
+const ROOT_BASE = '.strata/memory/'
 
 // Sort key of a rendered rule line: trigger text, then the learning file.
 export function ruleSortKey(line) {
@@ -58,11 +74,12 @@ export function innerFromRules(ruleLines, overflow = null) {
 }
 
 // The inner text of the block (between the marker lines), LF, no trailing newline.
-export function renderHotRules(project) {
+// `base` prefixes the links: the project root by default, '' for HOT-RULES.md.
+export function renderHotRules(project, { base = ROOT_BASE } = {}) {
   const hot = hotSubset(readLearnings(project))
   const all = hot.map((l) => {
     const trigger = capitalize(shorten(String(l.trigger || l.slug).replace(/\s+/g, ' ').trim(), BUDGET.trigger))
-    return `- **${trigger}:** ${firstSentence(l.lesson)} ([rule](.strata/memory/learnings/${l.name}))`
+    return `- **${trigger}:** ${firstSentence(l.lesson)} ([rule](${base}learnings/${l.name}))`
   }).sort(byRule)
   const lines = [...HEAD_LINES]
   let used = 0
@@ -75,7 +92,7 @@ export function renderHotRules(project) {
   }
   const more = hot.length - shown
   if (!hot.length) lines.push(EMPTY_LINE)
-  if (more > 0) lines.push(`- ${more} more hot rule${more === 1 ? '' : 's'}: see [.strata/memory/MEMORY.md](.strata/memory/MEMORY.md).`)
+  if (more > 0) lines.push(`- ${more} more hot rule${more === 1 ? '' : 's'}: see [${base}MEMORY.md](${base}MEMORY.md).`)
   return { text: lines.join('\n'), total: hot.length, shown, overflow: more }
 }
 
@@ -90,12 +107,29 @@ export function findBlock(text) {
   return { start: b, end: e + END.length }
 }
 
+// HOT-RULES.md in session mode: the block with its markers, so the merge
+// driver merges it by rule lines like an adapter. A file without markers is
+// replaced whole, because strata owns it.
+function syncHotRulesFile(project, inner, { check }) {
+  const file = path.join(project, HOT_RULES_FILE)
+  const cur = readLf(file)
+  const at = cur == null ? null : findBlock(cur)
+  const next = at ? cur.slice(0, at.start) + blockText(inner) + cur.slice(at.end) : blockText(inner) + '\n'
+  if (cur === next) return { file: HOT_RULES_FILE, state: 'current' }
+  if (check) return { file: HOT_RULES_FILE, state: 'stale' }
+  writeText(file, next)
+  return { file: HOT_RULES_FILE, state: cur == null ? 'created' : 'updated' }
+}
+
 // Refresh the block in every adapter that has the markers. With `check`, only
 // report which ones differ. With `install`, append the block to adapters that
-// exist but lack it.
+// exist but lack it. In session mode the adapters get the pointer line and
+// HOT-RULES.md gets the rules.
 export function syncHotRules(project, { check = false, install = false } = {}) {
-  const rendered = renderHotRules(project)
-  const block = blockText(rendered.text)
+  const mode = hotRulesMode(project)
+  const session = mode === 'session'
+  const rendered = renderHotRules(project, { base: session ? '' : ROOT_BASE })
+  const block = blockText(session ? POINTER : rendered.text)
   const results = []
   for (const name of ADAPTERS) {
     const file = path.join(project, name)
@@ -118,5 +152,6 @@ export function syncHotRules(project, { check = false, install = false } = {}) {
     writeText(file, next)
     results.push({ file: name, state: 'updated' })
   }
-  return { ...rendered, results }
+  if (session) results.push(syncHotRulesFile(project, rendered.text, { check }))
+  return { ...rendered, mode, results }
 }

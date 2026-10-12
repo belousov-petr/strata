@@ -13,7 +13,7 @@ Two small hooks, each one script shared by **Claude Code** and **Codex CLI**, on
 
 It fires on six events:
 
-- **`SessionStart`**: injects the capture rule (capture each important moment with `/strata:capture`, which appends to the pending-capture journal) and reports what is waiting for the next `/strata:save`: pending journal captures and inbox counts by category. Re-fires after a compaction.
+- **`SessionStart`**: injects the capture rule (capture each important moment with `/strata:capture`, which appends to the pending-capture journal) and reports what is waiting for the next `/strata:save`: pending journal captures and inbox counts by category. Re-fires after a compaction. With `hot_rules: session` it also hands over the hot rules ([below](#hot-rules-at-session-start)).
 - **`PostToolUseFailure`** (Claude, matcher `Bash`): a shell command that failed. Claude sends `error` text that starts with `Exit code N`. Logged as a `failure`, or `interrupted` when `is_interrupt` is true.
 - **`PostToolUse`** (matcher `Bash`): on Claude this event only follows a success, so it never logs. On Codex the response is a plain string with no status, so a strict text fallback applies (below).
 - **`PreCompact`**: scans the transcript tail (cursor-based) for failed tool results not yet logged, then exits with no stdout. Claude Code's `PreCompact` contract rejects `hookSpecificOutput.additionalContext`.
@@ -54,6 +54,18 @@ One inbox per repository: the hook and the strata script resolve `.strata/inbox/
 Each stub is one JSON line: `{ts, event, tool, category, signal, command, snippet, h}`, plus `tuid` when the host gives a tool-use id. Duplicates are suppressed by `h`. This is **raw evidence, not finished memory**: `/strata:save` promotes what is worth keeping (repeated failures first) into issues and learnings and then runs `strata inbox clear`, which empties the file but keeps the transcript cursors, so cleared failures are not logged again. Stale cursors (transcript gone, or older than 30 days) are pruned. The inbox is git-ignored; do not commit raw inbox files, because redaction is best effort.
 
 The journal (`.strata/inbox/journal.jsonl`) sits beside the inbox. The hook only counts it; `/strata:capture` writes it through the strata script.
+
+### Hot rules at session start
+
+A project that sets `hot_rules: session` in the `MANIFEST.md` frontmatter keeps its hot rules in `.strata/memory/HOT-RULES.md` instead of `CLAUDE.md` and `AGENTS.md` ([ADR-0032](../docs/decisions/ADR-0032-hot-rules-at-session-start.md)). The adapters then hold one pointer line, and `SessionStart` appends the rules to its context, on every source: `startup`, `resume`, `clear` and `compact`.
+
+- It reads `HOT-RULES.md` and rewrites the links to start at the project root. When the file is missing it renders the rules from the learnings.
+- Claude Code replaces an `additionalContext` over 10,000 characters with a file path and a short preview, so the whole context stays at or under 9,500 characters. When the rules do not fit, the hook keeps the header and the capture rule, then as many whole rule lines as fit, then one line: `N more hot rules in .strata/memory/HOT-RULES.md`. A rule is never cut mid-line.
+- Codex development sessions get the rules this way only when the hooks from [`codex-hooks.sample.json`](codex-hooks.sample.json) are installed. Without them, they rely on the pointer line in `AGENTS.md`.
+
+### Agent runs stay silent: `agent_env`
+
+`agent_env:` in the `MANIFEST.md` frontmatter lists environment variable names, for example `agent_env: [PAPERCLIP_AGENT_ID, PAPERCLIP_RUN_ID]`. When any of them is set and non-empty in the hook's environment, both hooks, this one and the lesson trigger, exit 0 at once with no output and write nothing: no stub, no benign count, no cursor, no lesson index. Unattended agent runs then leave the developer inbox alone. It works with either `hot_rules` mode, and an empty or unset variable changes nothing.
 
 ### Honest limitation
 
@@ -117,7 +129,7 @@ Codex also accepts the same events inline in `config.toml` under `[hooks]`.
 - It reads `.strata/inbox/lesson-triggers.json`, which `strata views` and `/strata:save` compile. When the learnings changed since then, it rebuilds the index once. It never parses the markdown on an ordinary call.
 - It never blocks or changes a call: no permission decision, no updated input. It is silent when nothing matches, outside a strata project, and on any error.
 - A lesson already shown in a session is not shown again in that session for 30 minutes. Set `STRATA_LESSON_REPEAT_MINUTES` to change that (0 repeats every time).
-- `STRATA_LESSON_TRIGGERS=0` turns it off.
+- `STRATA_LESSON_TRIGGERS=0` turns it off, and so does a set variable named in the MANIFEST's `agent_env:` ([above](#agent-runs-stay-silent-agent_env)).
 - `strata triggers --command "<command>"` or `strata triggers --path <file>` shows what would fire.
 
 Claude Code gets it with the plugin (`hooks.json`, matcher `Bash|Edit|Write|MultiEdit|NotebookEdit`). Codex users copy the `PreToolUse` entry from [`codex-hooks.sample.json`](codex-hooks.sample.json) (matcher `Bash|apply_patch|Edit|Write`).

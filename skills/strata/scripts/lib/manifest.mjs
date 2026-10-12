@@ -1,7 +1,7 @@
 // Settings a project keeps in the `.strata/MANIFEST.md` frontmatter.
 
 import path from 'node:path'
-import { readLf } from './core.mjs'
+import { readLf, guard } from './core.mjs'
 import { parseFrontmatter } from './frontmatter.mjs'
 
 export function manifestData(project) {
@@ -26,4 +26,25 @@ export function sessionHeading(project, data = manifestData(project)) {
     const msg = String((e && e.message) || e).trim()
     return { source, error: /[.!?]$/.test(msg) ? msg : msg + '.' }
   }
+}
+
+// `hot_rules:` and `agent_env:` (ADR-0032), read by the capture guard's own
+// parser so the hooks and the script always agree.
+export const HOT_RULES_MODES = ['adapters', 'session']
+
+// { mode: 'adapters' | 'session', error? }. An unknown value works as
+// `adapters`, and strata check reports it.
+export function hotRulesSetting(project) {
+  const raw = guard.manifestSettings(project).hotRules
+  if (!raw) return { mode: 'adapters' }
+  if (HOT_RULES_MODES.includes(raw)) return { mode: raw }
+  return { mode: 'adapters', error: `hot_rules '${raw}' must be adapters or session` }
+}
+
+export function hotRulesMode(project) { return hotRulesSetting(project).mode }
+
+// { names, bad }: the variable names, and those that are not valid names.
+export function agentEnvSetting(project) {
+  const names = guard.manifestSettings(project).agentEnv
+  return { names, bad: names.filter((n) => !/^[A-Za-z_][A-Za-z0-9_]*$/.test(n)) }
 }

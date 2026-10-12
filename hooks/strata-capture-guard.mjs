@@ -20,9 +20,15 @@
 //      on a per-transcript byte cursor, so nothing is missed or logged twice.
 //
 //   2) CONTEXT. SessionStart primes the capture rule and reports pending journal
-//      captures and inbox counts. The per-failure "capture this now" nudge is
-//      off unless STRATA_FAILURE_NUDGE=1. PreCompact, SessionEnd and Stop print
-//      nothing (PreCompact rejects additionalContext; Stop fires every turn).
+//      captures and inbox counts. With `hot_rules: session` in the MANIFEST it
+//      also hands over the hot rules from .strata/memory/HOT-RULES.md (ADR-0032).
+//      The per-failure "capture this now" nudge is off unless
+//      STRATA_FAILURE_NUDGE=1. PreCompact, SessionEnd and Stop print nothing
+//      (PreCompact rejects additionalContext; Stop fires every turn).
+//
+// A variable named in the MANIFEST's `agent_env:` that is set and non-empty
+// marks an unattended agent run: the hook exits at once, silent, and logs
+// nothing (ADR-0032).
 //
 // Outside a strata project it is a silent no-op. Any error exits 0 with no
 // output, so the hook can never break or stall the host session.
@@ -531,6 +537,129 @@ export function journalCount(root) {
   } catch { return 0 }
 }
 
+// --- MANIFEST settings for the hooks (ADR-0032) ------------------------------
+// `hot_rules:` (adapters | session) and `agent_env:` (a list of environment
+// variable names). Read here with a small parser of their own, so the hook
+// needs nothing else from the plugin; the strata script reads them through
+// this function too, so both agree.
+function unquote(v) {
+  const s = String(v).trim()
+  const m = /^"((?:[^"\\]|\\.)*)"$|^'((?:[^']|'')*)'$/.exec(s)
+  if (!m) return s
+  return m[1] !== undefined ? m[1].replace(/\\(.)/g, '$1') : m[2].replace(/''/g, "'")
+}
+
+export function parseSettings(text) {
+  const out = {}
+  const fm = /^﻿?---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(String(text || ''))
+  if (!fm) return out
+  const lines = fm[1].split(/\r?\n/)
+  for (let i = 0; i < lines.length; i++) {
+    const kv = /^(hot_rules|agent_env)[ \t]*:(.*)$/.exec(lines[i])
+    if (!kv) continue
+    const v = kv[2].replace(/(^|\s)#.*$/, '').trim()
+    if (!v) {
+      const items = []
+      while (i + 1 < lines.length && (/^\s*-(\s|$)/.test(lines[i + 1]) || !lines[i + 1].trim())) {
+        const item = /^\s*-\s*(.*)$/.exec(lines[++i])
+        if (item && item[1].replace(/(^|\s)#.*$/, '').trim()) items.push(unquote(item[1].replace(/(^|\s)#.*$/, '')))
+      }
+      out[kv[1]] = items.length ? items : ''
+    } else if (/^\[.*\]$/.test(v)) {
+      out[kv[1]] = v.slice(1, -1).split(',').map(unquote).filter(Boolean)
+    } else {
+      out[kv[1]] = unquote(v)
+    }
+  }
+  return out
+}
+
+// `hotRules` is the raw value, lowercased ('' when absent). `agentEnv` lists
+// the names; a scalar may name one, or several separated by commas or spaces.
+export function manifestSettings(project) {
+  let text = ''
+  try { text = fs.readFileSync(path.join(project, '.strata', 'MANIFEST.md'), 'utf8') } catch { /* none */ }
+  const s = parseSettings(text)
+  const hotRules = typeof s.hot_rules === 'string' ? s.hot_rules.trim().toLowerCase() : Array.isArray(s.hot_rules) ? s.hot_rules.join(',') : ''
+  const raw = s.agent_env
+  const agentEnv = (Array.isArray(raw) ? raw : String(raw || '').split(/[\s,]+/)).map((x) => String(x).trim()).filter(Boolean)
+  return { hotRules, agentEnv }
+}
+
+// True when a variable named in `agent_env:` is set and non-empty: an
+// unattended agent run, where every strata hook stays silent and writes nothing.
+export function agentSilenced(project, env = process.env) {
+  try {
+    return manifestSettings(project).agentEnv.some((name) => typeof env[name] === 'string' && env[name] !== '')
+  } catch { return false }
+}
+
+// --- hot rules at SessionStart (ADR-0032) --------------------------------------
+// With `hot_rules: session` the hot rules live in .strata/memory/HOT-RULES.md,
+// not in CLAUDE.md and AGENTS.md, and SessionStart hands them to the session.
+// Claude Code replaces an additionalContext over 10,000 characters with a file
+// path and a short preview, so the whole text stays at or under 9,500.
+export const CONTEXT_BUDGET = 9500
+export const HOT_RULES_FILE = path.join('.strata', 'memory', 'HOT-RULES.md')
+const HOT_BEGIN = '<!-- strata:hot-rules:begin -->'
+const HOT_END = '<!-- strata:hot-rules:end -->'
+const RULE_LINE = /^- \*\*.+\(\[rule\]\([^)]*\)\)\s*$/
+
+// HOT-RULES.md links are relative to its folder; the session reads them from
+// the project root.
+export function rootLinks(text) {
+  return String(text).replace(/\]\((learnings\/[^)\s]+|MEMORY\.md)\)/g, '](.strata/memory/$1)')
+}
+
+async function hotRulesText(project) {
+  let text = null
+  try {
+    const raw = fs.readFileSync(path.join(project, HOT_RULES_FILE), 'utf8').replace(/\r\n/g, '\n')
+    const b = raw.indexOf(HOT_BEGIN)
+    const e = b >= 0 ? raw.indexOf(HOT_END, b) : -1
+    text = rootLinks(b >= 0 && e >= 0 ? raw.slice(b + HOT_BEGIN.length, e) : raw).trim()
+  } catch { /* fall back to rendering */ }
+  if (text) return text
+  try {
+    const a = await import('../skills/strata/scripts/lib/adapters.mjs')
+    return a.renderHotRules(project).text.trim()
+  } catch { return null }
+}
+
+// `base` plus the rules, at most `budget` characters. Whole lines only: when
+// the rules do not fit, the lines before the first rule stay, then as many
+// rules as fit, then one line that counts the rest.
+export function withHotRules(base, rules, budget = CONTEXT_BUDGET) {
+  if (!rules) return base
+  const sep = '\n\n'
+  const full = base + sep + rules
+  if (full.length <= budget) return full
+  const lines = rules.split('\n')
+  const first = lines.findIndex((l) => RULE_LINE.test(l))
+  const head = first < 0 ? lines : lines.slice(0, first)
+  const ruleLines = lines.filter((l) => RULE_LINE.test(l))
+  const tail = lines.filter((l, n) => n >= (first < 0 ? lines.length : first) && !RULE_LINE.test(l) && l.trim())
+  const more = (n) => `- ${n} more hot rule${n === 1 ? '' : 's'} in .strata/memory/HOT-RULES.md`
+  // The head keeps its blank line before the first rule, as in the file.
+  let text = base + sep + head.join('\n')
+  if (text.length > budget) return base
+  let shown = 0
+  for (const l of ruleLines) {
+    const rest = ruleLines.length - shown - 1
+    const after = [rest ? more(rest) : '', ...tail].filter(Boolean)
+    const need = 1 + l.length + after.reduce((s, x) => s + 1 + x.length, 0)
+    if (text.length + need > budget) break
+    text += '\n' + l
+    shown++
+  }
+  const rest = ruleLines.length - shown
+  for (const x of [rest ? more(rest) : '', ...tail].filter(Boolean)) {
+    if (text.length + 1 + x.length > budget) break
+    text += '\n' + x
+  }
+  return text.replace(/\n+$/, '')
+}
+
 // --- handlers ---------------------------------------------------------------
 function oneLine(s, max = 300) { return redact(String(s || '').replace(/\s+/g, ' ').trim().slice(0, max)) }
 
@@ -714,6 +843,8 @@ async function main() {
     const cwd = payload.cwd || process.cwd()
     const roots = resolveRoots(cwd)
     if (!roots) process.exit(0) // not a strata project: stay silent
+    // An unattended agent run named in agent_env: no output, no logging.
+    if (agentSilenced(roots.project)) process.exit(0)
     // Inbox, cursors and counts live in the shared root (the main worktree).
     const root = roots.shared
 
@@ -732,9 +863,13 @@ async function main() {
       process.exit(0)
     }
 
+    let context = messageFor(event, root, res)
+    if (event === 'SessionStart' && manifestSettings(roots.project).hotRules === 'session') {
+      context = withHotRules(context, await hotRulesText(roots.project))
+    }
     const out = {
       continue: true,
-      hookSpecificOutput: { hookEventName: event, additionalContext: messageFor(event, root, res) },
+      hookSpecificOutput: { hookEventName: event, additionalContext: context },
     }
     process.stdout.write(JSON.stringify(out), () => process.exit(0))
   } catch {

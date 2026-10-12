@@ -21,7 +21,7 @@ Strata is a plugin for Claude Code and Codex. It writes everything to plain Mark
 - Checks dates for you: parked work with a revive date and issues with a due date show up at load and save only when the date comes. `strata due` lists what is coming.
 - Keeps `strata check` readable in an old project: record today's warnings once as a baseline, and later runs show only new ones.
 - Keeps one capture journal per repository, shared by every git worktree.
-- Puts the hot rules and the capture rule into `CLAUDE.md` and `AGENTS.md`, so subagents and Codex see them too and capture to the journal instead of a tool's private memory.
+- Puts the hot rules and the capture rule into `CLAUDE.md` and `AGENTS.md`, so subagents and Codex see them too and capture to the journal instead of a tool's private memory. A project whose unattended agents run below the repository root can set `hot_rules: session` instead. The rules then reach development sessions through the session hook, and `agent_env:` keeps every strata hook silent in agent runs.
 - Brings all of it current on one command, `/strata:save`, when you close a session.
 - Sets up a new project, or upgrades older memory, in one command.
 - Uses plain Markdown and grep, plus one bundled Node script with no dependencies that does the mechanical chores the same way every time.

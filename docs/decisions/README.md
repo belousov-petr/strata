@@ -47,7 +47,7 @@ Rules:
 | [ADR-0016](ADR-0016-pending-capture-journal.md) | Capture goes to a git-ignored pending journal first, and the inbox and journal are shared across worktrees | implemented |
 | [ADR-0017](ADR-0017-capture-guard-decides-by-status.md) | The capture guard decides by real status, files refusals as `policy`, and drops the per-failure nudge by default | implemented |
 | [ADR-0018](ADR-0018-strata-script-for-mechanical-chores.md) | A bundled, dependency-free Node script runs views, checks, save chores, the merge driver, id allocation and the drift list | implemented |
-| [ADR-0019](ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md) | Hot rules go into a generated block in `CLAUDE.md` and `AGENTS.md`; Claude auto memory holds only a pointer | implemented (block header extended by ADR-0027) |
+| [ADR-0019](ADR-0019-hot-rules-in-adapters-and-auto-memory-pointer.md) | Hot rules go into a generated block in `CLAUDE.md` and `AGENTS.md`; Claude auto memory holds only a pointer | implemented (block header extended by ADR-0027; optional session delivery added by ADR-0032) |
 | [ADR-0020](ADR-0020-operation-triggered-lessons.md) | Learnings carry `match:` and `paths:`; a `PreToolUse` hook shows the matching lessons before the command or edit | implemented |
 | [ADR-0021](ADR-0021-configurable-archive-index.md) | The archive index file is configurable (`archive_index:`), then detected, then `INDEX.md` | implemented |
 | [ADR-0022](ADR-0022-journal-append-route.md) | `journal add --refs <id> --route append`: save appends the entry to that issue as a dated update | implemented |
@@ -60,6 +60,7 @@ Rules:
 | [ADR-0029](ADR-0029-session-heading-pattern.md) | `session_heading:` names a project's session headings, so save rolls them without `session N` | implemented |
 | [ADR-0030](ADR-0030-warn-on-newer-installed-version.md) | `strata status` and `save --prepare` warn when a newer strata is installed than the one running | implemented |
 | [ADR-0031](ADR-0031-new-issue-duplicate-hint.md) | `strata new-issue` lists open issues that look like duplicates, as advice that never blocks | implemented |
+| [ADR-0032](ADR-0032-hot-rules-at-session-start.md) | `hot_rules: session` moves the hot rules into `HOT-RULES.md`, delivered at `SessionStart`; `agent_env:` silences every strata hook for agent runs | implemented |
 
 ## Provenance
 
