@@ -13,6 +13,7 @@ import { buildTriggerIndex } from './triggers.mjs'
 import { validArchiveIndexName } from './archive-index.mjs'
 import { validDate } from './dates.mjs'
 import { driverState, DRIVER } from './setup.mjs'
+import { sessionHeading } from './manifest.mjs'
 
 export const BUDGETS = { memory: 80, state: 200 }
 
@@ -97,6 +98,8 @@ export function runCheck(project, { baseline = true } = {}) {
   else {
     const fm = parseFrontmatter(manifest).data
     if (fm.archive_index && !validArchiveIndexName(String(fm.archive_index).trim())) add('error', 'manifest-archive-index', '.strata/MANIFEST.md', `archive_index '${fm.archive_index}' must be a file name in .strata/issues/archive/, such as README.md`)
+    const sh = sessionHeading(project, fm)
+    if (sh && sh.error) add('error', 'manifest-session-heading', '.strata/MANIFEST.md', `session_heading '${sh.source}' is not a valid regular expression. ${sh.error}`)
     if (String(fm.layout_version || '') !== '3') {
       if (fm.strata_version) add('error', 'legacy-stamp', '.strata/MANIFEST.md', `strata_version: ${fm.strata_version}; migrate with MIGRATIONS.md Rung 3`)
       else add('error', 'layout-version', '.strata/MANIFEST.md', 'no layout_version: 3 in the frontmatter')

@@ -245,7 +245,7 @@ description: Session N (<date>) — <one-line summary>.
 Sessions ≤ N−2 → `archive/YYYY-MM-sessions-*.md`.
 ```
 
-Budget ≤200 lines; rollover at `/strata:save` (§8).
+Budget ≤200 lines; rollover at `/strata:save` (§8). A project whose headings do not name `session N` sets `session_heading:` in the MANIFEST frontmatter to a regular expression for its session headings. Every matching `## ` block is then a session, newest first, and save keeps the first two ([ADR-0029](decisions/ADR-0029-session-heading-pattern.md)).
 
 ### 5.6 action_log.md entry
 

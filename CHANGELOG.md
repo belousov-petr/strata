@@ -6,6 +6,9 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 
 **Saves that cannot lose a capture, and fewer chores by hand in a big project.** Found in a review of `/strata:save` on a large project on 11 Oct 2026. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-030-no-rung-a-few-adoption-steps).
 
+### Added
+- **`session_heading:`** in the `MANIFEST.md` frontmatter is a regular expression, case-insensitive, for the `## ` headings of `project_state.md` that start a session block. With it, every matching block is a session, newest first, and save keeps the first two and rolls the rest into `memory/archive/YYYY-MM-sessions-<date>.md` with an `ARCHIVE.md` row. The date is the first one in the rolled headings, or today. Without the key nothing changes. An invalid pattern is a `strata check` error, and save then rolls nothing and says why ([ADR-0029](docs/decisions/ADR-0029-session-heading-pattern.md)).
+
 ### Changed
 - **`strata journal clear` needs evidence.** Each chosen entry must carry a `filed` path, or at least half of its title words, and at least two, must appear in the uncommitted changes under `.strata/` or `docs/`. Otherwise the clear changes nothing, lists the unproven entries by id and title, and exits 1. `--force` clears anyway and counts the forced entries. Outside git the check is skipped with a warning ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
 

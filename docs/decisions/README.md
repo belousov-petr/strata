@@ -57,6 +57,7 @@ Rules:
 | [ADR-0026](ADR-0026-version-independent-merge-driver.md) | The merge driver runs through a launcher in the clone's git folder, so plugin updates do not break it | implemented |
 | [ADR-0027](ADR-0027-capture-rule-in-the-adapters.md) | The capture rule opens the hot-rules block, so subagents capture to the journal too | implemented |
 | [ADR-0028](ADR-0028-journal-clear-needs-evidence.md) | `strata journal clear` refuses an entry that shows no sign of being filed, unless `--force` | implemented |
+| [ADR-0029](ADR-0029-session-heading-pattern.md) | `session_heading:` names a project's session headings, so save rolls them without `session N` | implemented |
 
 ## Provenance
 

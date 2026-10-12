@@ -173,6 +173,11 @@ Nothing to do for the inbox: benign exit codes are counted from now on, and beni
 Plugin release 0.3.0 changes no layout: projects stay on `layout_version: 3`. In order:
 
 1. **Update.** Update the plugin and start a new session.
+2. **Optional: name your session headings.** If `project_state.md` uses headings that do not say `session N`, add `session_heading:` to the `MANIFEST.md` frontmatter, in single quotes so YAML keeps the backslash. Then check the plan with `strata save --prepare --dry-run` ([ADR-0029](docs/decisions/ADR-0029-session-heading-pattern.md)):
+
+   ```yaml
+   session_heading: '^(CURRENT|LAST COMPLETED)\b'
+   ```
 
 Nothing to do for the journal. From now on `strata journal clear` refuses an entry that shows no sign of being filed, and `/strata:save` files it or passes `--force` on purpose ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
 

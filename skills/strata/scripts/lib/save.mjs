@@ -14,6 +14,7 @@ import { driverState, installDriver } from './setup.mjs'
 import { driftList, recordSaveMarker } from './drift.mjs'
 import { writePointers } from './pointer.mjs'
 import { datedLines } from './dates.mjs'
+import { sessionHeading } from './manifest.mjs'
 
 
 // --- 1. archive terminal issues ---------------------------------------------------
@@ -141,35 +142,70 @@ export function sessionBlocks(lines) {
   return blocks
 }
 
+export function headingText(line) { return String(line).replace(/^##\s+/, '').trim() }
+
 function rollSessions(project, ctx) {
   const file = path.join(project, '.strata', 'memory', 'project_state.md')
   const text = readLf(file)
   if (text == null) return
   const lines = text.split('\n')
+  const total = text.endsWith('\n') ? lines.length - 1 : lines.length
+  const sh = sessionHeading(project)
+  if (sh && sh.error) {
+    ctx.judgment.push(`session_heading in MANIFEST.md is not a valid regular expression, so no sessions were rolled. ${sh.error} Fix it and run strata save --prepare again.`)
+    return
+  }
+  if (sh) return rollByHeading(project, ctx, { file, lines, total }, sh.re)
   const blocks = sessionBlocks(lines).filter((b) => b.session !== null)
   if (blocks.length <= 2) {
-    const total = text.endsWith('\n') ? lines.length - 1 : lines.length
-    if (total > BUDGETS.state && blocks.length === 0) ctx.judgment.push('project_state.md is over budget and has no numbered session headings to roll; trim it by hand')
+    if (total > BUDGETS.state && blocks.length === 0) ctx.judgment.push('project_state.md is over budget and has no numbered session headings to roll; trim it by hand, or name your session headings with session_heading: in MANIFEST.md')
     return
   }
   const keep = new Set(blocks.map((b) => b.session).sort((a, b) => b - a).slice(0, 2))
   const roll = blocks.filter((b) => !keep.has(b.session))
   const nums = roll.map((b) => b.session).sort((a, b) => a - b)
   const lo = nums[0]; const hi = nums[nums.length - 1]
-  const month = today().slice(0, 7)
-  const name = `${month}-sessions-${lo === hi ? lo : `${lo}-${hi}`}.md`
-  const archiveFile = path.join(project, '.strata', 'memory', 'archive', name)
+  const name = `${today().slice(0, 7)}-sessions-${lo === hi ? lo : `${lo}-${hi}`}.md`
   ctx.changed.push(`roll ${plural(roll.length, 'session')} (${nums.join(', ')}) from project_state.md -> .strata/memory/archive/${name} (+ ARCHIVE.md row)`)
   if (ctx.dryRun) return
-  const rolledText = roll.sort((a, b) => a.start - b.start)
+  writeRoll(project, { file, lines }, roll, name, `# Sessions ${lo === hi ? lo : `${lo} to ${hi}`}`,
+    `Sessions ${nums.join(', ')} rolled from project_state.md on ${today()}`)
+}
+
+// ADR-0029: with `session_heading:` every matching `## ` block is a session,
+// in file order, newest first. The first two stay; the rest roll into one file
+// named by the first date in the rolled headings, or today.
+function rollByHeading(project, ctx, { file, lines, total }, re) {
+  const blocks = sessionBlocks(lines).filter((b) => re.test(headingText(b.head)))
+  if (blocks.length <= 2) {
+    if (total > BUDGETS.state && blocks.length === 0) ctx.judgment.push('project_state.md is over budget and no heading matches session_heading in MANIFEST.md; trim it by hand or fix the pattern')
+    return
+  }
+  const roll = blocks.slice(2)
+  const heads = roll.map((b) => headingText(b.head))
+  let date = null
+  for (const h of heads) { const m = /\b(\d{4}-\d{2}-\d{2})\b/.exec(h); if (m) { date = m[1]; break } }
+  const name = `${today().slice(0, 7)}-sessions-${date || today()}.md`
+  const short = heads.map((h) => cell(h, 60)).join('; ')
+  ctx.changed.push(`roll ${plural(roll.length, 'session block')} (${short}) from project_state.md -> .strata/memory/archive/${name} (+ ARCHIVE.md row)`)
+  if (ctx.dryRun) return
+  writeRoll(project, { file, lines }, roll, name, '# Sessions from project_state.md',
+    `${plural(roll.length, 'session block')} rolled from project_state.md on ${today()}: ${short}`)
+}
+
+// Append the rolled blocks to the archive file, drop them from project_state.md,
+// and add the ARCHIVE.md row.
+function writeRoll(project, { file, lines }, roll, name, title, what) {
+  const archiveFile = path.join(project, '.strata', 'memory', 'archive', name)
+  const rolledText = roll.slice().sort((a, b) => a.start - b.start)
     .map((b) => lines.slice(b.start, b.end).join('\n').replace(/\n+$/, '')).join('\n\n') + '\n'
   const existing = readLf(archiveFile)
-  const head = `# Sessions ${lo === hi ? lo : `${lo} to ${hi}`}\n\nRolled out of \`project_state.md\` by \`/strata:save\` on ${today()}.\n\n`
+  const head = `${title}\n\nRolled out of \`project_state.md\` by \`/strata:save\` on ${today()}.\n\n`
   writeText(archiveFile, existing == null ? head + rolledText : existing.replace(/\n*$/, '\n\n') + rolledText)
   const drop = new Set()
   for (const b of roll) for (let n = b.start; n < b.end; n++) drop.add(n)
   writeText(file, lines.filter((_, n) => !drop.has(n)).join('\n'))
-  addArchiveRow(project, name, `Sessions ${nums.join(', ')} rolled from project_state.md on ${today()}`)
+  addArchiveRow(project, name, what)
 }
 
 export function addArchiveRow(project, name, what) {

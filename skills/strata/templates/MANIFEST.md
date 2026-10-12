@@ -110,3 +110,11 @@ Then on demand: `issues/OPEN.md` by area · matching `learnings/<slug>.md` at op
 - **Learning origin:** `success | failure`
 
 `parked` requires a concrete `revive-when:` trigger. `resolved`/`wont-fix` are terminal → `issues/archive/` at next `/strata:save`. Status changes are frontmatter edits, not file moves.
+
+## Optional settings
+
+These keys go in the frontmatter at the top of this file. Each one is optional.
+
+- `archive_index: README.md` names the file in `issues/archive/` that holds the closed-issue table.
+- `generated_views: external` leaves the generated views to the project's own generator.
+- `session_heading: '^(CURRENT|LAST COMPLETED)\b'` is a regular expression, case-insensitive, for the `## ` headings in `memory/project_state.md` that start a session block, newest first. `/strata:save` keeps the first two and rolls the rest into `memory/archive/`. Without it, only headings that name `session N` roll. Write it in single quotes.
