@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { gitProject, run, runJson, rm, git } from './helpers.mjs'
+import { gitProject, run, runJson, rm, git, write } from './helpers.mjs'
 
 test('journal add, list, clear round trip', () => {
   const dir = gitProject()
@@ -23,12 +23,16 @@ test('journal add, list, clear round trip', () => {
   const status = run(['status'], { cwd: dir })
   assert.match(status.stdout, /Pending captures: 2 \(1 decision, 1 gotcha\)/)
 
+  // Filed: the decision is in a new, uncommitted decision record.
+  write(dir, '.strata/docs/decisions/ADR-0001-drain-first.md', '# ADR-0001: Drain the queue before the worker restarts\n')
   const cleared = runJson(['journal', 'clear', '--id', list.entries[0].id], { cwd: dir }).json
-  assert.deepEqual(cleared, { cleared: 1, kept: 1 })
+  assert.equal(cleared.cleared, 1)
+  assert.equal(cleared.kept, 1)
+  assert.equal(cleared.forced, 0)
   const routed = fs.readFileSync(path.join(dir, '.strata/inbox/journal.routed.jsonl'), 'utf8')
   assert.match(routed, /Drain the queue first/)
   assert.equal(runJson(['journal', 'list'], { cwd: dir }).json.entries.length, 1)
-  assert.equal(run(['journal', 'clear', '--all'], { cwd: dir }).status, 0)
+  assert.equal(run(['journal', 'clear', '--all', '--force'], { cwd: dir }).status, 0)
   assert.equal(runJson(['journal', 'list'], { cwd: dir }).json.entries.length, 0)
   rm(dir)
 })

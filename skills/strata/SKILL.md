@@ -130,7 +130,7 @@ Two files under `.strata/inbox/`, both git-ignored scratch, both resolved to the
 - `benign.json` counts benign exits instead of storing them: exit code 1 from `grep`, `egrep`, `fgrep`, `rg`, `ag`, `test`, `[`, `[[`, `diff`, `cmp`, `command -v` or `which`, when that command set the status.
 
 **Route and clear** (the read side, run by the commands, no extra agent turn):
-- `/strata:save`: route every journal entry and every real, repeated, or reusable failure into its store (dedup against the backlog, drop secrets/stack-traces per §2), then `strata journal clear --all` and `strata inbox clear`. The last cleared journal batch stays in `journal.routed.jsonl` until the next clear.
+- `/strata:save`: route every journal entry and every real, repeated, or reusable failure into its store (dedup against the backlog, drop secrets/stack-traces per §2), then `strata journal clear --all` and `strata inbox clear`. The last cleared journal batch stays in `journal.routed.jsonl` until the next clear. The clear refuses, changes nothing and exits 1 while a chosen entry shows no sign of being filed. Such an entry has no `filed` path, and fewer than half of its title words, or fewer than two, appear in the uncommitted changes under `.strata/` or `docs/`. File the listed entries, or pass `--force` for those deliberately dropped and say so in the report.
 - `/strata:load`: report pending captures first, then the inbox counts by category and any repeated failures (`strata status`).
 - **Refusals are steps for the operator.** `strata status` and `save --prepare` list permission refusals grouped by command as "steps refused for the agent; hand them to the operator". Report them to the operator; do not retry them another way.
 - A typo, a one-off failure, a benign exit, or a policy refusal is counted, not promoted. Promotion is the authoritative dedup.
@@ -263,7 +263,7 @@ Next:
 
 | Subcommand | Does |
 |---|---|
-| `journal add / list / clear` | the pending-capture journal (§5, §5a); `add --refs <issue-id> --route append` has save append the entry to that issue |
+| `journal add / list / clear` | the pending-capture journal (§5, §5a); `add --refs <issue-id> --route append` has save append the entry to that issue; `clear` refuses while a chosen entry shows no sign of being filed, unless `--force` |
 | `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |

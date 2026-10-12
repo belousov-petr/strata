@@ -30,7 +30,8 @@ const HELP = `strata <subcommand> [options]     (every subcommand takes --root <
   journal add --kind <kind> --title <t> [--text <t> | --text - (stdin)] [--lineage <l>] [--ref <path>]... [--filed <path>]
               [--refs <issue-id> --route append]   save appends it to that issue as a dated update
   journal list [--json]
-  journal clear (--all | --id <id>...)
+  journal clear (--all | --id <id>...) [--force]
+                                  refuses while a chosen entry shows no sign of being filed
   status [--json]                 load-time summary: pending captures, inbox, views
   inbox summary [--json]          inbox counts by category and repeated failures
   inbox clear                     clear the inbox after promotion (cursors are kept)
@@ -78,7 +79,7 @@ const commands = {
 
   journal(argv) {
     const [sub, ...rest] = argv
-    const args = parseArgs(rest, { bools: ['json', 'all'], multi: ['ref', 'refs', 'id'] })
+    const args = parseArgs(rest, { bools: ['json', 'all', 'force'], multi: ['ref', 'refs', 'id'] })
     const r = resolveRoots(args.root)
     if (sub === 'add') {
       // `--text -` reads the text from stdin (a heredoc or a pipe). Stdin is only
@@ -104,10 +105,9 @@ const commands = {
       return 0
     }
     if (sub === 'clear') {
-      const res = journal.clearEntries(r, { ids: args.id, all: args.all })
-      out(args, res, `journal: cleared ${res.cleared}, ${res.kept} still pending.` +
-        (res.cleared ? ' The cleared batch is kept in journal.routed.jsonl until the next clear.' : ''))
-      return 0
+      const res = journal.clearEntries(r, { ids: args.id, all: args.all, force: Boolean(args.force) })
+      out(args, res, journal.formatClear(res))
+      return res.refused ? 1 : 0
     }
     throw new UsageError('strata journal: use add, list or clear')
   },

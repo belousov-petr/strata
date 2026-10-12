@@ -91,6 +91,8 @@ Immediately after the preview, in this order:
 2. `strata save --prepare`: moves, rollover, regenerated views and hot-rules blocks, the auto-memory pointer, the save marker. It runs last among the writers so the views reflect the post-save world.
 3. `strata journal clear --all` (or `--id <id>` for only the routed ones) and `strata inbox clear`. The cleared journal batch stays in `.strata/inbox/journal.routed.jsonl` until the next clear.
 
+   The clear checks that each chosen entry was filed. An entry passes when it carries a `filed` path, which a `--filed` capture has and which `save --prepare` adds when it appends an entry to its issue. It also passes when at least half of its title words, and at least two, appear in the uncommitted changes under `.strata/` or `docs/`. If any entry fails, the clear changes nothing, lists each one by id and title, and exits 1. File each listed entry and run the clear again. Pass `--force` only for an entry you decided not to keep or filed under different words, and say so in the report. The output counts the forced entries. Outside git the check is skipped with a warning.
+
 Leave everything for one commit. If the project gates commits, say what is ready to commit rather than working around the gate.
 
 ### 7. Verify
@@ -126,7 +128,7 @@ A fresh session must be able to: know what happened and why; start the next acti
 
 - Ask the user what to capture; derive it from the journal and the session
 - Ask for y/n after the preview; save executes automatically once invoked
-- Clear the journal before every entry is written to its store
+- Clear the journal before every entry is written to its store, or reach for `--force` to get past a refusal without checking each listed entry
 - Hand-edit generated views; edit items, then `strata views` or `strata save --prepare`
 - Save anything derivable from code or `git log`, or any secret value
 - Write project memory into Claude's auto memory; `save --prepare` keeps only a pointer there

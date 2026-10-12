@@ -211,7 +211,7 @@ The honest limit: a hook reacts to mechanical signals, so the one moment it can 
 
 The commands lean on one bundled script, [`skills/strata/scripts/strata.mjs`](skills/strata/scripts/strata.mjs). It needs only Node, which the hook already needs, and runs the same on Windows, macOS, and Linux. The agent keeps the judgment: what to capture, where it belongs, how to word it. The script does the parts that should come out the same every time:
 
-- `journal add / list / clear`: the pending-capture journal; `add --refs <issue-id> --route append` has save append the entry to that issue
+- `journal add / list / clear`: the pending-capture journal; `add --refs <issue-id> --route append` has save append the entry to that issue; `clear` refuses to drop an entry that shows no sign of being filed, unless `--force`
 - `status`: what `/strata:load` shows first
 - `views`, `check`, `save --prepare`: regenerate the views and the hot-rules block, validate budgets, frontmatter, ids and links, and run every mechanical save step with a report of what is left for judgment. `check --baseline` records the warnings a project already has, so later runs show only new ones
 - `due`: parked items and issues with a date in the next days

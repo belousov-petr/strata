@@ -168,6 +168,14 @@ Plugin release 0.2.0 changes no layout: projects stay on `layout_version: 3`. Ev
 
 Nothing to do for the inbox: benign exit codes are counted from now on, and benign stubs already in the inbox are read as benign ([ADR-0024](docs/decisions/ADR-0024-benign-exits-and-refusals.md)).
 
+## Plugin 0.3.0: no rung, a few adoption steps
+
+Plugin release 0.3.0 changes no layout: projects stay on `layout_version: 3`. In order:
+
+1. **Update.** Update the plugin and start a new session.
+
+Nothing to do for the journal. From now on `strata journal clear` refuses an entry that shows no sign of being filed, and `/strata:save` files it or passes `--force` on purpose ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
+
 ## Future rungs
 
 A later generation gets detected by `layout_version` alone (one file read), and its rung documents detect → transform → rollback in this same shape before anything ships. That is the standing rule, not an aspiration.

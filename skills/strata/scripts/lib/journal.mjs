@@ -5,8 +5,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
 import {
-  guard, inboxDir, ensureInboxDir, withLock, currentBranch, UsageError, plural,
+  guard, inboxDir, ensureInboxDir, withLock, currentBranch, inGit, UsageError, plural,
 } from './core.mjs'
+import { evidenceIndex, proveEntry } from './proof.mjs'
 
 export const KINDS = ['decision', 'answer', 'finding', 'gotcha', 'learning', 'requirement', 'direction', 'runbook', 'note']
 // `append`: /strata:save appends the entry to the issue named by its first ref
@@ -96,21 +97,37 @@ export function addEntry({ project, shared }, opts) {
 // Remove entries (all, or by id). Cleared entries go to journal.routed.jsonl
 // (last batch only) so a bad routing pass can be redone. Lines appended while
 // the clear runs are kept.
-export function clearEntries({ shared }, { ids, all } = {}) {
+//
+// Each selected entry must show that it was filed (ADR-0028): a `filed` path,
+// or its title's words in the uncommitted working tree. When one does not, the
+// clear refuses and changes nothing, unless `force`. Outside git the check is
+// skipped (`checked: false`).
+export function clearEntries({ project, shared }, { ids, all, force = false } = {}) {
   const { dir, file, routed, lock } = journalPaths(shared)
-  if (!fs.existsSync(file)) return { cleared: 0, kept: 0 }
-  ensureInboxDir(dir)
   const want = new Set([].concat(ids || []).flatMap((x) => String(x).split(',')).map((s) => s.trim()).filter(Boolean))
   if (!all && want.size === 0) throw new UsageError('strata journal clear: give --all or --id <id>')
+  const checked = inGit(project || shared)
+  const base = { cleared: 0, kept: 0, forced: 0, checked, unproven: [] }
+  if (!fs.existsSync(file)) return base
+  ensureInboxDir(dir)
+  const picked = (e) => all || want.has(e.id)
+  // Read the working tree before taking the lock: git can take a moment in a
+  // big repository, and captures must not wait on it.
+  const needTree = checked && readJournal(shared).some((e) => picked(e) && !e.filed)
+  const index = needTree ? evidenceIndex(project || shared) : null
   return withLock(lock, () => {
     const raw = fs.readFileSync(file, 'utf8')
     const entries = parseLines(raw)
     const cleared = []
     const keep = []
     for (const e of entries) {
-      if (all || want.has(e.id)) cleared.push(e)
+      if (picked(e)) cleared.push(e)
       else keep.push(e)
     }
+    const unproven = checked
+      ? cleared.filter((e) => !proveEntry(e, index).by).map((e) => ({ id: e.id, kind: e.kind, title: e.title }))
+      : []
+    if (unproven.length && !force) return { ...base, kept: entries.length, chosen: cleared.length, refused: true, unproven }
     if (cleared.length) fs.writeFileSync(routed, cleared.map((e) => JSON.stringify(e)).join('\n') + '\n')
     let body = keep.map((e) => JSON.stringify(e)).join('\n')
     if (body) body += '\n'
@@ -120,8 +137,25 @@ export function clearEntries({ shared }, { ids, all } = {}) {
     const tmp = `${file}.tmp-${process.pid}`
     fs.writeFileSync(tmp, body)
     fs.renameSync(tmp, file)
-    return { cleared: cleared.length, kept: keep.length }
+    return { ...base, cleared: cleared.length, kept: keep.length, chosen: cleared.length, forced: unproven.length, unproven }
   })
+}
+
+export function formatClear(res) {
+  const lines = []
+  if (!res.checked) lines.push('journal: not a git repository, so the check that each entry was filed is skipped.')
+  if (res.refused) {
+    lines.push(`journal: nothing cleared. ${res.unproven.length} of ${res.chosen} chosen ${res.chosen === 1 ? 'entry shows' : 'entries show'} no sign of being filed:`)
+    for (const e of res.unproven) lines.push(`- ${e.id} [${e.kind}] ${e.title}`)
+    lines.push('An entry counts as filed when it carries a filed path, or when at least half of its title words, and at least two, ' +
+      'appear in uncommitted changes under .strata/ or docs/. File each one into its store and clear again, or pass --force to clear them anyway.')
+    return lines.join('\n')
+  }
+  let line = `journal: cleared ${res.cleared}, ${res.kept} still pending.`
+  if (res.forced) line += ` ${res.forced === 1 ? '1 of them was' : `${res.forced} of them were`} cleared with --force although ${res.forced === 1 ? 'it showed' : 'they showed'} no sign of being filed.`
+  if (res.cleared) line += ' The cleared batch is kept in journal.routed.jsonl until the next clear.'
+  lines.push(line)
+  return lines.join('\n')
 }
 
 // Mark entries filed: `filed` maps entry id -> the file it landed in.

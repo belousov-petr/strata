@@ -2,6 +2,13 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
+## 0.3.0 (unreleased)
+
+**Saves that cannot lose a capture, and fewer chores by hand in a big project.** Found in a review of `/strata:save` on a large project on 11 Oct 2026. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-030-no-rung-a-few-adoption-steps).
+
+### Changed
+- **`strata journal clear` needs evidence.** Each chosen entry must carry a `filed` path, or at least half of its title words, and at least two, must appear in the uncommitted changes under `.strata/` or `docs/`. Otherwise the clear changes nothing, lists the unproven entries by id and title, and exits 1. `--force` clears anyway and counts the forced entries. Outside git the check is skipped with a warning ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
+
 ## 0.2.0 - 2026-10-10
 
 **Lessons that fire at the moment of the action, and saves that stay short in a big project.** Found over five days of heavy use on a large project: lessons on record that did not show up when they mattered, archive rows written to the wrong file, dozens of journal entries routed by hand, thirty parked triggers per save, an inbox full of `grep` exit codes, and 215 legacy warnings hiding new ones. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-020-no-rung-a-few-adoption-steps). Decisions: [ADR-0020](docs/decisions/ADR-0020-operation-triggered-lessons.md) to [ADR-0027](docs/decisions/ADR-0027-capture-rule-in-the-adapters.md).
