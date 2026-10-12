@@ -2,7 +2,7 @@
 
 Notable changes to strata. Releases are git tags on this repo; *layout generations* are `layout_version` stamps (a plain integer) in scaffolded manifests — renamed from `strata_version: 0.0.x` in 0.0.6, see [ADR-0013](docs/decisions/ADR-0013-layout-version-integer.md). When a release breaks the layout, its rung in [`MIGRATIONS.md`](MIGRATIONS.md) ships in the same release.
 
-## 0.3.0 (unreleased)
+## 0.3.0 - 2026-10-12
 
 **Saves that cannot lose a capture, and fewer chores by hand in a big project.** Found in a review of `/strata:save` on a large project on 11 Oct 2026. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-030-no-rung-a-few-adoption-steps).
 
