@@ -179,6 +179,8 @@ Plugin release 0.3.0 changes no layout: projects stay on `layout_version: 3`. In
    session_heading: '^(CURRENT|LAST COMPLETED)\b'
    ```
 
+**A slow first save commit.** The first save on a new strata version regenerates the hot-rules block in `CLAUDE.md` and `AGENTS.md` whenever that version renders the block differently. In a project whose commit gate runs a full test suite when those files change, that one save commit is slow. Later saves touch the block only when a hot rule changes.
+
 Nothing to do for the journal. From now on `strata journal clear` refuses an entry that shows no sign of being filed, and `/strata:save` files it or passes `--force` on purpose ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
 
 ## Future rungs

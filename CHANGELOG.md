@@ -14,6 +14,11 @@ Notable changes to strata. Releases are git tags on this repo; *layout generatio
 ### Changed
 - **`strata journal clear` needs evidence.** Each chosen entry must carry a `filed` path, or at least half of its title words, and at least two, must appear in the uncommitted changes under `.strata/` or `docs/`. Otherwise the clear changes nothing, lists the unproven entries by id and title, and exits 1. `--force` clears anyway and counts the forced entries. Outside git the check is skipped with a warning ([ADR-0028](docs/decisions/ADR-0028-journal-clear-needs-evidence.md)).
 
+### Upgrading
+- Update the plugin and start a new session. No migration is needed.
+- The first save on a new strata version regenerates the hot-rules block in `CLAUDE.md` and `AGENTS.md` whenever that version renders the block differently. In a project whose commit gate runs a full test suite when those files change, that one save commit is slow. Later saves touch the block only when a hot rule changes.
+- Optional: `session_heading:` in `MANIFEST.md` when `project_state.md` uses its own session headings.
+
 ## 0.2.0 - 2026-10-10
 
 **Lessons that fire at the moment of the action, and saves that stay short in a big project.** Found over five days of heavy use on a large project: lessons on record that did not show up when they mattered, archive rows written to the wrong file, dozens of journal entries routed by hand, thirty parked triggers per save, an inbox full of `grep` exit codes, and 215 legacy warnings hiding new ones. No memory-layout change: projects stay on `layout_version: 3` and need no migration rung. Adoption steps are in [`MIGRATIONS.md`](MIGRATIONS.md#plugin-020-no-rung-a-few-adoption-steps). Decisions: [ADR-0020](docs/decisions/ADR-0020-operation-triggered-lessons.md) to [ADR-0027](docs/decisions/ADR-0027-capture-rule-in-the-adapters.md).
