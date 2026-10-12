@@ -24,6 +24,7 @@ import { inboxSummary, formatInbox, clearInbox } from './lib/inbox.mjs'
 import { findIssue, readIssues } from './lib/model.mjs'
 import { datedLines, dueList, formatDue } from './lib/dates.mjs'
 import { writeTriggerIndex, buildTriggerIndex, matchLessons, formatLessons, pathForms, subjectOf } from './lib/triggers.mjs'
+import { versionCheck } from './lib/version.mjs'
 
 const HELP = `strata <subcommand> [options]     (every subcommand takes --root <dir>)
 
@@ -266,7 +267,9 @@ const commands = {
     const sum = inboxSummary(r.shared)
     const views = syncViews(r.project, { check: true })
     const stale = drifted(views)
+    const version = versionCheck()
     const lines = [journal.journalSummaryLine(entries), formatInbox(sum, { limit: 5 })]
+    if (version.warning) lines.unshift(`Warning: ${version.warning}`)
     const dated = datedLines(readIssues(r.project))
     lines.push(...dated.lines)
     lines.push(stale.length ? `Views: ${stale.length} differ from a fresh render (${stale.join(', ')}); /strata:save regenerates them.` : 'Views: current.')
@@ -292,6 +295,7 @@ const commands = {
         dueLater: dated.due.later.length,
       },
       setup: { missing: lines.filter((l) => l.startsWith('Setup:')) },
+      version,
     }, lines.join('\n'))
     return 0
   },

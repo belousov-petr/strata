@@ -58,6 +58,7 @@ Rules:
 | [ADR-0027](ADR-0027-capture-rule-in-the-adapters.md) | The capture rule opens the hot-rules block, so subagents capture to the journal too | implemented |
 | [ADR-0028](ADR-0028-journal-clear-needs-evidence.md) | `strata journal clear` refuses an entry that shows no sign of being filed, unless `--force` | implemented |
 | [ADR-0029](ADR-0029-session-heading-pattern.md) | `session_heading:` names a project's session headings, so save rolls them without `session N` | implemented |
+| [ADR-0030](ADR-0030-warn-on-newer-installed-version.md) | `strata status` and `save --prepare` warn when a newer strata is installed than the one running | implemented |
 
 ## Provenance
 

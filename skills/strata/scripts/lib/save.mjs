@@ -15,6 +15,7 @@ import { driftList, recordSaveMarker } from './drift.mjs'
 import { writePointers } from './pointer.mjs'
 import { datedLines } from './dates.mjs'
 import { sessionHeading } from './manifest.mjs'
+import { versionCheck } from './version.mjs'
 
 
 // --- 1. archive terminal issues ---------------------------------------------------
@@ -242,6 +243,8 @@ export function addArchiveRow(project, name, what) {
 export async function prepare(roots, { dryRun = false, ...opts } = {}) {
   const ctx = { dryRun, changed: [], judgment: [], info: {}, opts }
   const { project } = roots
+  // ADR-0030: a newer strata installed than the one running mixes versions.
+  ctx.version = versionCheck()
 
   appendJournalUpdates(roots, ctx)
   archiveIssues(project, ctx)
@@ -317,6 +320,7 @@ export async function prepare(roots, { dryRun = false, ...opts } = {}) {
 
 export function formatPrepare(ctx) {
   const lines = [`strata save --prepare${ctx.dryRun ? ' (dry run: nothing written)' : ''}`, '']
+  if (ctx.version && ctx.version.warning) lines.push(`Warning: ${ctx.version.warning}`, '')
   lines.push(ctx.dryRun ? 'Would change:' : 'Changed:')
   if (ctx.changed.length) for (const c of ctx.changed) lines.push(`- ${c}`)
   else lines.push('- nothing')

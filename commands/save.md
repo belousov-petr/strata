@@ -29,7 +29,7 @@ State the detected mode before proceeding.
 ### 2. Read what is pending
 
 - `strata journal list`: every pending capture. Each one is routed this save.
-- `strata save --prepare --dry-run`: the mechanical plan (journal entries it will append to their issues, archive moves, session rollover, regenerated views and hot-rules blocks), the inbox counts, repeated failures and steps refused for the agent, the drift list, parked items whose date has come or whose trigger is text, due dates, and check findings.
+- `strata save --prepare --dry-run`: the mechanical plan (journal entries it will append to their issues, archive moves, session rollover, regenerated views and hot-rules blocks), the inbox counts, repeated failures and steps refused for the agent, the drift list, parked items whose date has come or whose trigger is text, due dates, and check findings. If it opens with a warning that a newer strata is installed than the one this session runs, stop and ask the operator to start a new session before saving, so one save does not mix two versions.
 - `memory/MEMORY.md`, `memory/project_state.md`, `issues/ACTIVE.md`, plus any issue files touched this session. Do not bulk-read learnings, archives, or the whole backlog.
 
 ### 3. Inventory the session

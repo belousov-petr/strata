@@ -171,7 +171,7 @@ On demand only: `OPEN.md` by area · the specific issue being resumed · warm do
 
 **Verify against git** before presenting: `git status` (do listed uncommitted changes exist?), `git log --oneline -5` (commits since last session?), spot-check referenced paths and issue ids. State is a hint; the repo is truth; report conflicts, never silently absorb them.
 
-**Start with `strata status`**: pending journal captures, inbox counts by category with repeated failures, view drift, and a setup hint for projects initialized before 0.1.0.
+**Start with `strata status`**: pending journal captures, inbox counts by category with repeated failures, view drift, and a setup hint for projects initialized before 0.1.0. When a newer strata is installed than the one the session runs, its first line is a warning to start a new session before saving.
 
 **Present** ≤8 lines, pending captures first: pending captures · last session · next up (issue id) · active count · prerequisites · parked items whose date has come or whose text trigger fired, and overdue or due-today items · inbox counts (failures, repeated) and steps refused for the agent, to hand to the operator · drift. Then ask: continue or something else?
 
@@ -266,7 +266,7 @@ Next:
 | Subcommand | Does |
 |---|---|
 | `journal add / list / clear` | the pending-capture journal (§5, §5a); `add --refs <issue-id> --route append` has save append the entry to that issue; `clear` refuses while a chosen entry shows no sign of being filed, unless `--force` |
-| `status` | load-time summary: pending captures, inbox counts by category, repeated failures |
+| `status` | load-time summary: pending captures, inbox counts by category, repeated failures; a warning first when a newer strata is installed than the one running |
 | `where` | the project root, the shared root (main worktree), and the inbox path |
 | `inbox summary / clear` | hook inbox counts by category and repeated failures; clear after promotion (cursors kept) |
 | `views [--check]` | regenerate ACTIVE/OPEN/PARKED, `learnings/INDEX.md`, the MEMORY table and the hot-rules blocks, in a fixed order |
@@ -274,7 +274,7 @@ Next:
 | `check [--json] [--baseline \| --all]` | budgets, frontmatter vocabularies, unique ids, dates, trigger patterns, links, view drift; exit 1 on errors. `--baseline` records today's warnings so later runs show only new ones; `--all` ignores the baseline |
 | `due [--days N]` | parked `revive-on` and `due:` dates up to N days ahead (default 7), passed dates first |
 | `triggers [--command <c>] [--path <p>]` | rebuild the lesson-trigger index; with a command or path, show which lessons would fire (§4) |
-| `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment |
+| `save --prepare [--dry-run]` | the mechanical save steps (§6D), then a report of what changed and what needs judgment; the same version warning as `status` |
 | `setup [--dry-run]` | one-time, idempotent: inbox ignore file, `.gitattributes` block, local merge driver (a launcher in the clone's git folder that survives plugin updates), hot-rules block in existing adapters |
 | `hot-rules [--check] [--install]` | refresh the hot-rules block in `CLAUDE.md` / `AGENTS.md` (§4); `--install` appends it to adapters that lack it |
 | `new-issue --slug <s> [--title --type --severity --area --status --revive --revive-on --due] [--dry-run]` | today's next free issue id after scanning the tree, every worktree, recent branch tips and reservations; writes the file from `_TEMPLATE.md` |

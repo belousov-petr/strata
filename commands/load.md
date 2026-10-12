@@ -31,7 +31,7 @@ State the detected mode.
 2. `.strata/memory/MEMORY.md` — live pointers + rules-by-trigger table.
 3. `.strata/issues/ACTIVE.md` — what's in flight.
 4. `.strata/memory/project_state.md` — current + last completed session only.
-5. Run `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs" status` (Codex: `node <skill folder>/scripts/strata.mjs status`). Its first line is the number of pending captures in the journal; then the inbox counts. Do not bulk-read the journal or the inbox here; `/strata:save` routes them (skill §5a).
+5. Run `node "${CLAUDE_PLUGIN_ROOT}/skills/strata/scripts/strata.mjs" status` (Codex: `node <skill folder>/scripts/strata.mjs status`). Its first line is the number of pending captures in the journal; then the inbox counts. When a newer strata is installed than the one this session runs, a warning comes first. Pass it on and suggest a new session before the next save. Do not bulk-read the journal or the inbox here; `/strata:save` routes them (skill §5a).
 
 Stop early if the user's task is already clear. On demand only: `issues/OPEN.md` filtered by the task's area; the specific issue file being resumed; warm docs the task touches.
 
